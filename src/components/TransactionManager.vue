@@ -1,13 +1,15 @@
 <template>
   <div class="container">
     <header>
-      <h1>Transaction Scanner</h1>
+      <h1>ScanDy</h1>
       <p>Upload a receipt image to extract transaction data.</p>
     </header>
 
     <div class="upload-section">
-      <input type="file" @change="handleFileUpload" ref="fileInput" class="file-input">
-      <button @click="uploadImage" :disabled="!selectedFile || isLoading">
+      <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
+      <label for ="file-upload" class="file-upload-label"> Choose Image </label>
+      <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
+      <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="upload-button">
         {{ isLoading ? 'Processing...' : 'Upload and Scan' }}
       </button>
       <p v-if="message" class="message">{{ message }}</p>
@@ -89,17 +91,17 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 /* Blue Color Palette */
 :root {
   /* Palette 1: Corporate & Trustworthy */
-  --primary-color: #0d2c54;     /* Deep Navy - For headers and primary text */
-  --secondary-color: #1a5dab;   /* Professional Blue - For buttons and links */
-  --background-color: #f0f5fa;  /* Very Light Blue-Gray - For the main page background */
-  --card-background: #ffffff;   /* Pure White - For cards and panels */
-  --text-color: #344054;        /* Dark Gray - For body text */
+  --primary-color: #3b82f6;     /* Electric Blue - For headers and key actions */
+  --secondary-color: #60a5fa;   /* Bright Sky Blue - For secondary buttons and highlights */
+  --background-color: #f8fafc;  /* Light Gray - For the main page background */
+  --card-background: #ffffff;   /* Pure White - For cards */
+  --text-color: #374151;        /* Almost Black - For body text */
   --header-color: #ffffff;      /* Pure White - For text on dark backgrounds */
-  --border-color: #e4e7eb;      /* Light Gray - For borders and dividers */
+  --border-color: #e5e7eb;      /* Medium Gray - For borders */
 }
 
 .container {
@@ -134,13 +136,35 @@ header h1 {
   margin-bottom: 2rem;
 }
 
-.file-input {
-  display: block;
-  margin: 0 auto 1rem;
-  color: var(--text-color);
+.file-input-hidden {
+  display: none;
 }
 
-button {
+.file-upload-label {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: inline-block; /* Important for padding to work correctly */
+  transition: background-color 0.3s ease;
+  margin-bottom: 1rem;
+}
+
+.file-upload-label:hover {
+  background-color: var(--secondary-color);
+}
+
+.file-name {
+  display: block;
+  margin-bottom: 1.5rem;
+  color: #555;
+  font-style: italic;
+}
+
+.upload-button {
   background-color: var(--secondary-color);
   color: white;
   border: none;
@@ -149,14 +173,16 @@ button {
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s;
+  width: 100%;
+  max-width: 300px;
 }
 
-button:disabled {
+.upload-button:disabled {
   background-color: #a0b4c2;
   cursor: not-allowed;
 }
 
-button:hover:not(:disabled) {
+.upload-button:hover:not(:disabled) {
   background-color: var(--primary-color);
 }
 

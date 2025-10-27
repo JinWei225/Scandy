@@ -18,6 +18,6 @@ export default {
 <style>
 body {
   margin: 0;
-  background-color: #f0f4f8; /* A light blue-gray background */
+  background-color: #f0f5fa; /* A light blue-gray background */
 }
 </style>
