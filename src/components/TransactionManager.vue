@@ -47,7 +47,7 @@ export default {
   methods: {
     async fetchTransactions() {
       try {
-        const response = await axios.get('http://127.0.0.1:5000/api/transactions');
+        const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
         this.transactions = response.data;
       } catch (error) {
         console.error('Error fetching transactions:', error);
@@ -68,7 +68,7 @@ export default {
       formData.append('file', this.selectedFile);
 
       try {
-        await axios.post('http://127.0.0.1:5000/api/upload', formData, {
+        await axios.post('http://angs-mac-mini-1:5000/api/upload', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
