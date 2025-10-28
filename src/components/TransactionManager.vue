@@ -9,6 +9,10 @@
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
       <label for ="file-upload" class="file-upload-label"> Choose Image </label>
       <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
+      <div v-if="selectedFile" class="description-input-wrapper">
+        <label for="description">Description:</label>
+        <input type="text" v-model="description" id="description" placeholder="e.g. F2F Noodles" />
+      </div>
       <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="upload-button">
         {{ isLoading ? 'Processing...' : 'Upload and Scan' }}
       </button>
@@ -41,7 +45,8 @@ export default {
       selectedFile: null,
       transactions: [],
       isLoading: false,
-      message: ''
+      message: '',
+      description: ''
     };
   },
   methods: {
@@ -66,6 +71,7 @@ export default {
 
       const formData = new FormData();
       formData.append('file', this.selectedFile);
+      formData.append('description', this.description || 'Transaction');
 
       try {
         await axios.post('http://angs-mac-mini-1:5000/api/upload', formData, {
@@ -76,6 +82,7 @@ export default {
         this.message = 'File uploaded successfully!';
         this.selectedFile = null;
         this.$refs.fileInput.value = null; 
+        this.description = '';
         await this.fetchTransactions(); // Refresh the list
       } catch (error) {
         console.error('Error uploading file:', error);
@@ -239,5 +246,65 @@ li:last-child {
   text-align: right;
   font-weight: bold;
   color: var(--primary-color);
+}
+
+.description-input-wrapper {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.description-input-wrapper label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+}
+
+#description {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box; /* Ensures padding doesn't affect width */
+}
+
+#description:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 2px rgba(74, 122, 156, 0.3);
+}
+
+@media (max-width: 600px) {
+  .transactions-list li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .date, .description, .amount {
+    flex-basis: 100%;
+    text-align: left;
+    margin-bottom: 0.5rem;
+  }
+
+  .amount {
+    text-align: left;
+  }
+
+  .transactions-list .date,
+  .transactions-list .description,
+  .transactions-list .amount {
+    flex-basis: auto; /* Let each item take its natural width */
+    width: 100%;     /* Make them full-width within the list item */
+    text-align: left;  /* Left-align all text for consistency */
+  }
+
+  /* Make the amount stand out a bit more */
+  .transactions-list .amount {
+    margin-top: 8px; /* Add some extra space above the amount */
+    font-size: 1.1rem; /* Make the amount slightly bigger */
+  }
 }
 </style>
