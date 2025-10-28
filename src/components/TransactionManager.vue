@@ -25,10 +25,13 @@
         No transactions found.
       </div>
       <ul v-else>
-        <li v-for="(transaction, index) in transactions" :key="index">
-          <span class="date">{{ transaction.date }}</span>
-          <span class="description">{{ transaction.description }}</span>
-          <span class="amount">{{ transaction.amount }}</span>
+        <li v-for="transaction in transactions" :key="transaction.id">
+          <div class="transaction-info">
+            <span class="date">{{ transaction.date }}</span>
+            <span class="description">{{ transaction.description }}</span>
+            <span class="amount">{{ transaction.amount }}</span>
+          </div>
+          <button @click="deleteTransaction(transaction.id)" class="delete-btn">&times;</button>
         </li>
       </ul>
     </div>
@@ -90,7 +93,24 @@ export default {
       } finally {
         this.isLoading = false;
       }
-    }
+    },
+    async deleteTransaction(id) {
+      // Optional: Ask for confirmation
+      if (!confirm('Are you sure you want to delete this transaction?')) {
+        return;
+      }
+
+      try {
+        await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${id}`);
+        
+        // Refresh the list to show the change
+        await this.fetchTransactions();
+
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        this.message = 'Failed to delete transaction.';
+      }
+    },
   },
   mounted() {
     this.fetchTransactions();
@@ -224,12 +244,40 @@ ul {
 li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
 }
 
 li:last-child {
     border-bottom: none;
+}
+
+.transaction-info {
+  display: flex;
+  flex-direction: column; /* Stack text vertically by default */
+  flex-grow: 1; /* Allows this section to take up available space */
+  gap: 5px;
+}
+
+.delete-btn {
+  background-color: #ef4444; /* A nice red color */
+  color: white;
+  border: none;
+  border-radius: 50%; /* Makes it a circle */
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  line-height: 1; /* Helps center the 'X' */
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0; /* Prevents the button from shrinking */
+  margin-left: 1rem; /* Space between info and button */
+}
+
+.delete-btn:hover {
+  background-color: #dc2626; /* A darker red on hover */
 }
 
 .date {
@@ -276,35 +324,33 @@ li:last-child {
   box-shadow: 0 0 0 2px rgba(74, 122, 156, 0.3);
 }
 
+@media (min-width: 601px) {
+  .transaction-info {
+    flex-direction: row; /* Arrange text horizontally */
+    align-items: center;
+  }
+  .transaction-info .date { flex-basis: 25%; }
+  .transaction-info .description { flex-basis: 50%; }
+  .transaction-info .amount { flex-basis: 25%; text-align: right; }
+}
+
 @media (max-width: 600px) {
-  .transactions-list li {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
+  .transaction-info .date,
+  .transaction-info .description,
+  .transaction-info .amount {
+    display: block;
+    width: 100%;
   }
 
-  .date, .description, .amount {
-    flex-basis: 100%;
+  .transaction-info .description {
+    margin: 5px 0; /* Add some space before and after description */
+  }
+
+  .transaction-info .amount {
+    font-weight: bold;
+    margin-top: 8px; /* Add a bit more space before the amount */
+    font-size: 1.1rem;
     text-align: left;
-    margin-bottom: 0.5rem;
-  }
-
-  .amount {
-    text-align: left;
-  }
-
-  .transactions-list .date,
-  .transactions-list .description,
-  .transactions-list .amount {
-    flex-basis: auto; /* Let each item take its natural width */
-    width: 100%;     /* Make them full-width within the list item */
-    text-align: left;  /* Left-align all text for consistency */
-  }
-
-  /* Make the amount stand out a bit more */
-  .transactions-list .amount {
-    margin-top: 8px; /* Add some extra space above the amount */
-    font-size: 1.1rem; /* Make the amount slightly bigger */
   }
 }
 </style>
