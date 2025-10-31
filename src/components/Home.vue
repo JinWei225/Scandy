@@ -19,13 +19,37 @@
       <p v-if="message" class="message">{{ message }}</p>
     </div>
 
+    <div class="manual-entry-section">
+      <h2>Manual Entry</h2>
+      <form @submit.prevent="addManualTransaction">
+        <div class="form-group">
+          <label for="manual-date">Date</label>
+          <input type="date" id="manual-date" v-model="manualDate" required>
+        </div>
+        <div class="form-group">
+          <label for="manual-description">Description</label>
+          <input type="text" id="manual-description" v-model="manualDescription" placeholder="e.g., Coffee with client" required>
+        </div>
+        <div class="form-group">
+          <label for="manual-amount">Amount (RM)</label>
+          <input type="number" id="manual-amount" v-model="manualAmount" placeholder="15.50" step="0.01" required>
+        </div>
+        <button type="submit" :disabled="isLoading" class="submit-manual-button">
+          {{ isLoading ? 'Saving...' : 'Add Transaction' }}
+        </button>
+      </form>
+    </div>
+
     <div class="transactions-list">
-      <h2>Recorded Transactions</h2>
+      <h2>Recent Transactions</h2>
+      <div class="view-all-link">
+        <router-link to="/all">View All Transactions &rarr;</router-link>
+      </div>
       <div v-if="transactions.length === 0" class="no-transactions">
         No transactions found.
       </div>
       <ul v-else>
-        <li v-for="transaction in transactions" :key="transaction.id">
+        <li v-for="transaction in latestTransactions" :key="transaction.id">
           <div class="transaction-info">
             <span class="date">{{ transaction.date }}</span>
             <span class="description">{{ transaction.description }}</span>
@@ -42,15 +66,23 @@
 import axios from 'axios';
 
 export default {
-  name: 'TransactionManager',
+  name: 'HomePage',
   data() {
     return {
       selectedFile: null,
       transactions: [],
       isLoading: false,
       message: '',
-      description: ''
+      description: '',
+      manualDate: '',
+      manualDescription: '',
+      manualAmount: ''
     };
+  },
+  computed: {
+    latestTransactions() {
+      return this.transactions.slice(-5).reverse();
+    }
   },
   methods: {
     async fetchTransactions() {
@@ -111,6 +143,46 @@ export default {
         this.message = 'Failed to delete transaction.';
       }
     },
+    async addManualTransaction() {
+      // Basic validation
+      if (!this.manualDate || !this.manualDescription || !this.manualAmount) {
+        this.message = 'Please fill out all manual entry fields.';
+        return;
+      }
+
+      this.isLoading = true;
+      this.message = 'Saving transaction...';
+
+      // The date input gives YYYY-MM-DD, but we store DD/MM/YYYY. Let's format it.
+      const formattedDate = this.manualDate.split('-').reverse().join('/');
+
+      const newTransaction = {
+        date: formattedDate,
+        description: this.manualDescription,
+        amount: this.manualAmount,
+      };
+
+      try {
+        // We'll create this new API endpoint in the backend steps
+        await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', newTransaction);
+
+        this.message = 'Transaction added successfully!';
+        
+        // Clear the form fields
+        this.manualDate = '';
+        this.manualDescription = '';
+        this.manualAmount = null;
+
+        // Refresh the latest transactions list
+        await this.fetchTransactions();
+
+      } catch (error) {
+        console.error('Error adding manual transaction:', error);
+        this.message = 'Failed to add transaction.';
+      } finally {
+        this.isLoading = false;
+      }
+    }
   },
   mounted() {
     this.fetchTransactions();
@@ -218,6 +290,75 @@ header h1 {
   color: var(--primary-color);
 }
 
+.manual-entry-section {
+  background-color: var(--card-background);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.manual-entry-section h2 {
+  text-align: center;
+  margin-top: 0;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.submit-manual-button {
+  /* Re-use styles from the upload button for consistency */
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.submit-manual-button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+}
+
+.view-all-link {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.view-all-link a {
+  font-weight: bold;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.view-all-link a:hover {
+  color: var(--secondary-color);
+}
+
 .transactions-list {
     background-color: var(--card-background);
     padding: 2rem;
@@ -227,7 +368,8 @@ header h1 {
 
 .transactions-list h2 {
   text-align: center;
-  margin-top: 0;
+  padding: 1rem 0 0 0;
+  margin-top: 10px;
   color: var(--primary-color);
 }
 
@@ -273,7 +415,8 @@ li:last-child {
   cursor: pointer;
   transition: background-color 0.2s;
   flex-shrink: 0; /* Prevents the button from shrinking */
-  margin-left: 1rem; /* Space between info and button */
+  margin-left: 2rem; /* Space between info and button */
+  margin-right: 0.5rem;
 }
 
 .delete-btn:hover {
@@ -294,6 +437,7 @@ li:last-child {
   text-align: right;
   font-weight: bold;
   color: var(--primary-color);
+  margin-right: 1rem;
 }
 
 .description-input-wrapper {
@@ -329,7 +473,7 @@ li:last-child {
     flex-direction: row; /* Arrange text horizontally */
     align-items: center;
   }
-  .transaction-info .date { flex-basis: 25%; }
+  .transaction-info .date { flex-basis: 25%; margin-left: 1rem;}
   .transaction-info .description { flex-basis: 50%; }
   .transaction-info .amount { flex-basis: 25%; text-align: right; }
 }
@@ -340,6 +484,7 @@ li:last-child {
   .transaction-info .amount {
     display: block;
     width: 100%;
+    padding: 0 5%;
   }
 
   .transaction-info .description {

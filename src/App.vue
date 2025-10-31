@@ -1,23 +1,19 @@
 <template>
   <div id="app">
-    <TransactionManager />
+    <router-view />
   </div>
 </template>
 
 <script>
-import TransactionManager from './components/TransactionManager.vue'
 
 export default {
-  name: 'App',
-  components: {
-    TransactionManager
-  }
+  name: 'App'
 }
 </script>
 
 <style>
 body {
   margin: 0;
-  background-color: #f0f5fa; /* A light blue-gray background */
+  background-color: #f8fafc; 
 }
 </style>
