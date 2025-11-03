@@ -1,11 +1,7 @@
 <template>
   <div class="container">
-    <header>
-      <h1>ScanDy</h1>
-      <p>Upload a receipt image to extract transaction data.</p>
-    </header>
-
     <div class="upload-section">
+      <h2>Upload Transaction Records</h2>
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
       <label for ="file-upload" class="file-upload-label"> Choose Image </label>
       <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
@@ -55,18 +51,36 @@
             <span class="description">{{ transaction.description }}</span>
             <span class="amount">{{ transaction.amount }}</span>
           </div>
-          <button @click="deleteTransaction(transaction.id)" class="delete-btn">&times;</button>
+          <div class="action-buttons">
+            <button @click="openEditModal(transaction)" class="edit-btn" aria-label="Edit Transaction">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+            <button @click="deleteTransaction(transaction.id)" class="delete-btn">&times;</button>
+          </div>
         </li>
       </ul>
     </div>
   </div>
+  <EditModal 
+    v-if="isModalVisible" 
+    :transaction="transactionToEdit"
+    @close="isModalVisible = false"
+    @save="handleSaveTransaction"
+  />
 </template>
 
 <script>
 import axios from 'axios';
+import EditModal from './EditModal.vue';
 
 export default {
   name: 'HomePage',
+  components: {
+    EditModal,
+  },
   data() {
     return {
       selectedFile: null,
@@ -76,12 +90,14 @@ export default {
       description: '',
       manualDate: '',
       manualDescription: '',
-      manualAmount: ''
+      manualAmount: '',
+      isModalVisible: false,
+      transactionToEdit: null,
     };
   },
   computed: {
     latestTransactions() {
-      return this.transactions.slice(-5).reverse();
+      return this.transactions.slice(0, 5);
     }
   },
   methods: {
@@ -182,7 +198,23 @@ export default {
       } finally {
         this.isLoading = false;
       }
-    }
+    },
+    openEditModal(transaction) {
+      this.transactionToEdit = transaction;
+      this.isModalVisible = true;
+    },
+
+    async handleSaveTransaction(updatedTransaction) {
+      try {
+        await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
+        this.isModalVisible = false;
+        this.transactionToEdit = null;
+        await this.fetchTransactions(); // Refresh the list
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+        alert('Failed to update transaction.');
+      }
+    },
   },
   mounted() {
     this.fetchTransactions();
@@ -190,19 +222,7 @@ export default {
 }
 </script>
 
-<style>
-/* Blue Color Palette */
-:root {
-  /* Palette 1: Corporate & Trustworthy */
-  --primary-color: #3b82f6;     /* Electric Blue - For headers and key actions */
-  --secondary-color: #60a5fa;   /* Bright Sky Blue - For secondary buttons and highlights */
-  --background-color: #f8fafc;  /* Light Gray - For the main page background */
-  --card-background: #ffffff;   /* Pure White - For cards */
-  --text-color: #374151;        /* Almost Black - For body text */
-  --header-color: #ffffff;      /* Pure White - For text on dark backgrounds */
-  --border-color: #e5e7eb;      /* Medium Gray - For borders */
-}
-
+<style scoped>
 .container {
   max-width: 800px;
   margin: 0 auto;
@@ -233,6 +253,12 @@ header h1 {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
   margin-bottom: 2rem;
+}
+
+.upload-section h2 {
+  margin-top: 0;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
 }
 
 .file-input-hidden {
@@ -387,7 +413,7 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -402,6 +428,29 @@ li:last-child {
   gap: 5px;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+.edit-btn {
+  background-color: var(--primary-color);
+  border: none;
+  color: white; /* The SVG icon will inherit this color */
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+
+}
+.edit-btn:hover {
+  background-color: var(--secondary-color);
+}
+
 .delete-btn {
   background-color: #ef4444; /* A nice red color */
   color: white;
@@ -411,11 +460,11 @@ li:last-child {
   height: 28px;
   font-size: 1.2rem;
   font-weight: bold;
-  line-height: 1; /* Helps center the 'X' */
+  line-height: 0.5; /* Helps center the 'X' */
   cursor: pointer;
   transition: background-color 0.2s;
   flex-shrink: 0; /* Prevents the button from shrinking */
-  margin-left: 2rem; /* Space between info and button */
+  margin-left: 0.5rem; /* Space between info and button */
   margin-right: 0.5rem;
 }
 
@@ -484,7 +533,6 @@ li:last-child {
   .transaction-info .amount {
     display: block;
     width: 100%;
-    padding: 0 5%;
   }
 
   .transaction-info .description {
