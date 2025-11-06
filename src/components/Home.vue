@@ -3,12 +3,9 @@
     <div class="upload-section">
       <h2>Upload Transaction Records</h2>
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
-      <label for ="file-upload" class="file-upload-label"> Choose Image </label>
+      <label for="file-upload" class="file-upload-label"> Choose Image </label>
       <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
-      <div v-if="selectedFile" class="description-input-wrapper">
-        <label for="description">Description:</label>
-        <input type="text" v-model="description" id="description" placeholder="e.g. F2F Noodles" />
-      </div>
+
       <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="upload-button">
         {{ isLoading ? 'Processing...' : 'Upload and Scan' }}
       </button>
@@ -25,6 +22,14 @@
         <div class="form-group">
           <label for="manual-description">Description</label>
           <input type="text" id="manual-description" v-model="manualDescription" placeholder="e.g., Coffee with client" required>
+        </div>
+        <div class="form-group">
+          <label for="manual-category">Category</label>
+          <select id="manual-category" v-model="manualCategory" required>
+            <option v-for="category in categories" :key="category" :value="category">
+              {{ category }}
+            </option>
+          </select>
         </div>
         <div class="form-group">
           <label for="manual-amount">Amount (RM)</label>
@@ -47,9 +52,15 @@
       <ul v-else>
         <li v-for="transaction in latestTransactions" :key="transaction.id">
           <div class="transaction-info">
-            <span class="date">{{ transaction.date }}</span>
-            <span class="description">{{ transaction.description }}</span>
-            <span class="amount">{{ transaction.amount }}</span>
+            <div class="details">
+                <span class="date">{{ transaction.date }}</span>
+                <span class="description">{{ transaction.description }}</span>
+            </div>
+            <div class="category-and-amount">
+                <!-- Display the category if it exists -->
+                <span v-if="transaction.category" class="category-pill">{{ transaction.category }}</span>
+                <span class="amount">{{ transaction.amount }}</span>
+            </div>
           </div>
           <div class="action-buttons">
             <button @click="openEditModal(transaction)" class="edit-btn" aria-label="Edit Transaction">
@@ -64,9 +75,19 @@
       </ul>
     </div>
   </div>
+
+  <ConfirmationModal
+    v-if="isConfirmationModalVisible"
+    :scannedData="scannedData"
+    :categories="categories"
+    @close="isConfirmationModalVisible = false"
+    @save="handleSaveConfirmation"
+  />
+
   <EditModal 
     v-if="isModalVisible" 
     :transaction="transactionToEdit"
+    :categories="categories"
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
@@ -75,11 +96,13 @@
 <script>
 import axios from 'axios';
 import EditModal from './EditModal.vue';
+import ConfirmationModal from './ConfirmationModal.vue';
 
 export default {
   name: 'HomePage',
   components: {
     EditModal,
+    ConfirmationModal,
   },
   data() {
     return {
@@ -87,10 +110,13 @@ export default {
       transactions: [],
       isLoading: false,
       message: '',
-      description: '',
+      categories: [],
       manualDate: '',
       manualDescription: '',
       manualAmount: '',
+      manualCategory: 'Uncategorized',
+      scannedData: null,
+      isConfirmationModalVisible: false,
       isModalVisible: false,
       transactionToEdit: null,
     };
@@ -101,6 +127,14 @@ export default {
     }
   },
   methods: {
+    async fetchCategories() {
+      try {
+        const response = await axios.get('http://angs-mac-mini-1:5000/api/categories');
+        this.categories = response.data;
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    },
     async fetchTransactions() {
       try {
         const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
@@ -118,28 +152,56 @@ export default {
       if (!this.selectedFile) return;
 
       this.isLoading = true;
-      this.message = 'Uploading and processing...';
+      this.message = 'Scanning image...';
 
       const formData = new FormData();
       formData.append('file', this.selectedFile);
-      formData.append('description', this.description || 'Transaction');
 
       try {
-        await axios.post('http://angs-mac-mini-1:5000/api/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-        this.message = 'File uploaded successfully!';
-        this.selectedFile = null;
-        this.$refs.fileInput.value = null; 
-        this.description = '';
-        await this.fetchTransactions(); // Refresh the list
+        const response = await axios.post('http://angs-mac-mini-1:5000/api/upload', formData);
+        this.message = 'Scan successful! Please verify the data.';
+        const dateParts = response.data.date.split('/');
+        const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        const numericAmount = parseFloat(response.data.amount.replace('RM', '').trim());
+        this.scannedData = {
+          date: formattedDate,
+          amount: numericAmount,
+          category: 'Uncategorized' // Default category
+        };
+        this.isConfirmationModalVisible = true;
+        this.message = '';
       } catch (error) {
-        console.error('Error uploading file:', error);
-        this.message = 'Error uploading file. Please try again.';
+        console.error('Error scanning file:', error);
+        this.message = error.response?.data?.error || 'Error scanning file. Please try again.';
+        // Clear the state if scanning fails
+        this.selectedFile = null;
+        this.$refs.fileInput.value = null;
+        this.description = '';
       } finally {
         this.isLoading = false;
+      }
+    },
+    async handleSaveConfirmation(transactionPayload) {
+      this.isLoading = true;
+      this.message = 'Saving transaction...';
+
+      try {
+        // We REUSE the manual entry endpoint!
+        await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', transactionPayload);
+
+        this.message = 'Transaction saved successfully!';
+        await this.fetchTransactions(); // Refresh the list
+
+      } catch (error) {
+        console.error('Error saving transaction:', error);
+        this.message = 'Failed to save transaction.';
+      } finally {
+        this.isLoading = false;
+        this.isConfirmationModalVisible = false;
+        this.selectedFile = null;
+        if (this.$refs.fileInput) {
+          this.$refs.fileInput.value = null;
+        }
       }
     },
     async deleteTransaction(id) {
@@ -161,7 +223,7 @@ export default {
     },
     async addManualTransaction() {
       // Basic validation
-      if (!this.manualDate || !this.manualDescription || !this.manualAmount) {
+      if (!this.manualDate || !this.manualDescription || !this.manualAmount || !this.manualCategory) {
         this.message = 'Please fill out all manual entry fields.';
         return;
       }
@@ -176,6 +238,7 @@ export default {
         date: formattedDate,
         description: this.manualDescription,
         amount: this.manualAmount,
+        category: this.manualCategory,
       };
 
       try {
@@ -188,6 +251,7 @@ export default {
         this.manualDate = '';
         this.manualDescription = '';
         this.manualAmount = null;
+        this.manualCategory = 'Uncategorized';
 
         // Refresh the latest transactions list
         await this.fetchTransactions();
@@ -217,6 +281,7 @@ export default {
     },
   },
   mounted() {
+    this.fetchCategories();
     this.fetchTransactions();
   }
 }
@@ -228,22 +293,6 @@ export default {
   margin: 0 auto;
   padding: 2rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--background-color);
-  color: var(--text-color);
-}
-
-header {
-  background-color: var(--primary-color);
-  color: var(--header-color);
-  padding: 1.5rem;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-header h1 {
-  margin: 0;
-  font-size: 2rem;
 }
 
 .upload-section {
@@ -316,6 +365,55 @@ header h1 {
   color: var(--primary-color);
 }
 
+.confirmation-form {
+  text-align: left;
+}
+
+.confirmation-form h2 {
+  text-align: center;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.message-info {
+  text-align: center;
+  color: var(--subtle-text-color);
+  margin-bottom: 2rem;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.confirmation-actions button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+.save-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+.save-btn:hover {
+  background-color: var(--secondary-color);
+}
+
+.cancel-btn {
+  background-color: var(--border-color);
+  color: var(--text-color);
+}
+.cancel-btn:hover {
+  background-color: #d1d5db; /* A slightly darker gray for hover */
+}
+
 .manual-entry-section {
   background-color: var(--card-background);
   padding: 2rem;
@@ -349,6 +447,17 @@ header h1 {
   border-radius: 5px;
   font-size: 1rem;
   box-sizing: border-box;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  background-color: var(--card-background); /* For theme consistency */
+  color: var(--text-color); /* For theme consistency */
 }
 
 .submit-manual-button {
@@ -386,10 +495,12 @@ header h1 {
 }
 
 .transactions-list {
-    background-color: var(--card-background);
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background-color: var(--card-background);
+  padding: 0 1.5rem; /* Add horizontal padding */
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style: none; /* Remove default bullet points */
+  margin-top: 2rem;
 }
 
 .transactions-list h2 {
@@ -399,9 +510,11 @@ header h1 {
   color: var(--primary-color);
 }
 
-.no-transactions {
+.no-transactions,
+.no-transactions-period {
   text-align: center;
-  color: #777;
+  color: var(--subtle-text-color);
+  padding: 2rem;
 }
 
 ul {
@@ -413,30 +526,73 @@ li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
+  padding: 1.25rem 0;
   border-bottom: 1px solid var(--border-color);
 }
 
 li:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .transaction-info {
   display: flex;
   flex-direction: column; /* Stack text vertically by default */
   flex-grow: 1; /* Allows this section to take up available space */
-  gap: 5px;
+  gap: 8px;
+  margin-right: 1rem;
+}
+
+.transaction-info .details {
+  display: flex;
+  flex-direction: column; /* Date and description will stack in mobile */
+}
+
+.transaction-info .date {
+  color: var(--subtle-text-color);
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.transaction-info .description {
+  color: var(--text-color);
+  font-weight: 600; /* Make description stand out */
+  font-size: 1rem;
+}
+
+.transaction-info .category-and-amount {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transaction-info .amount {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  white-space: nowrap; /* Prevent amount from wrapping */
+  text-align: right;
+  margin-right: 5px;
+}
+
+.category-pill {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
-  margin-left: 1rem;
+  flex-direction: column;
 }
 .edit-btn {
   background-color: var(--primary-color);
   border: none;
-  color: white; /* The SVG icon will inherit this color */
+  color: white;
   border-radius: 50%;
   width: 28px;
   height: 28px;
@@ -445,48 +601,28 @@ li:last-child {
   justify-content: center;
   align-items: center;
   transition: background-color 0.2s;
-
 }
 .edit-btn:hover {
   background-color: var(--secondary-color);
 }
 
 .delete-btn {
-  background-color: #ef4444; /* A nice red color */
+  background-color: #ef4444;
   color: white;
   border: none;
-  border-radius: 50%; /* Makes it a circle */
+  border-radius: 50%;
   width: 28px;
   height: 28px;
   font-size: 1.2rem;
   font-weight: bold;
-  line-height: 0.5; /* Helps center the 'X' */
+  line-height: 1;
   cursor: pointer;
   transition: background-color 0.2s;
-  flex-shrink: 0; /* Prevents the button from shrinking */
-  margin-left: 0.5rem; /* Space between info and button */
-  margin-right: 0.5rem;
+  margin: 0.5rem 0 0 0;
 }
 
 .delete-btn:hover {
   background-color: #dc2626; /* A darker red on hover */
-}
-
-.date {
-  flex-basis: 25%;
-  color: #555;
-}
-
-.description {
-  flex-basis: 50%;
-}
-
-.amount {
-  flex-basis: 25%;
-  text-align: right;
-  font-weight: bold;
-  color: var(--primary-color);
-  margin-right: 1rem;
 }
 
 .description-input-wrapper {
@@ -519,31 +655,24 @@ li:last-child {
 
 @media (min-width: 601px) {
   .transaction-info {
-    flex-direction: row; /* Arrange text horizontally */
+    flex-direction: row;
     align-items: center;
   }
-  .transaction-info .date { flex-basis: 25%; margin-left: 1rem;}
-  .transaction-info .description { flex-basis: 50%; }
-  .transaction-info .amount { flex-basis: 25%; text-align: right; }
+
+  .transaction-info .details {
+    flex-basis: 65%;
+    flex-direction: row; /* Make date and description side-by-side */
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .transaction-info .category-and-amount {
+    flex-basis: 35%;
+  }
+
+  .transaction-info .date { flex-basis: 120px; margin-bottom: 0;}
+  .transaction-info .description { flex-grow: 1; }
+  .transaction-info .amount { margin: 0; }
 }
 
-@media (max-width: 600px) {
-  .transaction-info .date,
-  .transaction-info .description,
-  .transaction-info .amount {
-    display: block;
-    width: 100%;
-  }
-
-  .transaction-info .description {
-    margin: 5px 0; /* Add some space before and after description */
-  }
-
-  .transaction-info .amount {
-    font-weight: bold;
-    margin-top: 8px; /* Add a bit more space before the amount */
-    font-size: 1.1rem;
-    text-align: left;
-  }
-}
 </style>

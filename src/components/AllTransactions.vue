@@ -47,9 +47,7 @@
           <button @click="setBudget">Set Budget</button>
         </div>
       </div>
-
     </div>
-
     <div v-if="transactions.length > 0">
       <ul class="transactions-list">
         <!-- Display message if no transactions match the filter -->
@@ -59,9 +57,14 @@
         <!-- Loop through only the filtered transactions -->
         <li v-else v-for="transaction in filteredTransactions" :key="transaction.id">
           <div class="transaction-info">
-            <span class="date">{{ transaction.date }}</span>
-            <span class="description">{{ transaction.description }}</span>
-            <span class="amount">{{ transaction.amount }}</span>
+            <div class="details">
+                <span class="date">{{ transaction.date }}</span>
+                <span class="description">{{ transaction.description }}</span>
+            </div>
+            <div class="category-and-amount">
+                <span class="category-pill">{{ transaction.category }}</span>
+                <span class="amount">{{ transaction.amount }}</span>
+            </div>
           </div>
           <div class="action-buttons">
             <button @click="openEditModal(transaction)" class="edit-btn" aria-label="Edit Transaction">
@@ -83,6 +86,7 @@
   <EditModal 
     v-if="isModalVisible" 
     :transaction="transactionToEdit"
+    :categories="categories"
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
@@ -100,6 +104,7 @@ export default {
   data() {
     return {
       transactions: [],
+      categories: [],
       selectedYear: null,
       selectedMonth: null,
       currentBudget: null,
@@ -181,27 +186,17 @@ export default {
           status: 'negative', // For red color
         };
       }
-    }
-  },
-  watch: {
-    selectedYear(newYear) {
-      if (newYear) {
-        this.$nextTick(() => {
-          if (this.availableMonths.length > 0) {
-            this.selectedMonth = this.availableMonths[this.availableMonths.length - 1];
-          } else {
-            this.selectedMonth = null;
-          }
-        });
-      }
     },
-    selectedMonth(newMonth) {
-      if (newMonth) {
-        this.fetchBudget();
-      }
-    }
   },
   methods: {
+    async fetchCategories() {
+      try {
+        const response = await axios.get('http://angs-mac-mini-1:5000/api/categories');
+        this.categories = response.data;
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    },
     async fetchTransactions() {
       try {
         const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
@@ -274,7 +269,6 @@ export default {
       this.transactionToEdit = transaction;
       this.isModalVisible = true;
     },
-
     async handleSaveTransaction(updatedTransaction) {
       try {
         await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
@@ -289,7 +283,25 @@ export default {
   },
   mounted() {
     this.fetchTransactions();
-  }
+  },
+  watch: {
+    selectedYear(newYear) {
+      if (newYear) {
+        this.$nextTick(() => {
+          if (this.availableMonths.length > 0) {
+            this.selectedMonth = this.availableMonths[this.availableMonths.length - 1];
+          } else {
+            this.selectedMonth = null;
+          }
+        });
+      }
+    },
+    selectedMonth(newMonth) {
+      if (newMonth) {
+        this.fetchBudget();
+      }
+    },
+  },
 }
 </script>
 
@@ -297,16 +309,8 @@ export default {
 .container { 
     max-width: 800px; 
     margin: 0 auto; 
-    padding: 2rem; 
-}
-
-header { 
-    background-color: var(--primary-color); 
-    color: var(--header-color); 
-    padding: 1.5rem; 
-    border-radius: 8px; 
-    text-align: center; 
-    margin-bottom: 2rem; 
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 h1 { 
@@ -459,6 +463,22 @@ h1 {
   cursor: pointer;
 }
 
+.chart-section {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-container {
+  position: relative;
+  /* You can adjust the height as you like */
+  height: 350px;
+  max-width: 600px;
+  margin: 0 auto; /* Center the chart */
+}
+
 .transactions-list { 
     background-color: var(--card-background); 
     border-radius: 8px; 
@@ -478,88 +498,151 @@ li:last-child {
     border-bottom: none; 
 }
 
-.transaction-info { 
-    flex-grow: 1; 
+.transaction-info {
+  display: flex;
+  flex-direction: column; /* Stack text vertically by default */
+  flex-grow: 1; /* Allows this section to take up available space */
+  gap: 8px;
+  margin-right: 1rem;
+}
+
+.transaction-info .details {
+  display: flex;
+  flex-direction: column; /* Date and description will stack in mobile */
+}
+
+.transaction-info .date {
+  color: var(--subtle-text-color);
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.transaction-info .description {
+  color: var(--text-color);
+  font-weight: 600; /* Make description stand out */
+  font-size: 1rem;
+}
+
+.transaction-info .category-and-amount {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transaction-info .amount {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--primary-color);
+  white-space: nowrap; /* Prevent amount from wrapping */
+  text-align: right;
+  margin-right: 1rem;
+}
+
+.category-pill {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .action-buttons {
   display: flex;
-  gap: 0.5rem;
-  margin-left: 1rem;
+  flex-direction: column;
 }
 .edit-btn {
-  /* Make it a circle, just like the delete button */
   background-color: var(--primary-color);
   border: none;
-  color: white; /* The SVG icon will inherit this color */
+  color: white;
   border-radius: 50%;
   width: 28px;
   height: 28px;
   cursor: pointer;
-  
-  /* Use flexbox to perfectly center the icon inside */
   display: flex;
   justify-content: center;
   align-items: center;
-
   transition: background-color 0.2s;
 }
-
 .edit-btn:hover {
   background-color: var(--secondary-color);
 }
 
-.delete-btn { 
-    background-color: #ef4444; 
-    color: white; 
-    border: none; 
-    border-radius: 50%; 
-    width: 28px; 
-    height: 28px; 
-    font-size: 1.2rem; 
-    font-weight: bold; 
-    line-height: 1; 
-    cursor: pointer; 
-    transition: background-color 0.2s; 
-    flex-shrink: 0; 
-    margin-left: 1rem; 
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin: 0.75rem 0 0 0;
 }
 
-.delete-btn:hover { 
-    background-color: #dc2626; 
+.delete-btn:hover {
+  background-color: #dc2626; /* A darker red on hover */
 }
 
-/* Re-use your mobile and desktop media queries here for the transaction-info spans */
+.transaction-info { 
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: 8px;
+}
+
+.transaction-info .details {
+  /* This will hold date and description */
+  display: flex;
+  flex-direction: column;
+}
+
+.transaction-info .category-and-amount {
+  display: flex;
+  justify-content: space-between; /* Pushes category left and amount right */
+  align-items: center;
+}
+
+.category-pill {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap; /* Prevent breaking into two lines */
+}
+
 @media (min-width: 601px) {
-  .transaction-info { 
-    display: flex; 
-    flex-direction: row; 
-    align-items: center; 
+  .transaction-info {
+    flex-direction: row; /* Side-by-side on desktop */
+    align-items: center;
+    justify-content: space-between;
   }
-  .transaction-info .date { flex-basis: 25%; }
-  .transaction-info .description { flex-basis: 50%; }
-  .transaction-info .amount { flex-basis: 25%; text-align: right; font-weight: bold; color: var(--primary-color); }
-  .select-wrapper {
-    width: auto;
+
+  .transaction-info .details {
+    flex-basis: 60%; /* Take up more space */
+    flex-direction: row;
+    gap: 1rem;
+    align-items: center;
   }
+  
+  .transaction-info .category-and-amount {
+    flex-basis: 40%;
+  }
+
+  /* Override the old flex-basis for these items */
+  .transaction-info .date { flex-basis: auto; }
+  .transaction-info .description { flex-basis: auto; }
+  .transaction-info .amount { flex-basis: auto; }
 }
 
 @media (max-width: 600px) {
-  .transaction-info .date, 
-  .transaction-info .description, 
-  .transaction-info .amount { 
-    display: block; 
-    width: 100%; 
-  }
-
-  .transaction-info .description { margin: 5px 0; }
-  .transaction-info .amount { 
-    font-weight: bold; 
-    margin-top: 8px; 
-    font-size: 1.1rem; 
-    color: var(--primary-color); 
-  }
-
   .top-panel {
     flex-direction: column; /* Stack filters and summary vertically */
     gap: 1.5rem;
