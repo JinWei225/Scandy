@@ -94,9 +94,11 @@
 </template>
 
 <script>
+import { ref, computed, onMounted } from 'vue';
+import { useTransactions } from '../composables/useTransactions';
+import EditModal from '../components/EditModal.vue';
+import ConfirmationModal from '../components/ConfirmationModal.vue';
 import axios from 'axios';
-import EditModal from './EditModal.vue';
-import ConfirmationModal from './ConfirmationModal.vue';
 
 export default {
   name: 'HomePage',
@@ -104,185 +106,165 @@ export default {
     EditModal,
     ConfirmationModal,
   },
-  data() {
-    return {
-      selectedFile: null,
-      transactions: [],
-      isLoading: false,
-      message: '',
-      categories: [],
-      manualDate: '',
-      manualDescription: '',
-      manualAmount: '',
-      manualCategory: 'Uncategorized',
-      scannedData: null,
-      isConfirmationModalVisible: false,
-      isModalVisible: false,
-      transactionToEdit: null,
+  setup() {
+    // --- COMPOSABLE ---
+    const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
+
+    // --- STATE ---
+    const selectedFile = ref(null);
+    const isLoading = ref(false);
+    const message = ref('');
+    const manualDate = ref('');
+    const manualDescription = ref('');
+    const manualAmount = ref(null);
+    const manualCategory = ref('Uncategorized');
+    const scannedData = ref(null);
+    const isConfirmationModalVisible = ref(false);
+    const isModalVisible = ref(false);
+    const transactionToEdit = ref(null);
+    const fileInput = ref(null); // To reference the file input element
+
+    // --- COMPUTED ---
+    const latestTransactions = computed(() => {
+      // The transactions array is now reactive from the composable
+      return transactions.value.slice(0, 5);
+    });
+
+    // --- METHODS ---
+    const handleFileUpload = (event) => {
+      selectedFile.value = event.target.files[0];
+      message.value = '';
     };
-  },
-  computed: {
-    latestTransactions() {
-      return this.transactions.slice(0, 5);
-    }
-  },
-  methods: {
-    async fetchCategories() {
-      try {
-        const response = await axios.get('http://angs-mac-mini-1:5000/api/categories');
-        this.categories = response.data;
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    },
-    async fetchTransactions() {
-      try {
-        const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
-        this.transactions = response.data;
-      } catch (error) {
-        console.error('Error fetching transactions:', error);
-        this.message = 'Error fetching transactions.';
-      }
-    },
-    handleFileUpload(event) {
-      this.selectedFile = event.target.files[0];
-      this.message = '';
-    },
-    async uploadImage() {
-      if (!this.selectedFile) return;
 
-      this.isLoading = true;
-      this.message = 'Scanning image...';
-
+    const uploadImage = async () => {
+      if (!selectedFile.value) return;
+      isLoading.value = true;
+      message.value = 'Scanning...';
       const formData = new FormData();
-      formData.append('file', this.selectedFile);
-
+      formData.append('file', selectedFile.value);
       try {
         const response = await axios.post('http://angs-mac-mini-1:5000/api/upload', formData);
-        this.message = 'Scan successful! Please verify the data.';
         const dateParts = response.data.date.split('/');
         const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
         const numericAmount = parseFloat(response.data.amount.replace('RM', '').trim());
-        this.scannedData = {
+        scannedData.value = {
           date: formattedDate,
           amount: numericAmount,
-          category: 'Uncategorized' // Default category
+          category: 'Uncategorized'
         };
-        this.isConfirmationModalVisible = true;
-        this.message = '';
+        isConfirmationModalVisible.value = true;
+        message.value = '';
       } catch (error) {
-        console.error('Error scanning file:', error);
-        this.message = error.response?.data?.error || 'Error scanning file. Please try again.';
-        // Clear the state if scanning fails
-        this.selectedFile = null;
-        this.$refs.fileInput.value = null;
-        this.description = '';
+        message.value = error.response?.data?.error || 'Error scanning file.';
+        selectedFile.value = null;
+        if (fileInput.value) fileInput.value.value = null;
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
-    async handleSaveConfirmation(transactionPayload) {
-      this.isLoading = true;
-      this.message = 'Saving transaction...';
+    };
 
+    const handleSaveConfirmation = async (transactionPayload) => {
+      isLoading.value = true;
+      message.value = 'Saving transaction...';
       try {
-        // We REUSE the manual entry endpoint!
         await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', transactionPayload);
-
-        this.message = 'Transaction saved successfully!';
-        await this.fetchTransactions(); // Refresh the list
-
+        message.value = 'Transaction saved successfully!';
+        await fetchTransactions(); // Refresh shared data
       } catch (error) {
-        console.error('Error saving transaction:', error);
-        this.message = 'Failed to save transaction.';
+        message.value = 'Failed to save transaction.';
       } finally {
-        this.isLoading = false;
-        this.isConfirmationModalVisible = false;
-        this.selectedFile = null;
-        if (this.$refs.fileInput) {
-          this.$refs.fileInput.value = null;
-        }
+        isLoading.value = false;
+        isConfirmationModalVisible.value = false;
+        selectedFile.value = null;
+        if (fileInput.value) fileInput.value.value = null;
       }
-    },
-    async deleteTransaction(id) {
-      // Optional: Ask for confirmation
-      if (!confirm('Are you sure you want to delete this transaction?')) {
+    };
+    
+    const addManualTransaction = async () => {
+      if (!manualDate.value || !manualDescription.value || !manualAmount.value) {
+        message.value = 'Please fill out all manual entry fields.';
         return;
       }
-
-      try {
-        await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${id}`);
-        
-        // Refresh the list to show the change
-        await this.fetchTransactions();
-
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-        this.message = 'Failed to delete transaction.';
-      }
-    },
-    async addManualTransaction() {
-      // Basic validation
-      if (!this.manualDate || !this.manualDescription || !this.manualAmount || !this.manualCategory) {
-        this.message = 'Please fill out all manual entry fields.';
-        return;
-      }
-
-      this.isLoading = true;
-      this.message = 'Saving transaction...';
-
-      // The date input gives YYYY-MM-DD, but we store DD/MM/YYYY. Let's format it.
-      const formattedDate = this.manualDate.split('-').reverse().join('/');
-
+      isLoading.value = true;
+      const formattedDate = manualDate.value.split('-').reverse().join('/');
       const newTransaction = {
         date: formattedDate,
-        description: this.manualDescription,
-        amount: this.manualAmount,
-        category: this.manualCategory,
+        description: manualDescription.value,
+        amount: manualAmount.value,
+        category: manualCategory.value,
       };
-
       try {
-        // We'll create this new API endpoint in the backend steps
         await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', newTransaction);
-
-        this.message = 'Transaction added successfully!';
-        
-        // Clear the form fields
-        this.manualDate = '';
-        this.manualDescription = '';
-        this.manualAmount = null;
-        this.manualCategory = 'Uncategorized';
-
-        // Refresh the latest transactions list
-        await this.fetchTransactions();
-
+        message.value = 'Transaction added successfully!';
+        manualDate.value = '';
+        manualDescription.value = '';
+        manualAmount.value = null;
+        manualCategory.value = 'Uncategorized';
+        await fetchTransactions(); // Refresh shared data
       } catch (error) {
-        console.error('Error adding manual transaction:', error);
-        this.message = 'Failed to add transaction.';
+        message.value = 'Failed to add transaction.';
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    },
-    openEditModal(transaction) {
-      this.transactionToEdit = transaction;
-      this.isModalVisible = true;
-    },
+    };
+    
+    const deleteTransaction = async (id) => {
+        if (!confirm('Are you sure you want to delete this transaction?')) return;
+        try {
+            await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${id}`);
+            await fetchTransactions(); // Refresh shared data
+        } catch (error) {
+            message.value = 'Failed to delete transaction.';
+        }
+    };
+    
+    const openEditModal = (transaction) => {
+        transactionToEdit.value = transaction;
+        isModalVisible.value = true;
+    };
+    
+    const handleSaveTransaction = async (updatedTransaction) => {
+        try {
+            await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
+            isModalVisible.value = false;
+            await fetchTransactions(); // Refresh shared data
+        } catch (error) {
+            alert('Failed to update transaction.');
+        }
+    };
 
-    async handleSaveTransaction(updatedTransaction) {
-      try {
-        await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
-        this.isModalVisible = false;
-        this.transactionToEdit = null;
-        await this.fetchTransactions(); // Refresh the list
-      } catch (error) {
-        console.error('Error updating transaction:', error);
-        alert('Failed to update transaction.');
-      }
-    },
-  },
-  mounted() {
-    this.fetchCategories();
-    this.fetchTransactions();
+    // --- LIFECYCLE HOOK ---
+    onMounted(() => {
+      fetchTransactions();
+      fetchCategories();
+    });
+
+    // --- RETURN ---
+    return {
+      selectedFile,
+      transactions,
+      isLoading,
+      message,
+      description: ref(''), // description is not a shared state, but local to the form
+      manualDate,
+      manualDescription,
+      manualAmount,
+      manualCategory,
+      categories,
+      scannedData,
+      isConfirmationModalVisible,
+      isModalVisible,
+      transactionToEdit,
+      fileInput,
+      latestTransactions,
+      handleFileUpload,
+      uploadImage,
+      handleSaveConfirmation,
+      addManualTransaction,
+      deleteTransaction,
+      openEditModal,
+      handleSaveTransaction,
+    };
   }
 }
 </script>

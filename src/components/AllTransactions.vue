@@ -35,7 +35,7 @@
           </div>
           <div class="summary-item">
             <h3>Spent</h3>
-            <p class="summary-amount">{{ monthlyTotal }}</p>
+            <p class="summary-amount">{{ monthlyTotalText }}</p>
           </div>
           <div class="summary-item">
             <h3>Money Left</h3>
@@ -48,41 +48,35 @@
         </div>
       </div>
     </div>
-    <div v-if="transactions.length > 0">
-      <ul class="transactions-list">
-        <!-- Display message if no transactions match the filter -->
-        <li v-if="filteredTransactions.length === 0" class="no-transactions-period">
-          No transactions found for this period.
-        </li>
-        <!-- Loop through only the filtered transactions -->
-        <li v-else v-for="transaction in filteredTransactions" :key="transaction.id">
-          <div class="transaction-info">
-            <div class="details">
-                <span class="date">{{ transaction.date }}</span>
-                <span class="description">{{ transaction.description }}</span>
+    <div v-if="categorySummary.length > 0" class="category-breakdown">
+      <h3>Spending by Category</h3>
+      <ul>
+        <li v-for="item in categorySummary" :key="item.name">
+          <button @click="openDetailModal(item.name)" class="category-item">
+            <div class="category-info">
+              <span class="category-name">{{ item.name }}</span>
+              <span class="transaction-count">{{ item.count }} transactions</span>
             </div>
-            <div class="category-and-amount">
-                <span class="category-pill">{{ transaction.category }}</span>
-                <span class="amount">{{ transaction.amount }}</span>
+            <div class="category-spending">
+              <span class="category-total">RM {{ item.total.toFixed(2) }}</span>
+              <span class="category-percentage">{{ item.percentage.toFixed(0) }}%</span>
             </div>
-          </div>
-          <div class="action-buttons">
-            <button @click="openEditModal(transaction)" class="edit-btn" aria-label="Edit Transaction">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-            </button>
-            <button @click="deleteTransaction(transaction.id)" class="delete-btn">&times;</button>
-          </div>
+          </button>
         </li>
       </ul>
     </div>
-    
     <div v-else class="no-transactions">
       No transactions recorded yet.
     </div>
   </div>
+  <CategoryDetailModal
+    v-if="isDetailModalVisible"
+    :categoryName="selectedCategoryData.name"
+    :transactions="selectedCategoryData.transactions"
+    @close="isDetailModalVisible = false"
+    @edit="handleEditFromModal"
+    @delete="handleDeleteFromModal"
+  />
   <EditModal 
     v-if="isModalVisible" 
     :transaction="transactionToEdit"
@@ -93,215 +87,236 @@
 </template>
 
 <script>
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
+
+import { useTransactions } from '../composables/useTransactions';
+
+import EditModal from '../components/EditModal.vue';
+import CategoryDetailModal from '../components/CategoryDetailModal.vue';
 import axios from 'axios';
-import EditModal from './EditModal.vue';
 
 export default {
   name: 'AllTransactions',
   components: {
     EditModal,
+    CategoryDetailModal,
   },
-  data() {
-    return {
-      transactions: [],
-      categories: [],
-      selectedYear: null,
-      selectedMonth: null,
-      currentBudget: null,
-      budgetInput: null,
-      isModalVisible: false,
-      transactionToEdit: null,
-    };
-  },
-  computed: {
-    availableYears() {
-      if (!this.transactions.length) return [];
-      const years = new Set(this.transactions.map(tx => tx.date.split('/')[2]));
+  
+  // The setup() function is the heart of the Composition API
+  setup() {
+    // --- COMPOSABLE ---
+    // Get all our shared transaction data and methods from the composable!
+    const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
+
+    // --- STATE (formerly `data()`) ---
+    // All data properties are now defined as 'refs'
+    const selectedYear = ref(null);
+    const selectedMonth = ref(null);
+    const currentBudget = ref(null);
+    const budgetInput = ref(null);
+    const isModalVisible = ref(false);
+    const transactionToEdit = ref(null);
+    const isDetailModalVisible = ref(false);
+    const selectedCategoryData = ref({ name: '', transactions: [] });
+
+    // --- COMPUTED PROPERTIES ---
+    const availableYears = computed(() => {
+      if (!transactions.value.length) return [];
+      const years = new Set(transactions.value.map(tx => tx.date.split('/')[2]));
       return Array.from(years).sort((a, b) => b - a);
-    },
-    availableMonths() {
-      if (!this.selectedYear) return [];
+    });
+
+    const availableMonths = computed(() => {
+      if (!selectedYear.value) return [];
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      
       const months = new Set(
-        this.transactions
-          .filter(tx => tx.date.endsWith(`/${this.selectedYear}`))
-          .map(tx => {
-            const monthIndex = parseInt(tx.date.split('/')[1], 10) - 1;
-            return monthNames[monthIndex];
-          })
+        transactions.value
+          .filter(tx => tx.date.endsWith(`/${selectedYear.value}`))
+          .map(tx => monthNames[parseInt(tx.date.split('/')[1], 10) - 1])
       );
-      
       return Array.from(months).sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
-    },
-    filteredTransactions() {
-      if (!this.selectedYear || !this.selectedMonth) return [];
+    });
+    
+    const filteredTransactions = computed(() => {
+        if (!selectedYear.value || !selectedMonth.value) return [];
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
+        const monthString = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
+        return transactions.value.filter(tx => tx.date.split('/')[1] === monthString && tx.date.split('/')[2] === selectedYear.value);
+    });
 
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(this.selectedMonth) + 1;
-      const monthString = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
-
-      return this.transactions.filter(tx => {
-        const parts = tx.date.split('/');
-        return parts[1] === monthString && parts[2] === this.selectedYear;
-      });
-    },
-    monthlyTotal() {
-      // If there are no transactions for this period, the total is 0.
-      if (!this.filteredTransactions.length) {
-        return 'RM 0.00';
-      }
-
-      // Use the reduce method to sum up the amounts
-      const total = this.filteredTransactions.reduce((sum, transaction) => {
-        const amountValue = parseFloat(transaction.amount.replace('RM', '').trim());
-
-        // In case the parsing fails, just add 0 to the sum
-        if (isNaN(amountValue)) {
-          return sum;
-        }
-
-        return sum + amountValue;
+    const monthlyTotal = computed(() => {
+      if (!filteredTransactions.value.length) return 0;
+      return filteredTransactions.value.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.replace('RM', '').trim());
+        return isNaN(amount) ? sum : sum + amount;
       }, 0);
+    });
 
-      // Format the final total to have two decimal places
-      return `RM ${total.toFixed(2)}`;
-    },
-    moneyLeft() {
-      if (this.currentBudget === null) {
-        return { text: 'N/A', status: 'neutral' };
-      }
-      
-      const spent = parseFloat(this.monthlyTotal.replace('RM', '').trim());
-      const left = this.currentBudget - spent;
-      
-      if (left >= 0) {
-        return {
-          text: `RM ${left.toFixed(2)}`,
-          status: 'positive', // For green color
-        };
-      } else {
-        return {
-          text: `RM -${Math.abs(left).toFixed(2)}`,
-          status: 'negative', // For red color
-        };
-      }
-    },
-  },
-  methods: {
-    async fetchCategories() {
-      try {
-        const response = await axios.get('http://angs-mac-mini-1:5000/api/categories');
-        this.categories = response.data;
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    },
-    async fetchTransactions() {
-      try {
-        const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
-        this.transactions = response.data;      
-        if (this.transactions.length > 0) {
-          this.selectedYear = this.availableYears[0];
-          
-        } else {
-          // If there are no transactions, ensure filters are cleared
-          this.selectedYear = null;
-          this.selectedMonth = null;
+    const monthlyTotalText = computed(() => `RM ${monthlyTotal.value.toFixed(2)}`);
+
+    const moneyLeft = computed(() => {
+      if (currentBudget.value === null) return { text: 'N/A', status: 'neutral' };
+      const left = currentBudget.value - monthlyTotal.value;
+      const status = left >= 0 ? 'positive' : 'negative';
+      const text = `RM ${left.toFixed(2)}`;
+      return { text, status };
+    });
+
+    const categorySummary = computed(() => {
+      if (!filteredTransactions.value.length || monthlyTotal.value === 0) return [];
+      const summary = filteredTransactions.value.reduce((acc, tx) => {
+        const category = tx.category || 'Uncategorized';
+        const amount = parseFloat(tx.amount.replace('RM', '').trim());
+        if (!isNaN(amount)) {
+          if (!acc[category]) acc[category] = { total: 0, count: 0 };
+          acc[category].total += amount;
+          acc[category].count += 1;
         }
+        return acc;
+      }, {});
+      return Object.keys(summary).map(name => ({
+        name,
+        ...summary[name],
+        percentage: (summary[name].total / monthlyTotal.value) * 100
+      })).sort((a, b) => b.total - a.total);
+    });
 
-      } catch (error) {
-        console.error('Error fetching transactions:', error);
-      }
-    },
-    async deleteTransaction(id) {
-      if (!confirm('Are you sure you want to delete this transaction?')) return;
-      try {
-        await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${id}`);
-        await this.fetchTransactions();
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-      }
-    },
-    async fetchBudget() {
-      if (!this.selectedYear || !this.selectedMonth) return;
-
+    // --- METHODS ---
+    const fetchBudget = async () => {
+      if (!selectedYear.value || !selectedMonth.value) return;
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(this.selectedMonth) + 1;
-
+      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
       try {
-        const response = await axios.get(`http://angs-mac-mini-1:5000/api/budget/${this.selectedYear}/${monthIndex}`);
-        this.currentBudget = response.data.amount;
-        this.budgetInput = response.data.amount; // Pre-fill the input box
+        const response = await axios.get(`http://angs-mac-mini-1:5000/api/budget/${selectedYear.value}/${monthIndex}`);
+        currentBudget.value = response.data.amount;
+        budgetInput.value = response.data.amount;
       } catch (error) {
         if (error.response && error.response.status === 404) {
-          // This is expected if no budget is set
-          this.currentBudget = null;
-          this.budgetInput = null;
+          currentBudget.value = null;
+          budgetInput.value = null;
         } else {
           console.error("Error fetching budget:", error);
         }
       }
-    },
-    async setBudget() {
-      if (this.budgetInput === null || this.budgetInput === '' || isNaN(this.budgetInput)) {
+    };
+
+    const setBudget = async () => {
+      if (budgetInput.value === null || budgetInput.value === '' || isNaN(budgetInput.value)) {
         alert('Please enter a valid number for the budget.');
         return;
       }
-
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(this.selectedMonth) + 1;
-
+      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
       try {
         await axios.post('http://angs-mac-mini-1:5000/api/budget', {
-          year: this.selectedYear,
+          year: selectedYear.value,
           month: monthIndex,
-          amount: this.budgetInput,
+          amount: budgetInput.value,
         });
-        // After setting, re-fetch the budget to update the display
-        await this.fetchBudget();
+        await fetchBudget();
       } catch (error) {
         console.error("Error setting budget:", error);
         alert("Failed to set budget.");
       }
-    },
-    openEditModal(transaction) {
-      this.transactionToEdit = transaction;
-      this.isModalVisible = true;
-    },
-    async handleSaveTransaction(updatedTransaction) {
+    };
+
+    const openEditModal = (transaction) => {
+      transactionToEdit.value = transaction;
+      isModalVisible.value = true;
+    };
+
+    const handleSaveTransaction = async (updatedTransaction) => {
       try {
         await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
-        this.isModalVisible = false;
-        this.transactionToEdit = null;
-        await this.fetchTransactions(); // Refresh the list
+        isModalVisible.value = false;
+        await fetchTransactions(); // Refresh data from composable
+        isDetailModalVisible.value = false;
       } catch (error) {
         console.error('Error updating transaction:', error);
         alert('Failed to update transaction.');
       }
-    },
-  },
-  mounted() {
-    this.fetchTransactions();
-  },
-  watch: {
-    selectedYear(newYear) {
-      if (newYear) {
-        this.$nextTick(() => {
-          if (this.availableMonths.length > 0) {
-            this.selectedMonth = this.availableMonths[this.availableMonths.length - 1];
-          } else {
-            this.selectedMonth = null;
-          }
-        });
+    };
+
+    const handleDeleteFromModal = async (transactionId) => {
+      if (!confirm('Are you sure you want to delete this transaction?')) return;
+      try {
+        await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${transactionId}`);
+        await fetchTransactions(); // Refresh data from composable
+        isDetailModalVisible.value = false;
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        alert('Failed to delete transaction.');
       }
-    },
-    selectedMonth(newMonth) {
-      if (newMonth) {
-        this.fetchBudget();
+    };
+    
+    const handleEditFromModal = (transaction) => {
+      openEditModal(transaction);
+    };
+
+    const openDetailModal = (categoryName) => {
+      selectedCategoryData.value = {
+        name: categoryName,
+        transactions: filteredTransactions.value.filter(tx => (tx.category || 'Uncategorized') === categoryName)
+      };
+      isDetailModalVisible.value = true;
+    };
+    
+    // --- WATCHERS ---
+    watch(selectedYear, () => {
+        if (availableMonths.value.length > 0) {
+            selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
+        }
+    });
+
+    watch(selectedMonth, (newMonth) => {
+        if (newMonth) fetchBudget();
+    });
+
+    // --- LIFECYCLE HOOKS (formerly `mounted()`) ---
+    onMounted(async () => {
+      await fetchTransactions(); // Call methods from the composable
+      fetchCategories();
+      if (availableYears.value.length > 0) {
+        selectedYear.value = availableYears.value[0];
+        
+        await nextTick();
+        
+        if (availableMonths.value.length > 0) {
+          selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
+        }
       }
-    },
-  },
+    });
+
+    // --- RETURN ---
+    // We must return everything the template needs to access.
+    return {
+      transactions,
+      selectedYear,
+      selectedMonth,
+      currentBudget,
+      budgetInput,
+      categories,
+      isModalVisible,
+      transactionToEdit,
+      isDetailModalVisible,
+      selectedCategoryData,
+      availableYears,
+      availableMonths,
+      filteredTransactions,
+      monthlyTotal,
+      monthlyTotalText,
+      moneyLeft,
+      categorySummary,
+      fetchBudget,
+      setBudget,
+      openEditModal,
+      handleSaveTransaction,
+      handleDeleteFromModal,
+      handleEditFromModal,
+      openDetailModal,
+    };
+  }
 }
 </script>
 
@@ -463,20 +478,68 @@ h1 {
   cursor: pointer;
 }
 
-.chart-section {
+.category-breakdown {
   background-color: var(--card-background);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   padding: 1.5rem;
-  margin-bottom: 2rem;
+  margin-top: 2rem;
 }
-
-.chart-container {
-  position: relative;
-  /* You can adjust the height as you like */
-  height: 350px;
-  max-width: 600px;
-  margin: 0 auto; /* Center the chart */
+.category-breakdown h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+.category-breakdown ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.category-item:hover {
+  background-color: var(--background-color);
+  border-color: var(--secondary-color);
+}
+.category-info {
+  display: flex;
+  flex-direction: column;
+}
+.category-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-color);
+}
+.transaction-count {
+  font-size: 0.8rem;
+  color: var(--subtle-text-color);
+}
+.category-spending {
+  text-align: right;
+}
+.category-total {
+  font-weight: bold;
+  font-size: 1.1rem;
+  display: block;
+  color: var(--text-color);
+}
+.category-percentage {
+  font-size: 0.9rem;
+  color: var(--primary-color);
+  font-weight: 500;
 }
 
 .transactions-list { 
