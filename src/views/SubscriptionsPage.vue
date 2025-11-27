@@ -1,12 +1,17 @@
 <template>
   <div class="container">
-    <div class="header-actions">
+    <div class="header-actions" data-aos="fade-down">
       <h1>Subscriptions</h1>
-      <button class="add-btn" @click="openAddModal">Add Subscription</button>
+      <button class="add-btn" @click="openAddModal">
+        <span>+</span> Add Subscription
+      </button>
     </div>
 
     <div v-if="subscriptions.length > 0" class="subscriptions-list">
-      <div v-for="sub in subscriptions" :key="sub.id" class="subscription-card">
+      <div v-for="(sub, index) in subscriptions" :key="sub.id" 
+           class="subscription-card" 
+           data-aos="fade-up" 
+           :data-aos-delay="index * 50">
         <div class="sub-info">
           <h3>{{ sub.name }}</h3>
           <p class="sub-details">
@@ -18,22 +23,22 @@
           RM {{ parseFloat(sub.amount).toFixed(2) }}
         </div>
         <div class="sub-actions">
-          <button @click="openEditModal(sub)" class="icon-btn edit">✎</button>
-          <button @click="deleteSubscription(sub.id)" class="icon-btn delete">🗑</button>
+          <button @click="openEditModal(sub)" class="icon-btn edit" title="Edit">✎</button>
+          <button @click="deleteSubscription(sub.id)" class="icon-btn delete" title="Delete">🗑</button>
         </div>
       </div>
       
-      <div class="total-summary">
+      <div class="total-summary" data-aos="fade-up" data-aos-delay="100">
         <h3>Total Monthly: RM {{ totalMonthly.toFixed(2) }}</h3>
       </div>
     </div>
-    <div v-else class="no-subscriptions">
+    <div v-else class="no-subscriptions" data-aos="fade-in">
       <p>No subscriptions added yet.</p>
     </div>
 
     <!-- Modal for Add/Edit -->
     <div v-if="isModalVisible" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
+      <div class="modal-content" data-aos="zoom-in" data-aos-duration="300">
         <h2>{{ isEditing ? 'Edit Subscription' : 'Add Subscription' }}</h2>
         <form @submit.prevent="saveSubscription">
           <div class="form-group">
@@ -181,7 +186,15 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.header-actions h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-color);
+  margin: 0;
+  letter-spacing: -0.03em;
 }
 
 .add-btn {
@@ -189,36 +202,58 @@ export default {
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: bold;
+  border-radius: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+}
+
+.add-btn span {
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .add-btn:hover {
   background-color: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
 }
 
 .subscriptions-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .subscription-card {
-  background-color: var(--card-background);
-  border-radius: 12px;
+  background: var(--card-background);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  border-radius: 16px;
   padding: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.3s ease;
+}
+
+.subscription-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary-color);
 }
 
 .sub-info h3 {
   margin: 0 0 0.5rem 0;
   color: var(--text-color);
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .sub-details {
@@ -231,18 +266,25 @@ export default {
 }
 
 .category-pill {
-  background-color: #e0e7ff;
+  background-color: rgba(79, 70, 229, 0.1);
   color: var(--primary-color);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.due-date {
+  font-weight: 500;
 }
 
 .sub-amount {
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-size: 1.25rem;
+  font-weight: 800;
   color: var(--text-color);
+  letter-spacing: -0.02em;
 }
 
 .sub-actions {
@@ -250,34 +292,26 @@ export default {
   gap: 0.5rem;
 }
 
-.icon-btn {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
 
-.icon-btn.edit { color: var(--primary-color); }
-.icon-btn.delete { color: #ef4444; }
-
-.icon-btn:hover {
-  background-color: var(--background-color);
-}
 
 .total-summary {
   margin-top: 2rem;
   text-align: right;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   color: var(--primary-color);
+  font-weight: 700;
+  padding: 1rem;
+  background: rgba(79, 70, 229, 0.05);
+  border-radius: 12px;
+  display: inline-block;
+  align-self: flex-end;
 }
 
 .no-subscriptions {
   text-align: center;
   color: var(--subtle-text-color);
-  margin-top: 3rem;
+  margin-top: 4rem;
+  font-size: 1.1rem;
 }
 
 /* Modal Styles */
@@ -287,7 +321,8 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -296,76 +331,110 @@ export default {
 
 .modal-content {
   background-color: var(--card-background);
-  padding: 2rem;
-  border-radius: 12px;
+  padding: 2.5rem;
+  border-radius: 20px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .modal-content h2 {
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: var(--primary-color);
+  margin-bottom: 2rem;
+  color: var(--text-color);
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
 }
 
 .form-group {
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-color);
 }
 
 .form-group input, .form-group select {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.875rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 1rem;
-  background-color: var(--background-color);
-  box-sizing: border-box; /* Ensure padding doesn't affect width */
+  background-color: rgba(255, 255, 255, 0.5);
+  box-sizing: border-box;
+  transition: all 0.2s;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background-color: white;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
 }
 
 .save-btn {
   background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: bold;
+  padding: 0.75rem 2rem;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-btn:hover {
+  background-color: var(--secondary-color);
 }
 
 .cancel-btn {
   background-color: transparent;
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
+  color: var(--subtle-text-color);
+  border: 1px solid transparent;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: bold;
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-color);
 }
 
 /* Dark Mode Input Fix */
 html.dark .form-group input,
 html.dark .form-group select {
-  background-color: #374151; /* Darker gray */
-  color: #ffffff; /* Bright white text */
-  border-color: #4b5563;
+  background-color: rgba(30, 41, 59, 0.5);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-html.dark .form-group input::placeholder {
-  color: #9ca3af;
+html.dark .form-group input:focus,
+html.dark .form-group select:focus {
+  background-color: rgba(30, 41, 59, 0.8);
+}
+
+html.dark .icon-btn {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Mobile Responsive Styles */
@@ -401,7 +470,7 @@ html.dark .form-group input::placeholder {
     width: 100%;
     justify-content: flex-end;
     border-top: 1px solid var(--border-color);
-    padding-top: 0.5rem;
+    padding-top: 1rem;
     margin-top: 0.5rem;
   }
 }

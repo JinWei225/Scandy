@@ -20,7 +20,14 @@
           <router-link to="/subscriptions">Subscriptions</router-link>
         </nav>
       </div>
-      <ThemeSwitcher />
+
+      <div class="header-actions">
+        <!-- Search Button -->
+        <button class="search-trigger-btn" @click="isSearchModalVisible = true" title="Search Transactions">
+          🔍
+        </button>
+        <ThemeSwitcher />
+      </div>
     </header>
 
     <!-- Mobile Nav Menu -->
@@ -35,23 +42,44 @@
     <main>
       <router-view />
     </main>
+    
+    <SearchModal 
+      v-if="isSearchModalVisible" 
+      @close="isSearchModalVisible = false" 
+    />
   </div>
 </template>
 
 <script>
 import ThemeSwitcher from './components/ThemeSwitcher.vue';
+import SearchModal from './components/SearchModal.vue';
 import { themeStore } from './themeStore.js'; // Import to initialize
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
+import AOS from 'aos';
+import { useTransactions } from './composables/useTransactions';
 
 export default {
   name: 'App',
   components: {
     ThemeSwitcher,
+    SearchModal
   },
   setup() {
+    const { fetchTransactions } = useTransactions();
+
     // This ensures the theme logic runs when the app starts
     onMounted(async () => {
+      // Load transactions globally so search works immediately
+      await fetchTransactions();
+
+      AOS.init({
+        duration: 400,
+        easing: 'ease-in-out',
+        once: true,
+        mirror: false
+      });
+
       try {
         await axios.post('/api/subscriptions/check');
       } catch (error) {
@@ -60,6 +88,8 @@ export default {
     });
 
     const isMenuOpen = ref(false);
+    const isSearchModalVisible = ref(false);
+    
     const toggleMenu = () => {
       isMenuOpen.value = !isMenuOpen.value;
     };
@@ -67,65 +97,90 @@ export default {
       isMenuOpen.value = false;
     };
 
-    return { themeStore, isMenuOpen, toggleMenu, closeMenu }
+    return { themeStore, isMenuOpen, toggleMenu, closeMenu, isSearchModalVisible }
   }
 }
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 /* --- GLOBAL THEME VARIABLES --- */
 
 /* Light Theme (Default) */
 :root {
-  --primary-color: #3b82f6;
-  --secondary-color: #60a5fa;
-  --background-color: #f8fafc; /* Very light gray */
-  --card-background: #ffffff;   /* Pure white */
-  --text-color: #1f2937;        /* Dark gray for text */
-  --subtle-text-color: #6b7280; /* Lighter gray for subheadings */
-  --header-color: #ffffff;      /* Text on primary color background */
-  --border-color: #e5e7eb;      /* Light border */
-  --positive-color: #16a34a;    /* Green */
-  --negative-color: #dc2626;    /* Red */
+  --primary-color: #4f46e5; /* Indigo 600 */
+  --secondary-color: #818cf8; /* Indigo 400 */
+  --accent-color: #f43f5e; /* Rose 500 */
+  --background-color: #f3f4f6; /* Cool Gray 100 */
+  --card-background: rgba(255, 255, 255, 0.8);
+  --text-color: #111827; /* Gray 900 */
+  --subtle-text-color: #6b7280; /* Gray 500 */
+  --header-color: #ffffff;
+  --border-color: rgba(229, 231, 235, 0.5); /* Gray 200 with opacity */
+  --positive-color: #10b981; /* Emerald 500 */
+  --negative-color: #ef4444; /* Red 500 */
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 /* Dark Theme */
 html.dark {
-  --primary-color: #3b82f6;
-  --secondary-color: #60a5fa;
-  --background-color: #111827; /* Very dark gray-blue */
-  --card-background: #1f2937;   /* Darker gray-blue */
-  --text-color: #f9fafb;        /* Off-white for text */
-  --subtle-text-color: #9ca3af; /* Lighter gray for subheadings */
+  --primary-color: #6366f1; /* Indigo 500 */
+  --secondary-color: #818cf8; /* Indigo 400 */
+  --accent-color: #fb7185; /* Rose 400 */
+  --background-color: #0f172a; /* Slate 900 */
+  --card-background: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
+  --text-color: #f8fafc; /* Slate 50 */
+  --subtle-text-color: #94a3b8; /* Slate 400 */
   --header-color: #ffffff;
-  --border-color: #374151;      /* Dark border */
-  --positive-color: #22c55e;    /* Brighter green for dark BG */
-  --negative-color: #ef4444;    /* Brighter red for dark BG */
+  --border-color: rgba(51, 65, 85, 0.5); /* Slate 700 with opacity */
+  --positive-color: #34d399; /* Emerald 400 */
+  --negative-color: #f87171; /* Red 400 */
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* --- Global Styles & Resets --- */
 body {
   margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-color: var(--background-color);
   color: var(--text-color);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.3s, color 0.3s;
+  overflow-x: hidden; /* Prevent horizontal scroll globally */
 }
 
 .global-header {
-  background-color: var(--primary-color);
+  background: rgba(79, 70, 229, 0.85); /* Primary color with opacity */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: var(--header-color);
-  padding: 0.8rem 2rem;
+  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: var(--glass-border);
+}
+
+html.dark .global-header {
+  background: rgba(15, 23, 42, 0.85); /* Dark background with opacity */
 }
 
 .logo {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  background: linear-gradient(to right, #ffffff, #e0e7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .logo-section {
@@ -136,20 +191,36 @@ body {
 
 .main-nav {
   display: flex;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .main-nav a {
   color: var(--header-color);
   text-decoration: none;
   font-weight: 500;
-  opacity: 0.9;
-  transition: opacity 0.2s;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.main-nav a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background-color: white;
+  transition: width 0.3s ease;
 }
 
 .main-nav a:hover, .main-nav a.router-link-active {
   opacity: 1;
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.main-nav a:hover::after, .main-nav a.router-link-active::after {
+  width: 100%;
 }
 
 /* Hamburger Button */
@@ -177,15 +248,22 @@ body {
 /* Mobile Nav Container */
 .mobile-nav {
   position: fixed;
-  top: 60px; /* Adjust based on header height */
+  top: 70px; /* Adjust based on header height */
   left: 0;
   width: 100%;
-  background-color: var(--primary-color);
-  padding: 1rem 0;
+  background: rgba(79, 70, 229, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 2rem 0;
   transform: translateY(-150%);
-  transition: transform 0.3s ease-in-out;
-  z-index: 10;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 90;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-bottom: var(--glass-border);
+}
+
+html.dark .mobile-nav {
+  background: rgba(15, 23, 42, 0.95);
 }
 
 .mobile-nav.is-open {
@@ -196,14 +274,19 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .mobile-nav a {
   color: var(--header-color);
   text-decoration: none;
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.25rem;
+  font-weight: 600;
+  transition: transform 0.2s;
+}
+
+.mobile-nav a:active {
+  transform: scale(0.95);
 }
 
 /* Responsive Media Queries */
@@ -215,11 +298,86 @@ body {
   .hamburger-btn {
     display: flex;
   }
+  
+  .global-header {
+    padding: 0.8rem 1.5rem;
+  }
 }
 
 
 main {
   /* This ensures the content doesn't get hidden behind the header */
   padding-top: 1rem;
+  min-height: calc(100vh - 80px);
+}
+
+/* Global Button Styles */
+button {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Global Button Styles */
+.icon-btn {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.icon-btn.edit { color: var(--primary-color); }
+.icon-btn.delete { color: #ef4444; }
+
+.icon-btn:hover {
+  background-color: white;
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+html.dark .icon-btn {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-trigger-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.search-trigger-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+  .search-trigger-btn {
+    margin-left: auto; /* Push to right on mobile */
+    margin-right: 0.5rem;
+  }
 }
 </style>

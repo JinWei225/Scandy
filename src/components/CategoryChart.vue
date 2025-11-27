@@ -42,7 +42,10 @@ export default {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'right'
+          position: 'right',
+          labels: {
+            boxWidth: 15
+          }
         }
       }
     }

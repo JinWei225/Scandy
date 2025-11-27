@@ -1,9 +1,11 @@
 <template>
   <div class="container">
-    <div class="upload-section">
+    <div class="upload-section" data-aos="fade-down">
       <h2>Upload Transaction Records</h2>
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
-      <label for="file-upload" class="file-upload-label"> Choose Image </label>
+      <label for="file-upload" class="file-upload-label">
+        <span class="icon">📁</span> Choose Image
+      </label>
       <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
 
       <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="upload-button">
@@ -12,7 +14,7 @@
       <p v-if="message" class="message">{{ message }}</p>
     </div>
 
-    <div class="manual-entry-section">
+    <div class="manual-entry-section" data-aos="fade-up">
       <h2>Manual Entry</h2>
       <form @submit.prevent="addManualTransaction">
         <div class="form-group">
@@ -41,7 +43,7 @@
       </form>
     </div>
 
-    <div class="transactions-list">
+    <div class="transactions-list" data-aos="fade-up" data-aos-delay="50">
       <h2>Recent Transactions</h2>
       <div class="view-all-link">
         <router-link to="/all">View All Transactions &rarr;</router-link>
@@ -50,7 +52,8 @@
         No transactions found.
       </div>
       <ul v-else>
-        <li v-for="transaction in latestTransactions" :key="transaction.id">
+        <li v-for="(transaction, index) in latestTransactions" :key="transaction.id"
+            data-aos="fade-up" :data-aos-delay="index * 30">
           <div class="transaction-info">
             <div class="details">
                 <span class="date">{{ transaction.date }}</span>
@@ -63,13 +66,8 @@
             </div>
           </div>
           <div class="action-buttons">
-            <button @click="openEditModal(transaction)" class="edit-btn" aria-label="Edit Transaction">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-            </button>
-            <button @click="deleteTransaction(transaction.id)" class="delete-btn">&times;</button>
+            <button @click="openEditModal(transaction)" class="icon-btn edit" title="Edit">✎</button>
+            <button @click="deleteTransaction(transaction.id)" class="icon-btn delete" title="Delete">🗑</button>
           </div>
         </li>
       </ul>
@@ -278,18 +276,28 @@ export default {
 }
 
 .upload-section {
-  background-color: var(--card-background);
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: var(--card-background);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
   text-align: center;
   margin-bottom: 2rem;
+  transition: transform 0.3s ease;
+}
+
+.upload-section:hover {
+  transform: translateY(-2px);
 }
 
 .upload-section h2 {
   margin-top: 0;
-  color: var(--primary-color);
+  color: var(--text-color);
   margin-bottom: 1.5rem;
+  font-weight: 800;
+  font-size: 1.5rem;
 }
 
 .file-input-hidden {
@@ -297,167 +305,137 @@ export default {
 }
 
 .file-upload-label {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
+  background-color: rgba(79, 70, 229, 0.1);
+  color: var(--primary-color);
+  padding: 1rem 2rem;
+  border-radius: 12px;
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
-  display: inline-block; /* Important for padding to work correctly */
-  transition: background-color 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
   margin-bottom: 1rem;
+  border: 1px dashed var(--primary-color);
 }
 
 .file-upload-label:hover {
-  background-color: var(--secondary-color);
+  background-color: rgba(79, 70, 229, 0.2);
+  transform: scale(1.02);
 }
 
 .file-name {
   display: block;
   margin-bottom: 1.5rem;
-  color: #555;
+  color: var(--subtle-text-color);
   font-style: italic;
+  font-size: 0.9rem;
 }
 
 .upload-button {
-  background-color: var(--secondary-color);
+  background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
+  padding: 0.875rem 2rem;
+  border-radius: 10px;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
   width: 100%;
   max-width: 300px;
+  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
 }
 
 .upload-button:disabled {
-  background-color: #a0b4c2;
+  background-color: #cbd5e1;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .upload-button:hover:not(:disabled) {
-  background-color: var(--primary-color);
+  background-color: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
 }
 
 .message {
   margin-top: 1rem;
   color: var(--primary-color);
-}
-
-.confirmation-form {
-  text-align: left;
-}
-
-.confirmation-form h2 {
-  text-align: center;
-  color: var(--primary-color);
-  margin-bottom: 0.5rem;
-}
-
-.message-info {
-  text-align: center;
-  color: var(--subtle-text-color);
-  margin-bottom: 2rem;
-}
-
-.confirmation-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.confirmation-actions button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.2s;
-}
-
-.save-btn {
-  background-color: var(--primary-color);
-  color: white;
-}
-.save-btn:hover {
-  background-color: var(--secondary-color);
-}
-
-.cancel-btn {
-  background-color: var(--border-color);
-  color: var(--text-color);
-}
-.cancel-btn:hover {
-  background-color: #d1d5db; /* A slightly darker gray for hover */
+  font-weight: 500;
 }
 
 .manual-entry-section {
-  background-color: var(--card-background);
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: var(--card-background);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
   margin-bottom: 2rem;
 }
 
 .manual-entry-section h2 {
   text-align: center;
   margin-top: 0;
-  color: var(--primary-color);
-  margin-bottom: 1.5rem;
+  color: var(--text-color);
+  margin-bottom: 2rem;
+  font-weight: 800;
+  font-size: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   text-align: left;
 }
 
 .form-group label {
   display: block;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 0.5rem;
+  color: var(--text-color);
+  font-size: 0.9rem;
 }
 
-.form-group input {
+.form-group input, .form-group select {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.875rem;
   border: 1px solid var(--border-color);
-  border-radius: 5px;
+  border-radius: 10px;
   font-size: 1rem;
   box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
 }
 
-.form-group select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  background-color: var(--card-background); /* For theme consistency */
-  color: var(--text-color); /* For theme consistency */
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background-color: white;
 }
 
 .submit-manual-button {
-  /* Re-use styles from the upload button for consistency */
   background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
+  padding: 0.875rem 2rem;
+  border-radius: 10px;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
   width: 100%;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
 }
 
 .submit-manual-button:hover:not(:disabled) {
   background-color: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
 }
 
 .view-all-link {
@@ -466,50 +444,67 @@ export default {
 }
 
 .view-all-link a {
-  font-weight: bold;
+  font-weight: 600;
   color: var(--primary-color);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .view-all-link a:hover {
   color: var(--secondary-color);
+  gap: 0.5rem;
 }
 
 .transactions-list {
-  background-color: var(--card-background);
-  padding: 0 1.5rem; /* Add horizontal padding */
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  list-style: none; /* Remove default bullet points */
+  background: var(--card-background);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+  list-style: none;
   margin-top: 2rem;
 }
 
 .transactions-list h2 {
   text-align: center;
-  padding: 1rem 0 0 0;
-  margin-top: 10px;
-  color: var(--primary-color);
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--text-color);
+  font-weight: 800;
+  font-size: 1.5rem;
 }
 
-.no-transactions,
-.no-transactions-period {
+.no-transactions {
   text-align: center;
   color: var(--subtle-text-color);
   padding: 2rem;
+  font-size: 1.1rem;
 }
 
 ul {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
 li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 0;
+  padding: 1.25rem;
   border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s;
+  border-radius: 8px;
+}
+
+li:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 li:last-child {
@@ -518,15 +513,15 @@ li:last-child {
 
 .transaction-info {
   display: flex;
-  flex-direction: column; /* Stack text vertically by default */
-  flex-grow: 1; /* Allows this section to take up available space */
+  flex-direction: column;
+  flex-grow: 1;
   gap: 8px;
   margin-right: 1rem;
 }
 
 .transaction-info .details {
   display: flex;
-  flex-direction: column; /* Date and description will stack in mobile */
+  flex-direction: column;
 }
 
 .transaction-info .date {
@@ -537,7 +532,7 @@ li:last-child {
 
 .transaction-info .description {
   color: var(--text-color);
-  font-weight: 600; /* Make description stand out */
+  font-weight: 600;
   font-size: 1rem;
 }
 
@@ -552,9 +547,10 @@ li:last-child {
   font-weight: 800;
   font-size: 1.2rem;
   color: var(--primary-color);
-  white-space: nowrap; /* Prevent amount from wrapping */
+  white-space: nowrap;
   text-align: right;
   margin-right: 5px;
+  letter-spacing: -0.02em;
 }
 
 .category-pill {
@@ -563,76 +559,63 @@ li:last-child {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .action-buttons {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
-.edit-btn {
-  background-color: var(--primary-color);
-  border: none;
+
+
+
+@media (max-width: 600px) {
+  li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .transaction-info {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .transaction-info .details {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .transaction-info .category-and-amount {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+  }
+
+  .action-buttons {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+  }
+}
+
+html.dark .form-group input,
+html.dark .form-group select {
+  background-color: rgba(30, 41, 59, 0.5);
   color: white;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: background-color 0.2s;
-}
-.edit-btn:hover {
-  background-color: var(--secondary-color);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-.delete-btn {
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  font-size: 1.2rem;
-  font-weight: bold;
-  line-height: 1;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin: 0.5rem 0 0 0;
-}
-
-.delete-btn:hover {
-  background-color: #dc2626; /* A darker red on hover */
-}
-
-.description-input-wrapper {
-  margin-top: 1.5rem;
-  margin-bottom: 1.5rem;
-  text-align: left;
-}
-
-.description-input-wrapper label {
-  display: block;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: var(--primary-color);
-}
-
-#description {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 1rem;
-  box-sizing: border-box; /* Ensures padding doesn't affect width */
-}
-
-#description:focus {
-  outline: none;
-  border-color: var(--secondary-color);
-  box-shadow: 0 0 0 2px rgba(74, 122, 156, 0.3);
+html.dark .form-group input:focus,
+html.dark .form-group select:focus {
+  background-color: rgba(30, 41, 59, 0.8);
 }
 
 @media (min-width: 601px) {
@@ -643,7 +626,7 @@ li:last-child {
 
   .transaction-info .details {
     flex-basis: 65%;
-    flex-direction: row; /* Make date and description side-by-side */
+    flex-direction: row;
     align-items: center;
     gap: 1rem;
   }
@@ -655,6 +638,9 @@ li:last-child {
   .transaction-info .date { flex-basis: 120px; margin-bottom: 0;}
   .transaction-info .description { flex-grow: 1; }
   .transaction-info .amount { margin: 0; }
+  
+  .action-buttons {
+    flex-direction: row;
+  }
 }
-
 </style>
