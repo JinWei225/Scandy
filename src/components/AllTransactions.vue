@@ -30,7 +30,7 @@
       <div class="budget-and-summary">
         <div class="summary-grid">
           <div class="summary-item">
-            <h3>Budget</h3>
+            <h3>Budget <button class="edit-budget-btn" @click="isBudgetModalVisible = true">✎</button></h3>
             <p class="summary-amount">{{ currentBudget !== null ? `RM ${currentBudget.toFixed(2)}` : 'Not Set' }}</p>
           </div>
           <div class="summary-item">
@@ -38,18 +38,16 @@
             <p class="summary-amount">{{ monthlyTotalText }}</p>
           </div>
           <div class="summary-item">
-            <h3>Money Left</h3>
+            <h3>{{ moneyLeft.label }}</h3>
             <p class="summary-amount" :class="moneyLeft.status">{{ moneyLeft.text }}</p>
           </div>
         </div>
-        <div class="set-budget-form">
-          <input type="number" v-model="budgetInput" placeholder="Set monthly budget" step="0.01">
-          <button @click="setBudget">Set Budget</button>
-        </div>
+        <!-- Removed set-budget-form -->
       </div>
     </div>
     <div v-if="categorySummary.length > 0" class="category-breakdown">
       <h3>Spending by Category</h3>
+      <CategoryChart :categoryData="categorySummary" />
       <ul>
         <li v-for="item in categorySummary" :key="item.name">
           <button @click="openDetailModal(item.name)" class="category-item">
@@ -84,6 +82,12 @@
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
+  <BudgetModal
+    v-if="isBudgetModalVisible"
+    :initialAmount="currentBudget"
+    @close="isBudgetModalVisible = false"
+    @save="setBudget"
+  />
 </template>
 
 <script>
@@ -93,6 +97,8 @@ import { useTransactions } from '../composables/useTransactions';
 
 import EditModal from '../components/EditModal.vue';
 import CategoryDetailModal from '../components/CategoryDetailModal.vue';
+import CategoryChart from '../components/CategoryChart.vue';
+import BudgetModal from '../components/BudgetModal.vue';
 import axios from 'axios';
 
 export default {
@@ -100,6 +106,8 @@ export default {
   components: {
     EditModal,
     CategoryDetailModal,
+    CategoryChart,
+    BudgetModal,
   },
   
   // The setup() function is the heart of the Composition API
@@ -118,6 +126,7 @@ export default {
     const transactionToEdit = ref(null);
     const isDetailModalVisible = ref(false);
     const selectedCategoryData = ref({ name: '', transactions: [] });
+    const isBudgetModalVisible = ref(false);
 
     // --- COMPUTED PROPERTIES ---
     const availableYears = computed(() => {
@@ -155,12 +164,59 @@ export default {
 
     const monthlyTotalText = computed(() => `RM ${monthlyTotal.value.toFixed(2)}`);
 
+    const subscriptions = ref([]);
+
+    const fetchSubscriptions = async () => {
+      try {
+        const response = await axios.get('/api/subscriptions');
+        subscriptions.value = response.data;
+      } catch (error) {
+        console.error("Error fetching subscriptions:", error);
+      }
+    };
+
+    const remainingSubscriptions = computed(() => {
+      const now = new Date();
+      const currentYear = now.getFullYear().toString();
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const currentMonthName = monthNames[now.getMonth()];
+
+      // Only calculate for current month/year
+      if (selectedYear.value !== currentYear || selectedMonth.value !== currentMonthName) {
+        return 0;
+      }
+
+      const today = now.getDate();
+      return subscriptions.value.reduce((sum, sub) => {
+        // If day_of_month > today, it's remaining.
+        // Also check if it's already recorded (though the backend check should handle this, 
+        // strictly speaking "remaining" means "not yet paid/recorded").
+        // A simple heuristic is just day > today.
+        // A better one is checking if a transaction exists for it, but that's complex.
+        // Let's stick to day > today for "upcoming".
+        const day = parseInt(sub.day_of_month) || 1;
+        if (day > today) {
+          return sum + parseFloat(sub.amount);
+        }
+        return sum;
+      }, 0);
+    });
+
     const moneyLeft = computed(() => {
-      if (currentBudget.value === null) return { text: 'N/A', status: 'neutral' };
-      const left = currentBudget.value - monthlyTotal.value;
+      if (currentBudget.value === null) return { text: 'N/A', status: 'neutral', label: 'Money Left' };
+      
+      let left = currentBudget.value - monthlyTotal.value;
+      let label = 'Money Left';
+
+      // If current month, subtract remaining subscriptions
+      if (remainingSubscriptions.value > 0) {
+        left -= remainingSubscriptions.value;
+        label = 'Safe to Spend';
+      }
+
       const status = left >= 0 ? 'positive' : 'negative';
       const text = `RM ${left.toFixed(2)}`;
-      return { text, status };
+      return { text, status, label };
     });
 
     const categorySummary = computed(() => {
@@ -188,7 +244,7 @@ export default {
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
       try {
-        const response = await axios.get(`http://angs-mac-mini-1:5000/api/budget/${selectedYear.value}/${monthIndex}`);
+        const response = await axios.get(`/api/budget/${selectedYear.value}/${monthIndex}`);
         currentBudget.value = response.data.amount;
         budgetInput.value = response.data.amount;
       } catch (error) {
@@ -201,20 +257,17 @@ export default {
       }
     };
 
-    const setBudget = async () => {
-      if (budgetInput.value === null || budgetInput.value === '' || isNaN(budgetInput.value)) {
-        alert('Please enter a valid number for the budget.');
-        return;
-      }
+    const setBudget = async (amount) => {
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
       try {
-        await axios.post('http://angs-mac-mini-1:5000/api/budget', {
+        await axios.post('/api/budget', {
           year: selectedYear.value,
           month: monthIndex,
-          amount: budgetInput.value,
+          amount: amount,
         });
         await fetchBudget();
+        isBudgetModalVisible.value = false;
       } catch (error) {
         console.error("Error setting budget:", error);
         alert("Failed to set budget.");
@@ -228,7 +281,7 @@ export default {
 
     const handleSaveTransaction = async (updatedTransaction) => {
       try {
-        await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
+        await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
         isModalVisible.value = false;
         await fetchTransactions(); // Refresh data from composable
         isDetailModalVisible.value = false;
@@ -241,7 +294,7 @@ export default {
     const handleDeleteFromModal = async (transactionId) => {
       if (!confirm('Are you sure you want to delete this transaction?')) return;
       try {
-        await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${transactionId}`);
+        await axios.delete(`/api/transactions/${transactionId}`);
         await fetchTransactions(); // Refresh data from composable
         isDetailModalVisible.value = false;
       } catch (error) {
@@ -277,6 +330,7 @@ export default {
     onMounted(async () => {
       await fetchTransactions(); // Call methods from the composable
       fetchCategories();
+      fetchSubscriptions();
       if (availableYears.value.length > 0) {
         selectedYear.value = availableYears.value[0];
         
@@ -315,6 +369,7 @@ export default {
       handleDeleteFromModal,
       handleEditFromModal,
       openDetailModal,
+      isBudgetModalVisible,
     };
   }
 }
@@ -418,6 +473,25 @@ h1 {
   color: var(--primary-color);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.edit-budget-btn {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.edit-budget-btn:hover {
+  opacity: 1;
 }
 
 .summary-amount {

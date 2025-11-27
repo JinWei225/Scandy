@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Home from '../components/Home.vue'; 
-import AllTransactions from '../components/AllTransactions.vue'; 
+import Home from '../components/Home.vue';
+import AllTransactions from '../components/AllTransactions.vue';
+import SubscriptionsPage from '../views/SubscriptionsPage.vue';
 
 const routes = [
   {
@@ -12,6 +13,11 @@ const routes = [
     path: '/all',
     name: 'AllTransactions',
     component: AllTransactions,
+  },
+  {
+    path: '/subscriptions',
+    name: 'Subscriptions',
+    component: SubscriptionsPage,
   },
 ];
 

@@ -143,7 +143,7 @@ export default {
       const formData = new FormData();
       formData.append('file', selectedFile.value);
       try {
-        const response = await axios.post('http://angs-mac-mini-1:5000/api/upload', formData);
+        const response = await axios.post('/api/upload', formData);
         const dateParts = response.data.date.split('/');
         const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
         const numericAmount = parseFloat(response.data.amount.replace('RM', '').trim());
@@ -167,7 +167,7 @@ export default {
       isLoading.value = true;
       message.value = 'Saving transaction...';
       try {
-        await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', transactionPayload);
+        await axios.post('/api/transactions/manual', transactionPayload);
         message.value = 'Transaction saved successfully!';
         await fetchTransactions(); // Refresh shared data
       } catch (error) {
@@ -194,7 +194,7 @@ export default {
         category: manualCategory.value,
       };
       try {
-        await axios.post('http://angs-mac-mini-1:5000/api/transactions/manual', newTransaction);
+        await axios.post('/api/transactions/manual', newTransaction);
         message.value = 'Transaction added successfully!';
         manualDate.value = '';
         manualDescription.value = '';
@@ -211,7 +211,7 @@ export default {
     const deleteTransaction = async (id) => {
         if (!confirm('Are you sure you want to delete this transaction?')) return;
         try {
-            await axios.delete(`http://angs-mac-mini-1:5000/api/transactions/${id}`);
+            await axios.delete(`/api/transactions/${id}`);
             await fetchTransactions(); // Refresh shared data
         } catch (error) {
             message.value = 'Failed to delete transaction.';
@@ -225,7 +225,7 @@ export default {
     
     const handleSaveTransaction = async (updatedTransaction) => {
         try {
-            await axios.put(`http://angs-mac-mini-1:5000/api/transactions/${updatedTransaction.id}`, updatedTransaction);
+            await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
             isModalVisible.value = false;
             await fetchTransactions(); // Refresh shared data
         } catch (error) {

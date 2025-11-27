@@ -13,7 +13,7 @@ export function useTransactions() {
   // Methods
   const fetchTransactions = async () => {
     try {
-      const response = await axios.get('http://angs-mac-mini-1:5000/api/transactions');
+      const response = await axios.get('/api/transactions');
       transactions.value = response.data;
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -22,7 +22,7 @@ export function useTransactions() {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('http://angs-mac-mini-1:5000/api/categories');
+      const response = await axios.get('/api/categories');
       categories.value = response.data;
     } catch (error) {
       console.error('Error fetching categories:', error);
