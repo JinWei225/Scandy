@@ -56,7 +56,7 @@ import SearchModal from './components/SearchModal.vue';
 import { themeStore } from './themeStore.js'; // Import to initialize
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
-import AOS from 'aos';
+
 import { useTransactions } from './composables/useTransactions';
 
 export default {
@@ -73,12 +73,7 @@ export default {
       // Load transactions globally so search works immediately
       await fetchTransactions();
 
-      AOS.init({
-        duration: 400,
-        easing: 'ease-in-out',
-        once: true,
-        mirror: false
-      });
+
 
       try {
         await axios.post('/api/subscriptions/check');
@@ -179,6 +174,7 @@ html.dark .global-header {
   font-weight: 800;
   letter-spacing: -0.025em;
   background: linear-gradient(to right, #ffffff, #e0e7ff);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -347,6 +343,10 @@ html.dark .icon-btn {
 
 html.dark .icon-btn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+html.dark .icon-btn.edit {
+  color: #f1f5f9; /* Slate 100 - Light gray/white for better contrast */
 }
 
 .header-actions {

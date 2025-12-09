@@ -29,7 +29,9 @@ export default {
         datasets: [
           {
             backgroundColor: [
-              '#41B883', '#E46651', '#00D8FF', '#DD1B16', '#F7C600', '#8E44AD', '#3498DB', '#2ECC71', '#F39C12', '#D35400'
+              '#7C3AED', '#6366F1', '#A78BFA', '#4F46E5', 
+              '#C4B5FD', '#4338CA', '#8B5CF6', '#5B21B6', 
+              '#818CF8', '#A5B4FC'
             ],
             data: props.categoryData.map(item => item.total)
           }

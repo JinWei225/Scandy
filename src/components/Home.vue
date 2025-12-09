@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <div class="upload-section" data-aos="fade-down">
+    <div class="upload-section">
       <h2>Upload Transaction Records</h2>
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
       <label for="file-upload" class="file-upload-label">
@@ -14,7 +14,7 @@
       <p v-if="message" class="message">{{ message }}</p>
     </div>
 
-    <div class="manual-entry-section" data-aos="fade-up">
+    <div class="manual-entry-section">
       <h2>Manual Entry</h2>
       <form @submit.prevent="addManualTransaction">
         <div class="form-group">
@@ -43,7 +43,7 @@
       </form>
     </div>
 
-    <div class="transactions-list" data-aos="fade-up" data-aos-delay="50">
+    <div class="transactions-list">
       <h2>Recent Transactions</h2>
       <div class="view-all-link">
         <router-link to="/all">View All Transactions &rarr;</router-link>
@@ -52,8 +52,7 @@
         No transactions found.
       </div>
       <ul v-else>
-        <li v-for="(transaction, index) in latestTransactions" :key="transaction.id"
-            data-aos="fade-up" :data-aos-delay="index * 30">
+        <li v-for="transaction in latestTransactions" :key="transaction.id">
           <div class="transaction-info">
             <div class="details">
                 <span class="date">{{ transaction.date }}</span>
@@ -503,9 +502,7 @@ li {
   border-radius: 8px;
 }
 
-li:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
+
 
 li:last-child {
   border-bottom: none;

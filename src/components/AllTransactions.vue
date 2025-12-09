@@ -1,10 +1,10 @@
 <template>
   <div class="container">
-    <div class="back-link" data-aos="fade-down">
+    <div class="back-link">
       <router-link to="/">&larr; Back to Home</router-link>
     </div>
 
-    <div v-if="transactions.length > 0" class="top-panel" data-aos="fade-up">
+    <div v-if="transactions.length > 0" class="top-panel">
 
       <!-- Section 1: The Filter Controls -->
       <div class="filter-controls">
@@ -45,12 +45,11 @@
         <!-- Removed set-budget-form -->
       </div>
     </div>
-    <div v-if="categorySummary.length > 0" class="category-breakdown" data-aos="fade-up" data-aos-delay="50">
+    <div v-if="categorySummary.length > 0" class="category-breakdown">
       <h3>Spending by Category</h3>
       <CategoryChart :categoryData="categorySummary" />
       <ul>
-        <li v-for="(item, index) in categorySummary" :key="item.name" 
-            data-aos="fade-up" :data-aos-delay="index * 10">
+        <li v-for="item in categorySummary" :key="item.name">
           <button @click="openDetailModal(item.name)" class="category-item">
             <div class="category-info">
               <span class="category-name">{{ item.name }}</span>
@@ -64,7 +63,7 @@
         </li>
       </ul>
     </div>
-    <div v-else class="no-transactions" data-aos="fade-in">
+    <div v-else class="no-transactions">
       No transactions recorded yet.
     </div>
   </div>
@@ -529,6 +528,14 @@ export default {
   background-color: rgba(79, 70, 229, 0.1);
 }
 
+html.dark .edit-budget-btn {
+  color: #f1f5f9; /* Slate 100 */
+}
+
+html.dark .edit-budget-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 .category-breakdown {
   background: var(--card-background);
   backdrop-filter: blur(12px);
@@ -579,14 +586,14 @@ export default {
 
 .category-name {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: var(--text-color);
   display: block;
   margin-bottom: 0.25rem;
 }
 
 .transaction-count {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--subtle-text-color);
 }
 
@@ -596,14 +603,14 @@ export default {
 
 .category-total {
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: 1rem;
   display: block;
   color: var(--text-color);
   margin-bottom: 0.25rem;
 }
 
 .category-percentage {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: white;
   font-weight: 600;
   background: var(--primary-color);
@@ -657,6 +664,7 @@ export default {
   
   .summary-item h3 {
     margin: 0;
+    text-align: left;
   }
 
   .summary-item .summary-amount {

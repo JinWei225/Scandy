@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <div class="header-actions" data-aos="fade-down">
+    <div class="header-actions">
       <h1>Subscriptions</h1>
       <button class="add-btn" @click="openAddModal">
         <span>+</span> Add Subscription
@@ -8,10 +8,8 @@
     </div>
 
     <div v-if="subscriptions.length > 0" class="subscriptions-list">
-      <div v-for="(sub, index) in subscriptions" :key="sub.id" 
-           class="subscription-card" 
-           data-aos="fade-up" 
-           :data-aos-delay="index * 50">
+      <div v-for="sub in subscriptions" :key="sub.id" 
+           class="subscription-card">
         <div class="sub-info">
           <h3>{{ sub.name }}</h3>
           <p class="sub-details">
@@ -28,17 +26,17 @@
         </div>
       </div>
       
-      <div class="total-summary" data-aos="fade-up" data-aos-delay="100">
+      <div class="total-summary">
         <h3>Total Monthly: RM {{ totalMonthly.toFixed(2) }}</h3>
       </div>
     </div>
-    <div v-else class="no-subscriptions" data-aos="fade-in">
+    <div v-else class="no-subscriptions">
       <p>No subscriptions added yet.</p>
     </div>
 
     <!-- Modal for Add/Edit -->
     <div v-if="isModalVisible" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content" data-aos="zoom-in" data-aos-duration="300">
+      <div class="modal-content">
         <h2>{{ isEditing ? 'Edit Subscription' : 'Add Subscription' }}</h2>
         <form @submit.prevent="saveSubscription">
           <div class="form-group">
