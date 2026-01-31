@@ -58,8 +58,11 @@ import SearchModal from './components/SearchModal.vue';
 import { themeStore } from './themeStore.js'; // Import to initialize
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
+import { SendIntent } from 'capacitor-plugin-send-intent';
 
 import { useTransactions } from './composables/useTransactions';
+import { useIntent } from './composables/useIntent';
 
 export default {
   name: 'App',
@@ -69,11 +72,25 @@ export default {
   },
   setup() {
     const { fetchTransactions } = useTransactions();
+    const { setIntentData } = useIntent();
 
     // This ensures the theme logic runs when the app starts
     onMounted(async () => {
       // Load transactions globally so search works immediately
       await fetchTransactions();
+
+      // Check for incoming share intent if on mobile
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const result = await SendIntent.checkSendIntentReceived();
+          if (result && result.url) {
+            console.log('Shared content received:', result.url);
+            setIntentData(result);
+          }
+        } catch (error) {
+          console.error('Error checking for shared intent:', error);
+        }
+      }
 
 
 
@@ -380,6 +397,54 @@ html.dark .icon-btn.edit {
   .search-trigger-btn {
     margin-left: auto; /* Push to right on mobile */
     margin-right: 0.5rem;
+  }
+}
+
+/* --- Global Modal Mobile Improvements --- */
+@media (max-width: 600px) {
+  .modal-content {
+    padding: 1.25rem !important; /* Smaller padding */
+    width: 92% !important;
+    max-height: 92vh !important; /* Take up more vertical space */
+    overflow-y: auto !important; /* Scrollable content */
+    border-radius: 12px !important;
+  }
+
+  .modal-content h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem !important;
+  }
+
+  .form-group label {
+    font-size: 0.8rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .form-group input, 
+  .form-group select {
+    padding: 0.6rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+  }
+
+  .modal-actions {
+    margin-top: 1.5rem !important;
+    gap: 0.5rem !important;
+  }
+
+  .modal-actions button {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.9rem !important;
+    border-radius: 6px !important;
+    flex: 1; /* Make buttons equal width */
+  }
+
+  .modal-overlay {
+    padding: 10px !important; /* Prevent sticking to edges */
   }
 }
 </style>

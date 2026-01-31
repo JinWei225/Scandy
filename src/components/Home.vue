@@ -30,14 +30,21 @@
             </div>
             
             <div class="form-group half-width">
+                <label for="manual-time">Time</label>
+                <input type="time" id="manual-time" v-model="manualForm.time" step="1" required>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group half-width">
                 <label for="manual-amount">Amount (RM)</label>
                 <input type="number" id="manual-amount" v-model.number="manualForm.amount" step="0.01" required>
             </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="manual-description">Description</label>
-          <input type="text" id="manual-description" v-model="manualForm.description" required>
+            
+            <div class="form-group half-width">
+                <label for="manual-description">Description</label>
+                <input type="text" id="manual-description" v-model="manualForm.description" required>
+            </div>
         </div>
         
         <div class="form-group mb-4">
@@ -122,7 +129,10 @@
         <li v-for="transaction in latestTransactions" :key="transaction.id">
           <div class="transaction-info">
             <div class="details">
-                <span class="date">{{ transaction.date }}</span>
+                <div class="date-time-row">
+                    <span class="date">{{ transaction.date }}</span>
+                    <span class="time-pill">{{ transaction.time }}</span>
+                </div>
                 <span class="description">{{ transaction.description }}</span>
             </div>
             <div class="category-and-amount">
@@ -160,8 +170,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactions } from '../composables/useTransactions';
+import { useIntent } from '../composables/useIntent';
 import EditModal from '../components/EditModal.vue';
 import ConfirmationModal from '../components/ConfirmationModal.vue';
 import axios from 'axios';
@@ -175,6 +186,7 @@ export default {
   setup() {
     // --- COMPOSABLE ---
     const { transactions, fetchTransactions } = useTransactions();
+    const { sharedIntentData, clearIntentData } = useIntent();
 
     // --- STATE ---
     const selectedFile = ref(null);
@@ -183,6 +195,7 @@ export default {
     const categories = ref([]);
     const manualForm = ref({
       date: new Date().toISOString().substr(0, 10),
+      time: new Date().toTimeString().substr(0, 8),
       description: '',
       amount: '',
       category: 'Uncategorized',
@@ -248,6 +261,7 @@ export default {
         const numericAmount = parseFloat(response.data.amount.replace('RM', '').trim());
         scannedData.value = {
           date: formattedDate,
+          time: response.data.time || '00:00:00',
           amount: numericAmount,
           category: 'Uncategorized'
         };
@@ -266,7 +280,24 @@ export default {
       isLoading.value = true;
       message.value = 'Saving transaction...';
       try {
-        await axios.post('/api/transactions/manual', transactionPayload);
+        if (transactionPayload.type === 'transfer') {
+            if (!transactionPayload.account_id || !transactionPayload.to_account_id) {
+                alert("Please select both From and To accounts.");
+                isLoading.value = false;
+                return;
+            }
+            const transferPayload = {
+                date: transactionPayload.date,
+                time: transactionPayload.time,
+                description: transactionPayload.description || 'Transfer',
+                amount: transactionPayload.amount,
+                from_account_id: transactionPayload.account_id,
+                to_account_id: transactionPayload.to_account_id
+            };
+            await axios.post('/api/transactions/transfer', transferPayload);
+        } else {
+            await axios.post('/api/transactions/manual', transactionPayload);
+        }
         message.value = 'Transaction saved successfully!';
         await fetchTransactions(); // Refresh shared data
         await fetchAccounts(); // Refresh accounts to update balance
@@ -297,6 +328,7 @@ export default {
             // Map fields for transfer endpoint
             const transferPayload = {
                 date: payload.date,
+                time: payload.time,
                 description: payload.description || 'Transfer',
                 amount: payload.amount,
                 from_account_id: payload.account_id,
@@ -314,6 +346,7 @@ export default {
         // Reset form
         manualForm.value = {
           date: new Date().toISOString().substr(0, 10),
+          time: new Date().toTimeString().substr(0, 8),
           description: '',
           amount: '',
           category: 'Uncategorized',
@@ -357,6 +390,34 @@ export default {
             alert('Failed to update transaction.');
         }
     };
+
+    // --- WATCHERS ---
+    watch(sharedIntentData, async (newData) => {
+      if (newData && newData.url) {
+        console.log('Processing shared intent in Home:', newData.url);
+        try {
+          isLoading.value = true;
+          message.value = 'Loading shared image...';
+          
+          // Use fetch to get the blob from the content:// or file:// URL
+          const response = await fetch(newData.url);
+          const blob = await response.blob();
+          
+          // Create a file object from the blob
+          selectedFile.value = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
+          
+          // Clear intent data so it doesn't trigger again
+          clearIntentData();
+          
+          // Automatically trigger upload and scan
+          await uploadImage();
+        } catch (error) {
+          console.error('Error handling shared image:', error);
+          message.value = 'Failed to load shared image.';
+          isLoading.value = false;
+        }
+      }
+    });
 
     // --- LIFECYCLE HOOK ---
     onMounted(() => {
@@ -654,10 +715,27 @@ li:last-child {
   flex-direction: column;
 }
 
+.transaction-info .date-time-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
 .transaction-info .date {
   color: var(--subtle-text-color);
   font-size: 0.85rem;
-  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.time-pill {
+    background-color: rgba(79, 70, 229, 0.08);
+    color: var(--primary-color);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 .transaction-info .description {
@@ -777,7 +855,7 @@ html.dark .category-pill.income {
     flex-basis: 35%;
   }
 
-  .transaction-info .date { flex-basis: 120px; margin-bottom: 0;}
+  .transaction-info .date-time-row { flex-basis: 180px; margin-bottom: 0;}
   .transaction-info .description { flex-grow: 1; }
   .transaction-info .amount { margin: 0; }
   
