@@ -17,6 +17,7 @@
         <nav class="main-nav desktop-nav">
           <router-link to="/">Home</router-link>
           <router-link to="/all">Transactions</router-link>
+          <router-link to="/accounts">Accounts</router-link>
           <router-link to="/subscriptions">Subscriptions</router-link>
         </nav>
       </div>
@@ -35,6 +36,7 @@
       <nav>
         <router-link to="/" @click="closeMenu">Home</router-link>
         <router-link to="/all" @click="closeMenu">Transactions</router-link>
+        <router-link to="/accounts" @click="closeMenu">Accounts</router-link>
         <router-link to="/subscriptions" @click="closeMenu">Subscriptions</router-link>
       </nav>
     </div>
@@ -104,8 +106,8 @@ export default {
 
 /* Light Theme (Default) */
 :root {
-  --primary-color: #4f46e5; /* Indigo 600 */
-  --secondary-color: #818cf8; /* Indigo 400 */
+  --primary-color: #ea580c; /* Orange 600 */
+  --secondary-color: #fb923c; /* Orange 400 */
   --accent-color: #f43f5e; /* Rose 500 */
   --background-color: #f3f4f6; /* Cool Gray 100 */
   --card-background: rgba(255, 255, 255, 0.8);
@@ -121,15 +123,15 @@ export default {
 
 /* Dark Theme */
 html.dark {
-  --primary-color: #6366f1; /* Indigo 500 */
-  --secondary-color: #818cf8; /* Indigo 400 */
+  --primary-color: #f97316; /* Orange 500 */
+  --secondary-color: #fb923c; /* Orange 400 */
   --accent-color: #fb7185; /* Rose 400 */
-  --background-color: #0f172a; /* Slate 900 */
-  --card-background: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
-  --text-color: #f8fafc; /* Slate 50 */
-  --subtle-text-color: #94a3b8; /* Slate 400 */
+  --background-color: #0c0a09; /* Stone 950 - Warmer dark */
+  --card-background: rgba(28, 25, 23, 0.7); /* Stone 900 with opacity */
+  --text-color: #fafaf9; /* Stone 50 */
+  --subtle-text-color: #a8a29e; /* Stone 400 */
   --header-color: #ffffff;
-  --border-color: rgba(51, 65, 85, 0.5); /* Slate 700 with opacity */
+  --border-color: rgba(68, 64, 60, 0.5); /* Stone 700 with opacity */
   --positive-color: #34d399; /* Emerald 400 */
   --negative-color: #f87171; /* Red 400 */
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
@@ -149,7 +151,7 @@ body {
 }
 
 .global-header {
-  background: rgba(79, 70, 229, 0.85); /* Primary color with opacity */
+  background: rgba(234, 88, 12, 0.85); /* Orange 600 with opacity */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: var(--header-color);
@@ -165,7 +167,7 @@ body {
 }
 
 html.dark .global-header {
-  background: rgba(15, 23, 42, 0.85); /* Dark background with opacity */
+  background: rgba(28, 25, 23, 0.85); /* Stone 900 (Dark Orange/Brown) with opacity */
 }
 
 .logo {
@@ -173,7 +175,7 @@ html.dark .global-header {
   margin: 0;
   font-weight: 800;
   letter-spacing: -0.025em;
-  background: linear-gradient(to right, #ffffff, #e0e7ff);
+  background: linear-gradient(to right, #ffffff, #ffedd5);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -247,7 +249,7 @@ html.dark .global-header {
   top: 70px; /* Adjust based on header height */
   left: 0;
   width: 100%;
-  background: rgba(79, 70, 229, 0.95);
+  background: rgba(234, 88, 12, 0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding: 2rem 0;
@@ -259,7 +261,7 @@ html.dark .global-header {
 }
 
 html.dark .mobile-nav {
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(28, 25, 23, 0.95);
 }
 
 .mobile-nav.is-open {

@@ -29,9 +29,16 @@ export default {
         datasets: [
           {
             backgroundColor: [
-              '#7C3AED', '#6366F1', '#A78BFA', '#4F46E5', 
-              '#C4B5FD', '#4338CA', '#8B5CF6', '#5B21B6', 
-              '#818CF8', '#A5B4FC'
+              '#ea580c', // Orange 600
+              '#fb923c', // Orange 400
+              '#f97316', // Orange 500
+              '#fed7aa', // Orange 200
+              '#c2410c', // Orange 700
+              '#ef4444', // Red 500
+              '#fca5a5', // Red 300
+              '#fbbf24', // Amber 400
+              '#fde68a', // Amber 200
+              '#78350f'  // Amber 900
             ],
             data: props.categoryData.map(item => item.total)
           }

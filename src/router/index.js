@@ -19,6 +19,16 @@ const routes = [
     name: 'Subscriptions',
     component: SubscriptionsPage,
   },
+  {
+    path: '/accounts',
+    name: 'Accounts',
+    component: () => import('../views/AccountsPage.vue')
+  },
+  {
+    path: '/accounts/:name',
+    name: 'AccountTransactions',
+    component: () => import('../views/AccountTransactions.vue')
+  }
 ];
 
 const router = createRouter({

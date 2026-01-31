@@ -14,7 +14,7 @@
         <div class="form-group">
           <label for="edit-category">Category</label>
           <select id="edit-category" v-model="editableTransaction.category" required>
-            <option v-for="category in categories" :key="category" :value="category">
+            <option v-for="category in availableCategories" :key="category" :value="category">
               {{ category }}
             </option>
           </select>
@@ -23,6 +23,35 @@
           <label for="edit-amount">Amount (RM)</label>
           <input type="number" id="edit-amount" v-model="editableTransaction.amount" step="0.01" required>
         </div>
+        
+        <div class="form-group">
+            <label for="edit-account">Account</label>
+            <select id="edit-account" v-model="editableTransaction.account_id">
+                <option :value="null">Unassigned</option>
+                <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-4">
+            <label class="block font-semibold mb-2">Transaction Type</label>
+            <div class="type-selector">
+                <div 
+                    class="type-option expense" 
+                    :class="{ active: editableTransaction.type === 'expense' }"
+                    @click="editableTransaction.type = 'expense'"
+                >
+                    Expense
+                </div>
+                <div 
+                    class="type-option income" 
+                    :class="{ active: editableTransaction.type === 'income' }"
+                    @click="editableTransaction.type = 'income'"
+                >
+                    Income
+                </div>
+            </div>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="cancel-btn" @click="$emit('close')">Cancel</button>
           <button type="submit" class="save-btn">Save Changes</button>
@@ -41,9 +70,25 @@ export default {
       required: true,
     },
     categories: {
-      type: Array,
+      type: [Array, Object], // Accept both during migration
       required: true,
     },
+    accounts: {
+      type: Array,
+      required: false,
+      default: () => []
+    }
+  },
+  computed: {
+    availableCategories() {
+        if (!this.categories) return [];
+        if (Array.isArray(this.categories)) return this.categories;
+        
+        const type = this.editableTransaction?.type || 'expense';
+        if (type === 'income') return this.categories.income || [];
+        // Transfer usually doesn't have categories, but default to empty or expense if needed
+        return this.categories.expense || [];
+    }
   },
   data() {
     return {
@@ -68,6 +113,8 @@ export default {
             ...newVal,
             date: formattedDate,
             amount: numericAmount,
+            account_id: newVal.account_id || null, // Ensure account_id is present
+            type: newVal.type || 'expense' // Ensure type is present
           };
         }
       }
@@ -160,4 +207,60 @@ export default {
 .save-btn:hover { background-color: var(--secondary-color); }
 .cancel-btn { background-color: var(--border-color); color: var(--text-color); }
 .cancel-btn:hover { background-color: #d1d5db; }
+
+.type-selector {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+
+.type-option {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.5);
+    color: var(--text-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.type-option:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* Expense Styles */
+.type-option.expense {
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--negative-color);
+}
+.type-option.expense.active {
+    background-color: var(--negative-color);
+    color: white;
+    border-color: var(--negative-color);
+}
+
+/* Income Styles */
+.type-option.income {
+    border-color: rgba(34, 197, 94, 0.2);
+    color: var(--positive-color);
+}
+.type-option.income.active {
+    background-color: var(--positive-color);
+    color: white;
+    border-color: var(--positive-color);
+}
+
+/* Dark Mode */
+html.dark .type-option {
+    background-color: rgba(30, 41, 59, 0.4);
+}
+html.dark .type-option:hover {
+    background-color: rgba(30, 41, 59, 0.6);
+}
 </style>

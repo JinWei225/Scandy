@@ -1,5 +1,11 @@
 <template>
   <div class="container">
+    <!-- Total Balance Section -->
+    <div class="total-balance-card">
+      <h2 class="total-balance-title">Total Balance</h2>
+      <p class="total-balance-amount">RM {{ totalBalance.toFixed(2) }}</p>
+    </div>
+
     <div class="upload-section">
       <h2>Upload Transaction Records</h2>
       <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
@@ -17,26 +23,87 @@
     <div class="manual-entry-section">
       <h2>Manual Entry</h2>
       <form @submit.prevent="addManualTransaction">
-        <div class="form-group">
-          <label for="manual-date">Date</label>
-          <input type="date" id="manual-date" v-model="manualDate" required>
+        <div class="form-row">
+            <div class="form-group half-width">
+                <label for="manual-date">Date</label>
+                <input type="date" id="manual-date" v-model="manualForm.date" required>
+            </div>
+            
+            <div class="form-group half-width">
+                <label for="manual-amount">Amount (RM)</label>
+                <input type="number" id="manual-amount" v-model.number="manualForm.amount" step="0.01" required>
+            </div>
         </div>
+        
         <div class="form-group">
           <label for="manual-description">Description</label>
-          <input type="text" id="manual-description" v-model="manualDescription" placeholder="e.g., Coffee with client" required>
+          <input type="text" id="manual-description" v-model="manualForm.description" required>
         </div>
-        <div class="form-group">
-          <label for="manual-category">Category</label>
-          <select id="manual-category" v-model="manualCategory" required>
-            <option v-for="category in categories" :key="category" :value="category">
-              {{ category }}
-            </option>
-          </select>
+        
+        <div class="form-group mb-4">
+            <label class="block font-semibold mb-2">Transaction Type</label>
+            <div class="type-selector">
+                <div 
+                    class="type-option expense" 
+                    :class="{ active: manualForm.type === 'expense' }"
+                    @click="manualForm.type = 'expense'"
+                >
+                    Expense
+                </div>
+                <div 
+                    class="type-option income" 
+                    :class="{ active: manualForm.type === 'income' }"
+                    @click="manualForm.type = 'income'"
+                >
+                    Income
+                </div>
+                <div 
+                    class="type-option transfer" 
+                    :class="{ active: manualForm.type === 'transfer' }"
+                    @click="manualForm.type = 'transfer'"
+                >
+                    Transfer
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-          <label for="manual-amount">Amount (RM)</label>
-          <input type="number" id="manual-amount" v-model="manualAmount" placeholder="15.50" step="0.01" required>
+
+        <div class="form-row">
+            <div class="form-group half-width">
+               <!-- Dynamic Label based on type -->
+                <label for="manual-account">
+                    {{ manualForm.type === 'transfer' ? 'From Account' : 'Account' }} 
+                </label>
+                <select id="manual-account" v-model="manualForm.account_id">
+                    <option :value="null">Unassigned</option>
+                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                </select>
+            </div>
+            
+            <!-- Category is hidden for transfers -->
+            <div class="form-group half-width" v-if="manualForm.type !== 'transfer'">
+                <label for="manual-category">Category</label>
+                <select id="manual-category" v-model="manualForm.category">
+                    <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+                </select>
+            </div>
+
+            <!-- To Account for Transfers -->
+            <div class="form-group half-width" v-if="manualForm.type === 'transfer'">
+                <label for="to-account">To Account</label>
+                <select id="to-account" v-model="manualForm.to_account_id">
+                    <option :value="null">Select Account</option>
+                    <option 
+                        v-for="acc in accounts" 
+                        :key="acc.id" 
+                        :value="acc.id"
+                        :disabled="acc.id === manualForm.account_id"
+                    >
+                        {{ acc.name }}
+                    </option>
+                </select>
+            </div>
         </div>
+
         <button type="submit" :disabled="isLoading" class="submit-manual-button">
           {{ isLoading ? 'Saving...' : 'Add Transaction' }}
         </button>
@@ -60,7 +127,7 @@
             </div>
             <div class="category-and-amount">
                 <!-- Display the category if it exists -->
-                <span v-if="transaction.category" class="category-pill">{{ transaction.category }}</span>
+                <span v-if="transaction.category" class="category-pill" :class="{ 'income': transaction.type === 'income' }">{{ transaction.category }}</span>
                 <span class="amount">{{ transaction.amount }}</span>
             </div>
           </div>
@@ -77,6 +144,7 @@
     v-if="isConfirmationModalVisible"
     :scannedData="scannedData"
     :categories="categories"
+    :accounts="accounts"
     @close="isConfirmationModalVisible = false"
     @save="handleSaveConfirmation"
   />
@@ -85,6 +153,7 @@
     v-if="isModalVisible" 
     :transaction="transactionToEdit"
     :categories="categories"
+    :accounts="accounts"
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
@@ -105,16 +174,37 @@ export default {
   },
   setup() {
     // --- COMPOSABLE ---
-    const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
+    const { transactions, fetchTransactions } = useTransactions();
 
     // --- STATE ---
     const selectedFile = ref(null);
     const isLoading = ref(false);
     const message = ref('');
-    const manualDate = ref('');
-    const manualDescription = ref('');
-    const manualAmount = ref(null);
-    const manualCategory = ref('Uncategorized');
+    const categories = ref([]);
+    const manualForm = ref({
+      date: new Date().toISOString().substr(0, 10),
+      description: '',
+      amount: '',
+      category: 'Uncategorized',
+      account_id: null,
+      to_account_id: null,
+      type: 'expense'
+    });
+    
+    // Account related state
+    const accounts = ref([]);
+    const totalBalance = ref(0);
+    
+    // Load accounts
+    const fetchAccounts = async () => {
+        try {
+            const res = await axios.get('/api/accounts');
+            accounts.value = res.data;
+            totalBalance.value = accounts.value.reduce((sum, acc) => sum + (acc.balance || 0), 0);
+        } catch (err) {
+            console.error("Failed to load accounts", err);
+        }
+    };
     const scannedData = ref(null);
     const isConfirmationModalVisible = ref(false);
     const isModalVisible = ref(false);
@@ -122,6 +212,18 @@ export default {
     const fileInput = ref(null); // To reference the file input element
 
     // --- COMPUTED ---
+    const availableCategories = computed(() => {
+        if (!categories.value) return [];
+        // If categories is still an array (legacy), return it
+        if (Array.isArray(categories.value)) return categories.value;
+        
+        // Return based on type
+        const type = manualForm.value.type;
+        if (type === 'income') return categories.value.income || [];
+        if (type === 'transfer') return []; // Should be hidden anyway
+        return categories.value.expense || [];
+    });
+
     const latestTransactions = computed(() => {
       // The transactions array is now reactive from the composable
       return transactions.value.slice(0, 5);
@@ -167,6 +269,7 @@ export default {
         await axios.post('/api/transactions/manual', transactionPayload);
         message.value = 'Transaction saved successfully!';
         await fetchTransactions(); // Refresh shared data
+        await fetchAccounts(); // Refresh accounts to update balance
       } catch (error) {
         message.value = 'Failed to save transaction.';
       } finally {
@@ -178,28 +281,51 @@ export default {
     };
     
     const addManualTransaction = async () => {
-      if (!manualDate.value || !manualDescription.value || !manualAmount.value) {
-        message.value = 'Please fill out all manual entry fields.';
-        return;
-      }
       isLoading.value = true;
-      const formattedDate = manualDate.value.split('-').reverse().join('/');
-      const newTransaction = {
-        date: formattedDate,
-        description: manualDescription.value,
-        amount: manualAmount.value,
-        category: manualCategory.value,
-      };
       try {
-        await axios.post('/api/transactions/manual', newTransaction);
+        const payload = { ...manualForm.value };
+        // Ensure date is dd/mm/yyyy
+        const parts = payload.date.split('-');
+        payload.date = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        
+        if (payload.type === 'transfer') {
+            if (!payload.account_id || !payload.to_account_id) {
+                alert("Please select both From and To accounts."); // Simple validation
+                isLoading.value = false;
+                return;
+            }
+            // Map fields for transfer endpoint
+            const transferPayload = {
+                date: payload.date,
+                description: payload.description || 'Transfer',
+                amount: payload.amount,
+                from_account_id: payload.account_id,
+                to_account_id: payload.to_account_id
+            };
+            await axios.post('/api/transactions/transfer', transferPayload);
+        } else {
+            await axios.post('/api/transactions/manual', payload);
+        }
+        
+        // Refresh transactions and accounts
+        await fetchTransactions();
+        await fetchAccounts();
+        
+        // Reset form
+        manualForm.value = {
+          date: new Date().toISOString().substr(0, 10),
+          description: '',
+          amount: '',
+          category: 'Uncategorized',
+          account_id: null,
+          to_account_id: null,
+          type: 'expense'
+        };
         message.value = 'Transaction added successfully!';
-        manualDate.value = '';
-        manualDescription.value = '';
-        manualAmount.value = null;
-        manualCategory.value = 'Uncategorized';
-        await fetchTransactions(); // Refresh shared data
-      } catch (error) {
-        message.value = 'Failed to add transaction.';
+        setTimeout(() => message.value = '', 3000);
+      } catch (err) {
+        console.error(err);
+        message.value = 'Error adding transaction.';
       } finally {
         isLoading.value = false;
       }
@@ -210,6 +336,7 @@ export default {
         try {
             await axios.delete(`/api/transactions/${id}`);
             await fetchTransactions(); // Refresh shared data
+            await fetchAccounts(); // Refresh accounts to update balance
         } catch (error) {
             message.value = 'Failed to delete transaction.';
         }
@@ -225,6 +352,7 @@ export default {
             await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
             isModalVisible.value = false;
             await fetchTransactions(); // Refresh shared data
+            await fetchAccounts(); // Refresh accounts to update balance
         } catch (error) {
             alert('Failed to update transaction.');
         }
@@ -233,7 +361,12 @@ export default {
     // --- LIFECYCLE HOOK ---
     onMounted(() => {
       fetchTransactions();
-      fetchCategories();
+      fetchAccounts();
+        
+      // Load categories
+      axios.get('/api/categories')
+           .then(res => categories.value = res.data)
+           .catch(err => console.error(err));
     });
 
     // --- RETURN ---
@@ -242,18 +375,16 @@ export default {
       transactions,
       isLoading,
       message,
-      description: ref(''), // description is not a shared state, but local to the form
-      manualDate,
-      manualDescription,
-      manualAmount,
-      manualCategory,
-      categories,
       scannedData,
       isConfirmationModalVisible,
       isModalVisible,
       transactionToEdit,
       fileInput,
       latestTransactions,
+      manualForm,
+      categories,
+      accounts,
+      totalBalance,
       handleFileUpload,
       uploadImage,
       handleSaveConfirmation,
@@ -261,6 +392,8 @@ export default {
       deleteTransaction,
       openEditModal,
       handleSaveTransaction,
+      fetchAccounts, // Export to refresh if needed
+      availableCategories
     };
   }
 }
@@ -567,7 +700,6 @@ li:last-child {
 }
 
 
-
 @media (max-width: 600px) {
   li {
     flex-direction: column;
@@ -615,6 +747,19 @@ html.dark .form-group select:focus {
   background-color: rgba(30, 41, 59, 0.8);
 }
 
+html.dark .category-pill {
+  background-color: #c2410c; /* Orange 700 - Darker for contrast */
+  color: #fce7f3; /* Very light text */
+}
+
+.category-pill.income {
+  background-color: var(--positive-color); /* Green/Emerald */
+}
+
+html.dark .category-pill.income {
+  background-color: #15803d; /* Green 700 - Darker for contrast in dark mode */
+}
+
 @media (min-width: 601px) {
   .transaction-info {
     flex-direction: row;
@@ -640,4 +785,118 @@ html.dark .form-group select:focus {
     flex-direction: row;
   }
 }
+
+/* New CSS for Total Balance and Layouts */
+.total-balance-card {
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  color: white;
+  padding: 2rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.total-balance-card:hover {
+  transform: translateY(-2px);
+}
+
+.total-balance-title {
+  font-size: 1.125rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin: 0 0 0.5rem 0;
+}
+
+.total-balance-amount {
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .form-row {
+    flex-direction: row;
+  }
+}
+
+.half-width {
+  flex: 1;
+  margin-bottom: 0; /* Reset margin for flex children */
+}
+
+.type-selector {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.type-option {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+    min-width: 100px;
+    background-color: rgba(255, 255, 255, 0.5);
+    color: var(--text-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.type-option:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* Expense Styles */
+.type-option.expense {
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--negative-color);
+}
+.type-option.expense.active {
+    background-color: var(--negative-color);
+    color: white;
+    border-color: var(--negative-color);
+}
+
+/* Income Styles */
+.type-option.income {
+    border-color: rgba(34, 197, 94, 0.2);
+    color: var(--positive-color);
+}
+.type-option.income.active {
+    background-color: var(--positive-color);
+    color: white;
+    border-color: var(--positive-color);
+}
+
+/* Transfer Styles - using Blue */
+.type-option.transfer {
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #3b82f6; /* Blue-500 */
+}
+.type-option.transfer.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* Dark Mode */
+html.dark .type-option {
+    background-color: rgba(30, 41, 59, 0.4);
+}
+html.dark .type-option:hover {
+    background-color: rgba(30, 41, 59, 0.6);
+}
+
 </style>

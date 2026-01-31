@@ -1,13 +1,17 @@
 <template>
   <div class="container">
     <div class="back-link">
-      <router-link to="/">&larr; Back to Home</router-link>
+      <router-link to="/accounts">&larr; Back to Accounts</router-link>
+    </div>
+
+    <div class="page-header">
+        <h1 v-if="account">{{ account.name }} Transactions</h1>
+        <h1 v-else>Loading...</h1>
     </div>
 
     <div v-if="transactions.length > 0" class="top-panel">
-
-      <!-- Section 1: The Filter Controls -->
-      <div class="filter-controls">
+      <!-- Only Filter Controls, No Budget Summary -->
+      <div class="filter-controls full-width">
         <div class="select-wrapper">
           <label for="year-select">Year</label>
           <select id="year-select" v-model="selectedYear">
@@ -25,29 +29,10 @@
           </select>
         </div>
       </div>
+    </div>
 
-      <!-- Section 2: The Budget and Summary -->
-      <div class="budget-and-summary">
-        <div class="summary-grid">
-          <div class="summary-item">
-            <h3>Budget <button class="edit-budget-btn" @click="isBudgetModalVisible = true">✎</button></h3>
-            <p class="summary-amount">{{ currentBudget !== null ? `RM ${currentBudget.toFixed(2)}` : 'Not Set' }}</p>
-          </div>
-          <div class="summary-item">
-            <h3>Spent</h3>
-            <p class="summary-amount">{{ monthlyTotalText }}</p>
-          </div>
-          <div class="summary-item">
-            <h3>{{ moneyLeft.label }}</h3>
-            <p class="summary-amount" :class="moneyLeft.status">{{ moneyLeft.text }}</p>
-          </div>
-        </div>
-        <!-- Removed set-budget-form -->
-    </div>
-    </div>
     <div v-if="categorySummary.length > 0" class="category-breakdown">
       <h3>Spending by Category</h3>
-      <CategoryChart :categoryData="categorySummary" />
       <ul>
         <li v-for="item in categorySummary" :key="item.name">
           <button @click="openDetailModal(item.name)" class="category-item">
@@ -66,7 +51,6 @@
     
     <div v-if="incomeCategorySummary.length > 0" class="category-breakdown income-section">
       <h3>Income by Category</h3>
-      <!-- No chart for income as requested -->
       <ul>
         <li v-for="item in incomeCategorySummary" :key="item.name">
           <button @click="openDetailModal(item.name)" class="category-item">
@@ -84,9 +68,10 @@
     </div>
 
     <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="no-transactions">
-      No transactions recorded yet.
+      No transactions found for this period.
     </div>
   </div>
+
   <CategoryDetailModal
     v-if="isDetailModalVisible"
     :categoryName="selectedCategoryData.name"
@@ -103,56 +88,48 @@
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
-  <BudgetModal
-    v-if="isBudgetModalVisible"
-    :initialAmount="currentBudget"
-    @close="isBudgetModalVisible = false"
-    @save="setBudget"
-  />
 </template>
 
 <script>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-
 import { useTransactions } from '../composables/useTransactions';
-
+import { useRoute } from 'vue-router';
 import EditModal from '../components/EditModal.vue';
 import CategoryDetailModal from '../components/CategoryDetailModal.vue';
-import CategoryChart from '../components/CategoryChart.vue';
-import BudgetModal from '../components/BudgetModal.vue';
 import axios from 'axios';
 
 export default {
-  name: 'AllTransactions',
+  name: 'AccountTransactions',
   components: {
     EditModal,
     CategoryDetailModal,
-    CategoryChart,
-    BudgetModal,
   },
-  
-  // The setup() function is the heart of the Composition API
   setup() {
-    // --- COMPOSABLE ---
-    // Get all our shared transaction data and methods from the composable!
+    const route = useRoute();
+    const accountName = route.params.name;
+    const account = ref(null);
+    const accounts = ref([]);
+    const resolvedAccountId = ref(null);
+
     const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
 
-    // --- STATE (formerly `data()`) ---
-    // All data properties are now defined as 'refs'
     const selectedYear = ref(null);
     const selectedMonth = ref(null);
-    const currentBudget = ref(null);
-    const budgetInput = ref(null);
+    
     const isModalVisible = ref(false);
     const transactionToEdit = ref(null);
     const isDetailModalVisible = ref(false);
     const selectedCategoryData = ref({ name: '', transactions: [] });
-    const isBudgetModalVisible = ref(false);
 
-    // --- COMPUTED PROPERTIES ---
+    // --- COMPUTED --
+    const accountTransactions = computed(() => {
+        if (!resolvedAccountId.value) return [];
+        return transactions.value.filter(tx => String(tx.account_id) === String(resolvedAccountId.value));
+    });
+
     const availableYears = computed(() => {
-      if (!transactions.value.length) return [];
-      const years = new Set(transactions.value.map(tx => tx.date.split('/')[2]));
+      if (!accountTransactions.value.length) return [];
+      const years = new Set(accountTransactions.value.map(tx => tx.date.split('/')[2]));
       return Array.from(years).sort((a, b) => b - a);
     });
 
@@ -160,7 +137,7 @@ export default {
       if (!selectedYear.value) return [];
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const months = new Set(
-        transactions.value
+        accountTransactions.value
           .filter(tx => tx.date.endsWith(`/${selectedYear.value}`))
           .map(tx => monthNames[parseInt(tx.date.split('/')[1], 10) - 1])
       );
@@ -172,101 +149,38 @@ export default {
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
         const monthString = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
-        return transactions.value.filter(tx => tx.date.split('/')[1] === monthString && tx.date.split('/')[2] === selectedYear.value);
+        
+        return accountTransactions.value.filter(tx => 
+            tx.date.split('/')[1] === monthString && 
+            tx.date.split('/')[2] === selectedYear.value
+        );
     });
 
     const monthlyStats = computed(() => {
         let expense = 0;
         let income = 0;
-        
         if (!filteredTransactions.value.length) return { expense, income };
         
         filteredTransactions.value.forEach(tx => {
-            // Exclude transfers from calculations
             if (tx.category === 'Transfer' || tx.type === 'transfer') return;
-            
             const amount = parseFloat(tx.amount.replace('RM', '').trim());
             if (isNaN(amount)) return;
             
             if (tx.type === 'income') {
                 income += amount;
             } else {
-                // Default to expense
                 expense += amount;
             }
         });
-        
         return { expense, income };
     });
 
-    const monthlyTotal = computed(() => monthlyStats.value.expense);
-
-    const monthlyTotalText = computed(() => `RM ${monthlyTotal.value.toFixed(2)}`);
-
-    const subscriptions = ref([]);
-
-    const fetchSubscriptions = async () => {
-      try {
-        const response = await axios.get('/api/subscriptions');
-        subscriptions.value = response.data;
-      } catch (error) {
-        console.error("Error fetching subscriptions:", error);
-      }
-    };
-
-    const remainingSubscriptions = computed(() => {
-      const now = new Date();
-      const currentYear = now.getFullYear().toString();
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const currentMonthName = monthNames[now.getMonth()];
-
-      // Only calculate for current month/year
-      if (selectedYear.value !== currentYear || selectedMonth.value !== currentMonthName) {
-        return 0;
-      }
-
-      const today = now.getDate();
-      return subscriptions.value.reduce((sum, sub) => {
-        // If day_of_month > today, it's remaining.
-        const day = parseInt(sub.day_of_month) || 1;
-        if (day > today) {
-          return sum + parseFloat(sub.amount);
-        }
-        return sum;
-      }, 0);
-    });
-
-    const accounts = ref([]);
-    
-    
-    const moneyLeft = computed(() => {
-      if (currentBudget.value === null) return { text: 'N/A', status: 'neutral', label: 'Money Left' };
-      
-      // Budget + Income - Expenses
-      let left = (currentBudget.value + monthlyStats.value.income) - monthlyTotal.value;
-      let label = 'Money Left';
-
-      // If current month, subtract remaining subscriptions
-      if (remainingSubscriptions.value > 0) {
-        left -= remainingSubscriptions.value;
-        label = 'Safe to Spend';
-      }
-
-      const status = left >= 0 ? 'positive' : 'negative';
-      const text = `RM ${left.toFixed(2)}`;
-      return { text, status, label };
-    });
-
     const categorySummary = computed(() => {
-      if (!filteredTransactions.value.length || monthlyTotal.value === 0) return [];
+      if (!filteredTransactions.value.length || monthlyStats.value.expense === 0) return [];
       const summary = filteredTransactions.value.reduce((acc, tx) => {
-        // Match logic with monthlyStats:
-        // Exclude transfers
         if (tx.category === 'Transfer' || tx.type === 'transfer') return acc;
-        // Exclude income
         if (tx.type === 'income') return acc;
         
-        // Everything else is treated as an expense
         const category = tx.category || 'Uncategorized';
         const amount = parseFloat(tx.amount.replace('RM', '').trim());
         if (!isNaN(amount)) {
@@ -276,17 +190,17 @@ export default {
         }
         return acc;
       }, {});
+      
       return Object.keys(summary).map(name => ({
         name,
         ...summary[name],
-        percentage: (summary[name].total / monthlyTotal.value) * 100
+        percentage: (summary[name].total / monthlyStats.value.expense) * 100
       })).sort((a, b) => b.total - a.total);
     });
 
     const incomeCategorySummary = computed(() => {
         if (!filteredTransactions.value.length || monthlyStats.value.income === 0) return [];
         const summary = filteredTransactions.value.reduce((acc, tx) => {
-            // Include ONLY income
             if (tx.type !== 'income') return acc;
             
             const category = tx.category || 'Other';
@@ -307,41 +221,6 @@ export default {
     });
 
     // --- METHODS ---
-    const fetchBudget = async () => {
-      if (!selectedYear.value || !selectedMonth.value) return;
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
-      try {
-        const response = await axios.get(`/api/budget/${selectedYear.value}/${monthIndex}`);
-        currentBudget.value = response.data.amount;
-        budgetInput.value = response.data.amount;
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          currentBudget.value = null;
-          budgetInput.value = null;
-        } else {
-          console.error("Error fetching budget:", error);
-        }
-      }
-    };
-
-    const setBudget = async (amount) => {
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
-      try {
-        await axios.post('/api/budget', {
-          year: selectedYear.value,
-          month: monthIndex,
-          amount: amount,
-        });
-        await fetchBudget();
-        isBudgetModalVisible.value = false;
-      } catch (error) {
-        console.error("Error setting budget:", error);
-        alert("Failed to set budget.");
-      }
-    };
-
     const openEditModal = (transaction) => {
       transactionToEdit.value = transaction;
       isModalVisible.value = true;
@@ -351,7 +230,7 @@ export default {
       try {
         await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
         isModalVisible.value = false;
-        await fetchTransactions(); // Refresh data from composable
+        await fetchTransactions(); 
         isDetailModalVisible.value = false;
       } catch (error) {
         console.error('Error updating transaction:', error);
@@ -363,7 +242,7 @@ export default {
       if (!confirm('Are you sure you want to delete this transaction?')) return;
       try {
         await axios.delete(`/api/transactions/${transactionId}`);
-        await fetchTransactions(); // Refresh data from composable
+        await fetchTransactions(); 
         isDetailModalVisible.value = false;
       } catch (error) {
         console.error('Error deleting transaction:', error);
@@ -387,42 +266,43 @@ export default {
     watch(selectedYear, () => {
         if (availableMonths.value.length > 0) {
             selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
+        } else {
+            selectedMonth.value = null;
         }
     });
 
-    watch(selectedMonth, (newMonth) => {
-        if (newMonth) fetchBudget();
-    });
-
-    // --- LIFECYCLE HOOKS (formerly `mounted()`) ---
+    // --- LIFECYCLE ---
     onMounted(async () => {
-      await fetchTransactions(); // Call methods from the composable
+      await fetchTransactions();
       fetchCategories(); 
-      fetchSubscriptions();
       
-      axios.get('/api/accounts')
-           .then(res => accounts.value = res.data)
-           .catch(err => console.error(err));
+      // Fetch specific account logic
+      try {
+        const res = await axios.get('/api/accounts');
+        accounts.value = res.data;
+        account.value = accounts.value.find(acc => acc.name === accountName);
+        if (account.value) {
+            resolvedAccountId.value = account.value.id;
+        }
+      } catch (err) {
+        console.error(err);
+      }
       
       if (availableYears.value.length > 0) {
         selectedYear.value = availableYears.value[0];
-        
         await nextTick();
-        
         if (availableMonths.value.length > 0) {
           selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
         }
       }
     });
 
-    // --- RETURN ---
-    // We must return everything the template needs to access.
     return {
+      account,
+      accounts,
       transactions,
       selectedYear,
       selectedMonth,
-      currentBudget,
-      budgetInput,
       categories,
       isModalVisible,
       transactionToEdit,
@@ -431,20 +311,13 @@ export default {
       availableYears,
       availableMonths,
       filteredTransactions,
-      monthlyTotal,
-      monthlyTotalText,
-      moneyLeft,
       categorySummary,
       incomeCategorySummary,
-      fetchBudget,
-      setBudget,
       openEditModal,
       handleSaveTransaction,
       handleDeleteFromModal,
       handleEditFromModal,
-      openDetailModal,
-      isBudgetModalVisible,
-      accounts
+      openDetailModal
     };
   }
 }
@@ -474,6 +347,16 @@ export default {
     transform: translateX(-4px);
 }
 
+.page-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.page-header h1 {
+    color: var(--text-color);
+    font-weight: 800;
+}
+
 .top-panel {
   display: flex;
   background: var(--card-background);
@@ -484,8 +367,8 @@ export default {
   box-shadow: var(--glass-shadow);
   margin-bottom: 2rem;
   padding: 2rem;
-  gap: 3rem;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  justify-content: center;
 }
 
 .top-panel:hover {
@@ -495,19 +378,18 @@ export default {
 
 .filter-controls {
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  flex-direction: row;
+  gap: 2rem;
   justify-content: center;
-  flex-basis: 25%;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border-color);
-  padding-right: 2rem;
+  align-items: center;
+  width: 100%;
 }
 
 .select-wrapper {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 150px;
 }
 
 .filter-controls label {
@@ -526,6 +408,7 @@ export default {
   font-size: 1rem;
   color: var(--text-color);
   cursor: pointer;
+  width: 100%;
   transition: all 0.2s;
 }
 
@@ -537,78 +420,6 @@ export default {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.budget-and-summary {
-  flex-grow: 1;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  text-align: center;
-  height: 100%;
-  align-items: center;
-}
-
-.summary-item {
-  position: relative;
-  padding: 0 1rem;
-}
-
-.summary-item:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 20%;
-  height: 60%;
-  width: 1px;
-  background-color: var(--border-color);
-}
-
-.summary-item h3 {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  color: var(--subtle-text-color);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.summary-item .summary-amount {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--text-color);
-  letter-spacing: -0.02em;
-  white-space: nowrap; /* Prevent line break */
-}
-
-.summary-amount.positive { color: var(--positive-color); }
-.summary-amount.negative { color: var(--negative-color); }
-
-.edit-budget-btn {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  margin-left: 4px;
-}
-
-.edit-budget-btn:hover {
-  background-color: rgba(79, 70, 229, 0.1);
-}
-
-html.dark .edit-budget-btn {
-  color: #f1f5f9; /* Slate 100 */
-}
-
-html.dark .edit-budget-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .category-breakdown {
@@ -693,13 +504,6 @@ html.dark .edit-budget-btn:hover {
   border-radius: 12px;
 }
 
-.no-transactions {
-  text-align: center;
-  color: var(--subtle-text-color);
-  margin-top: 4rem;
-  font-size: 1.1rem;
-}
-
 .income-section {
   margin-top: 2rem;
 }
@@ -708,50 +512,21 @@ html.dark .edit-budget-btn:hover {
   background-color: var(--positive-color);
 }
 
-@media (max-width: 768px) {
-  .top-panel {
-    flex-direction: column;
-    gap: 2rem;
-    padding: 1.5rem;
-  }
+.no-transactions {
+  text-align: center;
+  color: var(--subtle-text-color);
+  margin-top: 4rem;
+  font-size: 1.1rem;
+}
 
-  .filter-controls {
-    flex-direction: row;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding-right: 0;
-    padding-bottom: 1.5rem;
-    flex-basis: auto;
-  }
-  
-  .select-wrapper {
-    flex: 1;
-  }
+/* Dark Mode Overrides */
+html.dark .filter-controls select {
+  background-color: rgba(30, 41, 59, 0.5);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.1);
+}
 
-  .summary-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  
-  .summary-item:not(:last-child)::after {
-    display: none;
-  }
-  
-  .summary-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-  }
-  
-  .summary-item h3 {
-    margin: 0;
-    text-align: left;
-  }
-
-  .summary-item .summary-amount {
-    font-size: 1.2rem;
-  }
+html.dark .filter-controls select:focus {
+  background-color: rgba(30, 41, 59, 0.8);
 }
 </style>
