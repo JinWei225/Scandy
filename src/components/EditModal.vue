@@ -8,6 +8,10 @@
           <input type="date" id="edit-date" v-model="editableTransaction.date" required>
         </div>
         <div class="form-group">
+          <label for="edit-time">Time</label>
+          <input type="time" id="edit-time" v-model="editableTransaction.time" step="1" required>
+        </div>
+        <div class="form-group">
           <label for="edit-description">Description</label>
           <input type="text" id="edit-description" v-model="editableTransaction.description" required>
         </div>
@@ -112,6 +116,7 @@ export default {
           this.editableTransaction = {
             ...newVal,
             date: formattedDate,
+            time: newVal.time || '00:00:00', // Ensure time is present
             amount: numericAmount,
             account_id: newVal.account_id || null, // Ensure account_id is present
             type: newVal.type || 'expense' // Ensure type is present
@@ -129,6 +134,7 @@ export default {
         const payload = {
             ...this.editableTransaction,
             date: formattedDate,
+            time: this.editableTransaction.time,
         };
 
         this.$emit('save', payload);
@@ -262,5 +268,50 @@ html.dark .type-option {
 }
 html.dark .type-option:hover {
     background-color: rgba(30, 41, 59, 0.6);
+}
+
+@media (min-width: 768px) {
+  .modal-content {
+    padding: 1.5rem;
+    max-width: 500px;
+  }
+
+  .form-group input, .form-group select {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Grid Layout for compact view */
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+  }
+
+  /* Description */
+  .form-group:nth-of-type(3) {
+    grid-column: span 2;
+  }
+  
+  /* Account */
+  .form-group:nth-of-type(6) {
+      grid-column: span 2;
+  }
+
+  /* Type Selector container */
+  .form-group.mb-4 {
+    grid-column: span 2;
+    margin-bottom: 0.5rem; /* Override the mb-4 which is likely 1rem */
+  }
+
+  .modal-actions {
+    grid-column: span 2;
+    margin-top: 1rem;
+  }
 }
 </style>

@@ -9,6 +9,11 @@
           <label for="confirm-date">Date</label>
           <input type="date" id="confirm-date" v-model="formData.date" required>
         </div>
+
+        <div class="form-group">
+          <label for="confirm-time">Time</label>
+          <input type="time" id="confirm-time" v-model="formData.time" step="1" required>
+        </div>
         
         <div class="form-group">
           <label for="confirm-description">Description</label>
@@ -18,7 +23,7 @@
         <div class="form-group">
           <label for="confirm-category">Category</label>
           <select id="confirm-category" v-model="formData.category" required>
-            <option v-for="category in categories" :key="category" :value="category">
+            <option v-for="category in filteredCategories" :key="category" :value="category">
               {{ category }}
             </option>
           </select>
@@ -75,13 +80,24 @@ export default {
       required: true,
     },
     categories: {
-      type: Array,
+      type: Array, // Note: This might be an Object in practice
       required: true,
     },
     accounts: {
       type: Array,
       required: false,
       default: () => []
+    }
+  },
+  computed: {
+    filteredCategories() {
+      if (!this.formData || !this.categories) return [];
+      // If categories is an array (legacy or simple list), return it directly
+      if (Array.isArray(this.categories)) return this.categories;
+      
+      // If categories is an object { expense: [], income: [] }, filter by type
+      const type = this.formData.type; // 'expense' or 'income'
+      return this.categories[type] || [];
     }
   },
   data() {
@@ -96,12 +112,16 @@ export default {
         if (newVal) {
           this.formData = {
             date: newVal.date,
+            time: newVal.time || '12:00:00', // Default to 12:00:00 if no time found
             amount: newVal.amount,
             category: newVal.category,
             description: '',
             account_id: null,
             type: 'expense'
           };
+          
+          // Auto-switch type if the category suggests it (optional, but good UX)
+          // For now, default to expense as receipt scanning is usually for expenses
         }
       }
     }
@@ -115,6 +135,7 @@ export default {
       // Create the final object to send back to the parent
       const payload = {
         date: formattedDate,
+        time: this.formData.time,
         description: this.formData.description,
         category: this.formData.category,
         amount: this.formData.amount,
@@ -215,5 +236,50 @@ html.dark .type-option {
 }
 html.dark .type-option:hover {
     background-color: rgba(30, 41, 59, 0.6);
+}
+
+@media (min-width: 768px) {
+  .modal-content {
+    padding: 1.5rem;
+    max-width: 500px;
+  }
+
+  .form-group input, .form-group select {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Grid Layout for compact view */
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+  }
+
+  /* Description */
+  .form-group:nth-of-type(3) {
+    grid-column: span 2;
+  }
+  
+  /* Account */
+  .form-group:nth-of-type(6) {
+      grid-column: span 2;
+  }
+
+  /* Type Selector container */
+  .form-group.mb-4 {
+    grid-column: span 2;
+    margin-bottom: 0.5rem; /* Override the mb-4 which is likely 1rem */
+  }
+
+  .modal-actions {
+    grid-column: span 2;
+    margin-top: 1rem;
+  }
 }
 </style>

@@ -14,9 +14,10 @@ export function useTransactions() {
   const fetchTransactions = async () => {
     try {
       const response = await axios.get('/api/transactions');
-      transactions.value = response.data;
+      transactions.value = Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       console.error('Error fetching transactions:', error);
+      transactions.value = [];
     }
   };
 

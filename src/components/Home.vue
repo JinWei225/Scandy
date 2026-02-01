@@ -212,10 +212,13 @@ export default {
     const fetchAccounts = async () => {
         try {
             const res = await axios.get('/api/accounts');
-            accounts.value = res.data;
+            // Defensive check to prevent reduce errors if API fails or returns non-array
+            accounts.value = Array.isArray(res.data) ? res.data : [];
             totalBalance.value = accounts.value.reduce((sum, acc) => sum + (acc.balance || 0), 0);
         } catch (err) {
             console.error("Failed to load accounts", err);
+            accounts.value = [];
+            totalBalance.value = 0;
         }
     };
     const scannedData = ref(null);
@@ -393,14 +396,17 @@ export default {
 
     // --- WATCHERS ---
     watch(sharedIntentData, async (newData) => {
-      if (newData && newData.url) {
-        console.log('Processing shared intent in Home:', newData.url);
+      // Handle both the 'url' property and the 'extras.STREAM' property from the intent
+      const sharedUrl = newData?.url || newData?.extras?.['android.intent.extra.STREAM'];
+
+      if (sharedUrl) {
+        console.log('Processing shared intent in Home:', sharedUrl);
         try {
           isLoading.value = true;
           message.value = 'Loading shared image...';
           
           // Use fetch to get the blob from the content:// or file:// URL
-          const response = await fetch(newData.url);
+          const response = await fetch(sharedUrl);
           const blob = await response.blob();
           
           // Create a file object from the blob

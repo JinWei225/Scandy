@@ -76,23 +76,29 @@ export default {
 
     // This ensures the theme logic runs when the app starts
     onMounted(async () => {
-      // Load transactions globally so search works immediately
-      await fetchTransactions();
-
-      // Check for incoming share intent if on mobile
+      // Configuration for mobile connectivity via Tailscale
       if (Capacitor.isNativePlatform()) {
+        document.body.classList.add('is-native'); // Mark body as native for CSS styling
+        
+        axios.defaults.baseURL = 'http://100.69.155.6:5001';
+        console.log('Mobile platform detected. Set Axios baseURL to:', axios.defaults.baseURL);
+
+        // Handle incoming share intents using listeners (for this plugin version)
         try {
-          const result = await SendIntent.checkSendIntentReceived();
-          if (result && result.url) {
-            console.log('Shared content received:', result.url);
-            setIntentData(result);
-          }
+          SendIntent.addListener('appSendActionIntent', (data) => {
+            console.log('Shared intent received via listener:', data);
+            if (data && data.extras) {
+              setIntentData(data);
+            }
+          });
+          console.log('SendIntent listener registered');
         } catch (error) {
-          console.error('Error checking for shared intent:', error);
+          console.error('Error registering SendIntent listener:', error);
         }
       }
 
-
+      // Load transactions globally so search works immediately
+      await fetchTransactions();
 
       try {
         await axios.post('/api/subscriptions/check');
@@ -172,7 +178,13 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: var(--header-color);
-  padding: 1rem 2rem;
+  
+  /* Safe area padding - Default Attempt */
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-left: max(2rem, env(safe-area-inset-left));
+  padding-right: max(2rem, env(safe-area-inset-right));
+  padding-bottom: 1rem;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -181,6 +193,11 @@ body {
   top: 0;
   z-index: 100;
   border-bottom: var(--glass-border);
+}
+
+/* Force extra padding for native android/ios if safe-area is failing */
+body.is-native .global-header {
+  padding-top: calc(1rem + 30px); /* Add ~30px for status bar */
 }
 
 html.dark .global-header {
