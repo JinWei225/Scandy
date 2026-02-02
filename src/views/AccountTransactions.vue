@@ -35,7 +35,7 @@
       <h3>Spending by Category</h3>
       <ul>
         <li v-for="item in categorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name)" class="category-item">
+          <button @click="openDetailModal(item.name, 'expense')" class="category-item">
             <div class="category-info">
               <span class="category-name">{{ item.name }}</span>
               <span class="transaction-count">{{ item.count }} transactions</span>
@@ -53,7 +53,7 @@
       <h3>Income by Category</h3>
       <ul>
         <li v-for="item in incomeCategorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name)" class="category-item">
+          <button @click="openDetailModal(item.name, 'income')" class="category-item">
             <div class="category-info">
               <span class="category-name">{{ item.name }}</span>
               <span class="transaction-count">{{ item.count }} transactions</span>
@@ -254,10 +254,13 @@ export default {
       openEditModal(transaction);
     };
 
-    const openDetailModal = (categoryName) => {
+    const openDetailModal = (categoryName, type) => {
       selectedCategoryData.value = {
         name: categoryName,
-        transactions: filteredTransactions.value.filter(tx => (tx.category || 'Uncategorized') === categoryName)
+        transactions: filteredTransactions.value.filter(tx => 
+            (tx.category || (type === 'income' ? 'Other' : 'Uncategorized')) === categoryName && 
+            (type === 'income' ? tx.type === 'income' : (tx.type === 'expense' || !tx.type))
+        )
       };
       isDetailModalVisible.value = true;
     };
@@ -379,9 +382,9 @@ export default {
 .filter-controls {
   display: flex;
   flex-direction: row;
-  gap: 2rem;
+  gap: 1rem;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
 }
 
@@ -389,7 +392,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 150px;
+  min-width: 0; /* Allow shrinking */
+  flex: 1; /* Distribute space equally */
 }
 
 .filter-controls label {

@@ -58,11 +58,12 @@ import SearchModal from './components/SearchModal.vue';
 import { themeStore } from './themeStore.js'; // Import to initialize
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
-import { Capacitor } from '@capacitor/core';
-import { SendIntent } from 'capacitor-plugin-send-intent';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+const SendIntent = registerPlugin('SendIntent');
 
 import { useTransactions } from './composables/useTransactions';
 import { useIntent } from './composables/useIntent';
+import { logger } from './utils/logger';
 
 export default {
   name: 'App',
@@ -74,29 +75,60 @@ export default {
     const { fetchTransactions } = useTransactions();
     const { setIntentData } = useIntent();
 
-    // This ensures the theme logic runs when the app starts
-    onMounted(async () => {
-      // Configuration for mobile connectivity via Tailscale
-      if (Capacitor.isNativePlatform()) {
-        document.body.classList.add('is-native'); // Mark body as native for CSS styling
-        
-        axios.defaults.baseURL = 'http://100.69.155.6:5001';
-        console.log('Mobile platform detected. Set Axios baseURL to:', axios.defaults.baseURL);
+    // 1. Initialize BaseURL IMMEDIATEY for remote logging to work
+    if (Capacitor.isNativePlatform()) {
+      axios.defaults.baseURL = 'http://100.69.155.6:5001';
+      document.body.classList.add('is-native');
+      logger.info('App setup started. BaseURL set to: ' + axios.defaults.baseURL, 'App.vue');
 
-        // Handle incoming share intents using listeners (for this plugin version)
-        try {
-          SendIntent.addListener('appSendActionIntent', (data) => {
-            console.log('Shared intent received via listener:', data);
-            if (data && data.extras) {
-              setIntentData(data);
+      // 2. Register intent listener immediately
+      try {
+        logger.info('SendIntent properties: ' + Object.keys(SendIntent).join(', '), 'App.vue');
+        
+        // A. Inspect retainedEventArguments
+        if (SendIntent.retainedEventArguments && Array.isArray(SendIntent.retainedEventArguments) && SendIntent.retainedEventArguments.length > 0) {
+          logger.info('Retained Arguments Found: ' + JSON.stringify(SendIntent.retainedEventArguments), 'App.vue');
+          SendIntent.retainedEventArguments.forEach((arg) => {
+            if (arg && arg.extras) {
+              logger.info('Processing retained argument', 'App.vue');
+              setIntentData(arg);
             }
           });
-          console.log('SendIntent listener registered');
-        } catch (error) {
-          console.error('Error registering SendIntent listener:', error);
         }
-      }
 
+        // B. Manual Poll for Intent (New Method)
+        if (typeof SendIntent.getIntent === 'function') {
+           logger.info('Polling manual getIntent...', 'App.vue');
+           SendIntent.getIntent().then(result => {
+             if (result && result.extras) {
+               logger.info('Manual poll found intent data: ' + JSON.stringify(result), 'App.vue');
+               setIntentData(result);
+             } else {
+               logger.info('Manual poll returned no data', 'App.vue');
+             }
+           }).catch(err => {
+             logger.error('Manual poll failed: ' + err.message, 'App.vue');
+           });
+        } else {
+           logger.warn('Manual poll method getIntent not found on SendIntent', 'App.vue');
+        }
+
+        // C. Register Listener for future events
+        SendIntent.addListener('appSendActionIntent', (data) => {
+          logger.info('Shared intent event Fired: ' + JSON.stringify(data), 'App.vue');
+          if (data && data.extras) {
+            setIntentData(data);
+          }
+        });
+        
+        logger.info('SendIntent listener registered successfully', 'App.vue');
+      } catch (error) {
+        logger.error('Error in SendIntent setup: ' + error.message, 'App.vue');
+      }
+    }
+
+    // This ensures the theme logic runs when the app starts
+    onMounted(async () => {
       // Load transactions globally so search works immediately
       await fetchTransactions();
 
@@ -292,6 +324,10 @@ html.dark .global-header {
   z-index: 90;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   border-bottom: var(--glass-border);
+}
+
+body.is-native .mobile-nav {
+  top: 97px; /* Adjust for native header height */
 }
 
 html.dark .mobile-nav {

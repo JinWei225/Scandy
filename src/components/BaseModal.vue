@@ -27,7 +27,10 @@ export default {
 <style scoped>
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); display: flex;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
   justify-content: center; align-items: center; z-index: 1000;
 }
 .modal-content {

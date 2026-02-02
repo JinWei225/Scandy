@@ -5,8 +5,11 @@
     <ul v-if="transactions.length > 0" class="transactions-list-modal">
       <li v-for="transaction in transactions" :key="transaction.id">
         <div class="transaction-details">
-          <span class="date-modal">{{ transaction.date }}</span>
-          <span class="description-modal">{{ transaction.description }}</span>
+          <div class="date-time-group">
+            <span class="date-modal">{{ transaction.date }}</span>
+            <span class="time-modal">{{ transaction.time }}</span>
+          </div>
+          <span class="description-modal" :title="transaction.description">{{ transaction.description }}</span>
           <span class="amount-modal">{{ transaction.amount }}</span>
         </div>
         <div class="action-buttons-modal">
@@ -63,32 +66,49 @@ export default {
 
 /* MODIFIED: This wrapper is now ALSO a flex container */
 .transaction-details {
-  flex-grow: 1; /* CRITICAL: This makes it take up all available horizontal space */
+  flex-grow: 1;
   display: flex;
   align-items: center;
-  overflow: hidden; /* Prevents long descriptions from breaking the layout */
-  margin-right: 1rem; /* Ensures space between text and buttons */
+  gap: 1rem;
+  overflow: hidden;
+  margin-right: 0.5rem;
 }
 
-/* MODIFIED: Use flex-basis to distribute space WITHIN the details wrapper */
+.date-time-group {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
 .date-modal {
-  flex-basis: 25%;
-  flex-shrink: 0; /* Prevents date from shrinking */
   color: var(--subtle-text-color);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
+
+.time-modal {
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  opacity: 0.8;
+}
+
 .description-modal {
-  flex-basis: 50%;
-  white-space: nowrap; /* Prevents wrapping */
-  overflow: hidden; /* Hides overflow */
-  text-overflow: ellipsis; /* Adds "..." if description is too long */
-  padding: 0 1rem; /* Add some spacing */
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.95rem;
+  min-width: 0; /* Allow shrinking */
 }
+
 .amount-modal {
-  flex-basis: 25%;
-  flex-shrink: 0; /* Prevents amount from shrinking */
+  flex-shrink: 0;
   text-align: right;
   font-weight: bold;
+  white-space: nowrap;
+  color: var(--text-color);
 }
 
 /* ACTION BUTTONS (UNCHANGED BUT INCLUDED FOR COMPLETENESS) */
@@ -112,12 +132,42 @@ export default {
 .delete-btn:hover { background-color: #dc2626; }
 
 /* OPTIONAL: Media query for better mobile layout */
-@media (max-width: 500px) {
-  .description-modal {
-    flex-basis: 40%; /* Give less space to description on small screens */
+@media (max-width: 600px) {
+  .transactions-list-modal li {
+    padding: 1rem 0;
   }
+  
+  .transaction-details {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .date-time-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-bottom: -0.25rem;
+  }
+
+  .description-modal {
+    flex-basis: 60%;
+    font-size: 0.9rem;
+  }
+  
   .amount-modal {
-    flex-basis: 35%;
+    flex-basis: 30%;
+    flex-grow: 1;
+    font-size: 1rem;
+  }
+
+  .action-buttons-modal {
+    margin-left: 0.5rem;
+  }
+  
+  .edit-btn, .delete-btn {
+    width: 36px;
+    height: 36px;
   }
 }
 </style>

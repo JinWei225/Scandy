@@ -155,7 +155,7 @@
     :scannedData="scannedData"
     :categories="categories"
     :accounts="accounts"
-    @close="isConfirmationModalVisible = false"
+    @close="handleCancelConfirmation"
     @save="handleSaveConfirmation"
   />
 
@@ -176,6 +176,10 @@ import { useIntent } from '../composables/useIntent';
 import EditModal from '../components/EditModal.vue';
 import ConfirmationModal from '../components/ConfirmationModal.vue';
 import axios from 'axios';
+import { logger } from '../utils/logger';
+import { registerPlugin } from '@capacitor/core';
+const SendIntent = registerPlugin('SendIntent');
+
 
 export default {
   name: 'HomePage',
@@ -191,6 +195,7 @@ export default {
     // --- STATE ---
     const selectedFile = ref(null);
     const isLoading = ref(false);
+    const isProcessingIntent = ref(false);
     const message = ref('');
     const categories = ref([]);
     const manualForm = ref({
@@ -310,8 +315,17 @@ export default {
         isLoading.value = false;
         isConfirmationModalVisible.value = false;
         selectedFile.value = null;
+        scannedData.value = null; // Clear scanned data
         if (fileInput.value) fileInput.value.value = null;
       }
+    };
+
+    const handleCancelConfirmation = () => {
+      isConfirmationModalVisible.value = false;
+      selectedFile.value = null;
+      scannedData.value = null;
+      message.value = '';
+      if (fileInput.value) fileInput.value.value = null;
     };
     
     const addManualTransaction = async () => {
@@ -398,32 +412,70 @@ export default {
     watch(sharedIntentData, async (newData) => {
       // Handle both the 'url' property and the 'extras.STREAM' property from the intent
       const sharedUrl = newData?.url || newData?.extras?.['android.intent.extra.STREAM'];
-
-      if (sharedUrl) {
-        console.log('Processing shared intent in Home:', sharedUrl);
-        try {
-          isLoading.value = true;
-          message.value = 'Loading shared image...';
-          
-          // Use fetch to get the blob from the content:// or file:// URL
-          const response = await fetch(sharedUrl);
-          const blob = await response.blob();
-          
-          // Create a file object from the blob
-          selectedFile.value = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
-          
-          // Clear intent data so it doesn't trigger again
-          clearIntentData();
-          
-          // Automatically trigger upload and scan
-          await uploadImage();
-        } catch (error) {
-          console.error('Error handling shared image:', error);
-          message.value = 'Failed to load shared image.';
-          isLoading.value = false;
-        }
+      
+      if (!sharedUrl) {
+          if (newData) logger.warn('Intent data present but no valid URL found', 'Home.vue');
+          return;
       }
-    });
+
+      // Prevents multiple concurrent triggers
+      if (isProcessingIntent.value) {
+          logger.info('Intent processing already in progress. Skipping duplicate trigger.', 'Home.vue');
+          return;
+      }
+
+      logger.info('Intent data watcher triggered. Data: ' + JSON.stringify(newData), 'Home.vue');
+
+      try {
+        isProcessingIntent.value = true;
+        isLoading.value = true;
+        message.value = 'Loading shared image...';
+        
+        // Clear intent data early so we don't re-trigger from clearing it later
+        clearIntentData();
+        
+        // Use native bridge for content:// URIs as fetch() will fail due to security
+        let blob;
+        if (sharedUrl.startsWith('content://')) {
+          logger.info('Detected content:// URI. Using native readContentUri.', 'Home.vue');
+          const result = await SendIntent.readContentUri({ uri: sharedUrl });
+          if (result && result.data) {
+              const byteCharacters = atob(result.data);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              blob = new Blob([byteArray], { type: result.mimeType || 'image/jpeg' });
+              logger.info('Blob created from Base64. Size: ' + blob.size, 'Home.vue');
+          } else {
+              throw new Error('Native readContentUri returned no data');
+          }
+        } else {
+          // Standard fetch for file:// or other URIs (if permissions allow)
+          logger.info('Attempting to fetch blob from URL: ' + sharedUrl, 'Home.vue');
+          const response = await fetch(sharedUrl);
+          if (!response.ok) {
+             throw new Error(`Fetch failed with status ${response.status}`);
+          }
+          blob = await response.blob();
+          logger.info('Blob fetched successfully via fetch(). Size: ' + blob.size, 'Home.vue');
+        }
+        
+        // Create a file object from the blob
+        selectedFile.value = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
+        
+        // Automatically trigger upload and scan
+        logger.info('Triggering uploadImage after intent processing', 'Home.vue');
+        await uploadImage();
+      } catch (error) {
+        logger.error('Error handling shared image: ' + error.message, 'Home.vue');
+        message.value = 'Failed to load shared image: ' + error.message;
+        isLoading.value = false;
+      } finally {
+        isProcessingIntent.value = false;
+      }
+    }, { immediate: true });
 
     // --- LIFECYCLE HOOK ---
     onMounted(() => {
@@ -455,11 +507,12 @@ export default {
       handleFileUpload,
       uploadImage,
       handleSaveConfirmation,
+      handleCancelConfirmation,
       addManualTransaction,
       deleteTransaction,
       openEditModal,
       handleSaveTransaction,
-      fetchAccounts, // Export to refresh if needed
+      fetchAccounts,
       availableCategories
     };
   }
