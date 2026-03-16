@@ -190,7 +190,7 @@ export default {
   setup() {
     // --- COMPOSABLE ---
     const { transactions, fetchTransactions } = useTransactions();
-    const { sharedIntentData, clearIntentData } = useIntent();
+    const { sharedIntentData, intentConsumed, clearIntentData, consumeIntent } = useIntent();
 
     // --- STATE ---
     const selectedFile = ref(null);
@@ -316,6 +316,7 @@ export default {
         isConfirmationModalVisible.value = false;
         selectedFile.value = null;
         scannedData.value = null; // Clear scanned data
+        consumeIntent(); // Mark intent as fully consumed to prevent re-trigger on remount
         if (fileInput.value) fileInput.value.value = null;
       }
     };
@@ -325,6 +326,7 @@ export default {
       selectedFile.value = null;
       scannedData.value = null;
       message.value = '';
+      consumeIntent(); // Mark intent as fully consumed to prevent re-trigger on remount
       if (fileInput.value) fileInput.value.value = null;
     };
     
@@ -415,6 +417,14 @@ export default {
       
       if (!sharedUrl) {
           if (newData) logger.warn('Intent data present but no valid URL found', 'Home.vue');
+          return;
+      }
+
+      // Guard: if this intent was already handled (saved or cancelled), skip re-processing.
+      // This prevents re-triggering when the component remounts after navigation.
+      if (intentConsumed.value) {
+          logger.info('Intent already consumed. Skipping re-trigger on remount.', 'Home.vue');
+          clearIntentData(); // Clean up stale data
           return;
       }
 

@@ -286,8 +286,8 @@ export default {
     const incomeCategorySummary = computed(() => {
         if (!filteredTransactions.value.length || monthlyStats.value.income === 0) return [];
         const summary = filteredTransactions.value.reduce((acc, tx) => {
-            // Include ONLY income
-            if (tx.type !== 'income') return acc;
+            // Include ONLY income, excluding transfers
+            if (tx.type !== 'income' || tx.category === 'Transfer' || tx.type === 'transfer') return acc;
             
             const category = tx.category || 'Other';
             const amount = parseFloat(tx.amount.replace('RM', '').trim());
@@ -380,7 +380,10 @@ export default {
         name: categoryName,
         transactions: filteredTransactions.value.filter(tx => 
             (tx.category || (type === 'income' ? 'Other' : 'Uncategorized')) === categoryName && 
-            (type === 'income' ? tx.type === 'income' : (tx.type === 'expense' || !tx.type))
+            (type === 'income' 
+              ? (tx.type === 'income' && tx.category !== 'Transfer' && tx.type !== 'transfer') 
+              : ((tx.type === 'expense' || !tx.type) && tx.category !== 'Transfer' && tx.type !== 'transfer')
+            )
         )
       };
       isDetailModalVisible.value = true;
