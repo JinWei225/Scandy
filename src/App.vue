@@ -79,18 +79,15 @@ export default {
     if (Capacitor.isNativePlatform()) {
       axios.defaults.baseURL = 'http://100.69.155.6:5001';
       document.body.classList.add('is-native');
-      logger.info('App setup started. BaseURL set to: ' + axios.defaults.baseURL, 'App.vue');
+      logger.info('App started', 'App');
 
       // 2. Register intent listener immediately
       try {
-        logger.info('SendIntent properties: ' + Object.keys(SendIntent).join(', '), 'App.vue');
-        
         // A. Inspect retainedEventArguments
         if (SendIntent.retainedEventArguments && Array.isArray(SendIntent.retainedEventArguments) && SendIntent.retainedEventArguments.length > 0) {
-          logger.info('Retained Arguments Found: ' + JSON.stringify(SendIntent.retainedEventArguments), 'App.vue');
           SendIntent.retainedEventArguments.forEach((arg) => {
             if (arg && arg.extras) {
-              logger.info('Processing retained argument', 'App.vue');
+              logger.info('Retained intent processed', 'App');
               setIntentData(arg);
             }
           });
@@ -98,32 +95,27 @@ export default {
 
         // B. Manual Poll for Intent (New Method)
         if (typeof SendIntent.getIntent === 'function') {
-           logger.info('Polling manual getIntent...', 'App.vue');
            SendIntent.getIntent().then(result => {
              if (result && result.extras) {
-               logger.info('Manual poll found intent data: ' + JSON.stringify(result), 'App.vue');
+               logger.info('Polled intent processed', 'App');
                setIntentData(result);
-             } else {
-               logger.info('Manual poll returned no data', 'App.vue');
              }
            }).catch(err => {
-             logger.error('Manual poll failed: ' + err.message, 'App.vue');
+             logger.error('Poll failed: ' + err.message, 'App');
            });
-        } else {
-           logger.warn('Manual poll method getIntent not found on SendIntent', 'App.vue');
         }
 
         // C. Register Listener for future events
         SendIntent.addListener('appSendActionIntent', (data) => {
-          logger.info('Shared intent event Fired: ' + JSON.stringify(data), 'App.vue');
+          logger.info('Intent fired', 'App');
           if (data && data.extras) {
             setIntentData(data);
           }
         });
         
-        logger.info('SendIntent listener registered successfully', 'App.vue');
+        logger.info('Listener active', 'App');
       } catch (error) {
-        logger.error('Error in SendIntent setup: ' + error.message, 'App.vue');
+        logger.error('Intent setup err', 'App');
       }
     }
 
