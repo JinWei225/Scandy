@@ -41,7 +41,7 @@
                 <input type="number" id="manual-amount" v-model.number="manualForm.amount" step="0.01" required>
             </div>
             
-            <div class="form-group half-width">
+            <div class="form-group half-width" v-if="manualForm.type !== 'transfer'">
                 <label for="manual-description">Description</label>
                 <input type="text" id="manual-description" v-model="manualForm.description" required>
             </div>

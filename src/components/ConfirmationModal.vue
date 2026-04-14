@@ -15,12 +15,12 @@
           <input type="time" id="confirm-time" v-model="formData.time" step="1" required>
         </div>
         
-        <div class="form-group">
+        <div class="form-group" v-if="formData.type !== 'transfer'">
           <label for="confirm-description">Description</label>
           <input type="text" id="confirm-description" v-model="formData.description" placeholder="e.g., Lunch with team" required>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" v-if="formData.type !== 'transfer'">
           <label for="confirm-category">Category</label>
           <select id="confirm-category" v-model="formData.category" required>
             <option v-for="category in filteredCategories" :key="category" :value="category">
@@ -35,10 +35,28 @@
         </div>
         
         <div class="form-group">
-            <label for="confirm-account">Account</label>
+            <label for="confirm-account">
+                 {{ formData.type === 'transfer' ? 'From Account' : 'Account' }} 
+            </label>
             <select id="confirm-account" v-model="formData.account_id">
                 <option :value="null">Unassigned</option>
                 <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+        </div>
+
+        <!-- To Account for Transfers -->
+        <div class="form-group" v-if="formData.type === 'transfer'">
+            <label for="to-account-confirm">To Account</label>
+            <select id="to-account-confirm" v-model="formData.to_account_id">
+                <option :value="null">Select Account</option>
+                <option 
+                    v-for="acc in accounts" 
+                    :key="acc.id" 
+                    :value="acc.id"
+                    :disabled="acc.id === formData.account_id"
+                >
+                    {{ acc.name }}
+                </option>
             </select>
         </div>
 
@@ -58,6 +76,13 @@
                     @click="formData.type = 'income'"
                 >
                     Income
+                </div>
+                <div 
+                    class="type-option transfer" 
+                    :class="{ active: formData.type === 'transfer' }"
+                    @click="formData.type = 'transfer'"
+                >
+                    Transfer
                 </div>
             </div>
         </div>
@@ -117,6 +142,7 @@ export default {
             category: newVal.category,
             description: '',
             account_id: null,
+            to_account_id: null,
             type: 'expense'
           };
           
@@ -128,6 +154,13 @@ export default {
   },
   methods: {
     saveTransaction() {
+      if (this.formData.type === 'transfer') {
+          if (!this.formData.account_id || !this.formData.to_account_id) {
+              alert("Please select both From and To accounts.");
+              return;
+          }
+      }
+      
       // The backend needs DD/MM/YYYY format for the date
       const dateParts = this.formData.date.split('-'); // from YYYY-MM-DD
       const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
@@ -140,6 +173,7 @@ export default {
         category: this.formData.category,
         amount: this.formData.amount,
         account_id: this.formData.account_id,
+        to_account_id: this.formData.to_account_id,
         type: this.formData.type
       };
 
@@ -231,6 +265,17 @@ export default {
     background-color: var(--positive-color);
     color: white;
     border-color: var(--positive-color);
+}
+
+/* Transfer Styles - using Blue */
+.type-option.transfer {
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #3b82f6; /* Blue-500 */
+}
+.type-option.transfer.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
 }
 
 /* Dark Mode */

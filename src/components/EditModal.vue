@@ -11,11 +11,11 @@
           <label for="edit-time">Time</label>
           <input type="time" id="edit-time" v-model="editableTransaction.time" step="1" required>
         </div>
-        <div class="form-group">
+        <div class="form-group" v-if="editableTransaction.type !== 'transfer'">
           <label for="edit-description">Description</label>
           <input type="text" id="edit-description" v-model="editableTransaction.description" required>
         </div>
-        <div class="form-group">
+        <div class="form-group" v-if="editableTransaction.type !== 'transfer'">
           <label for="edit-category">Category</label>
           <select id="edit-category" v-model="editableTransaction.category" required>
             <option v-for="category in availableCategories" :key="category" :value="category">
@@ -29,10 +29,28 @@
         </div>
         
         <div class="form-group">
-            <label for="edit-account">Account</label>
+            <label for="edit-account">
+                 {{ editableTransaction.type === 'transfer' ? 'From Account' : 'Account' }} 
+            </label>
             <select id="edit-account" v-model="editableTransaction.account_id">
                 <option :value="null">Unassigned</option>
                 <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+        </div>
+
+        <!-- To Account for Transfers -->
+        <div class="form-group" v-if="editableTransaction.type === 'transfer'">
+            <label for="to-account-edit">To Account</label>
+            <select id="to-account-edit" v-model="editableTransaction.to_account_id">
+                <option :value="null">Select Account</option>
+                <option 
+                    v-for="acc in accounts" 
+                    :key="acc.id" 
+                    :value="acc.id"
+                    :disabled="acc.id === editableTransaction.account_id"
+                >
+                    {{ acc.name }}
+                </option>
             </select>
         </div>
 
@@ -52,6 +70,13 @@
                     @click="editableTransaction.type = 'income'"
                 >
                     Income
+                </div>
+                <div 
+                    class="type-option transfer" 
+                    :class="{ active: editableTransaction.type === 'transfer' }"
+                    @click="editableTransaction.type = 'transfer'"
+                >
+                    Transfer
                 </div>
             </div>
         </div>
@@ -119,6 +144,7 @@ export default {
             time: newVal.time || '00:00:00', // Ensure time is present
             amount: numericAmount,
             account_id: newVal.account_id || null, // Ensure account_id is present
+            to_account_id: newVal.to_account_id || null, // For transfers
             type: newVal.type || 'expense' // Ensure type is present
           };
         }
@@ -127,6 +153,13 @@ export default {
   },
   methods: {
     saveChanges() {
+        if (this.editableTransaction.type === 'transfer') {
+            if (!this.editableTransaction.account_id || !this.editableTransaction.to_account_id) {
+                alert("Please select both From and To accounts.");
+                return;
+            }
+        }
+        
         // The backend expects DD/MM/YYYY format for the date
         const dateParts = this.editableTransaction.date.split('-'); // YYYY-MM-DD
         const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
@@ -262,6 +295,17 @@ export default {
     background-color: var(--positive-color);
     color: white;
     border-color: var(--positive-color);
+}
+
+/* Transfer Styles - using Blue */
+.type-option.transfer {
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #3b82f6; /* Blue-500 */
+}
+.type-option.transfer.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
 }
 
 /* Dark Mode */

@@ -26,24 +26,23 @@
         </div>
       </div>
 
-      <!-- Section 2: The Budget and Summary -->
-      <div class="budget-and-summary">
+      <!-- Section 2: The Income and Expense Summary -->
+      <div class="income-expense-summary">
         <div class="summary-grid">
           <div class="summary-item">
-            <h3>Budget <button class="edit-budget-btn" @click="isBudgetModalVisible = true">✎</button></h3>
-            <p class="summary-amount">{{ currentBudget !== null ? `RM ${currentBudget.toFixed(2)}` : 'Not Set' }}</p>
+            <h3>Income</h3>
+            <p class="summary-amount positive">RM {{ monthlyStats.income.toFixed(2) }}</p>
           </div>
           <div class="summary-item">
-            <h3>Spent</h3>
-            <p class="summary-amount">{{ monthlyTotalText }}</p>
+            <h3>Expenses</h3>
+            <p class="summary-amount">RM {{ monthlyStats.expense.toFixed(2) }}</p>
           </div>
           <div class="summary-item">
             <h3>{{ moneyLeft.label }}</h3>
             <p class="summary-amount" :class="moneyLeft.status">{{ moneyLeft.text }}</p>
           </div>
         </div>
-        <!-- Removed set-budget-form -->
-    </div>
+      </div>
     </div>
     <div v-if="categorySummary.length > 0" class="category-breakdown">
       <h3>Spending by Category</h3>
@@ -103,12 +102,6 @@
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
   />
-  <BudgetModal
-    v-if="isBudgetModalVisible"
-    :initialAmount="currentBudget"
-    @close="isBudgetModalVisible = false"
-    @save="setBudget"
-  />
 </template>
 
 <script>
@@ -119,7 +112,6 @@ import { useTransactions } from '../composables/useTransactions';
 import EditModal from '../components/EditModal.vue';
 import CategoryDetailModal from '../components/CategoryDetailModal.vue';
 import CategoryChart from '../components/CategoryChart.vue';
-import BudgetModal from '../components/BudgetModal.vue';
 import axios from 'axios';
 
 export default {
@@ -128,7 +120,6 @@ export default {
     EditModal,
     CategoryDetailModal,
     CategoryChart,
-    BudgetModal,
   },
   
   // The setup() function is the heart of the Composition API
@@ -141,13 +132,10 @@ export default {
     // All data properties are now defined as 'refs'
     const selectedYear = ref(null);
     const selectedMonth = ref(null);
-    const currentBudget = ref(null);
-    const budgetInput = ref(null);
     const isModalVisible = ref(false);
     const transactionToEdit = ref(null);
     const isDetailModalVisible = ref(false);
     const selectedCategoryData = ref({ name: '', transactions: [] });
-    const isBudgetModalVisible = ref(false);
 
     // --- COMPUTED PROPERTIES ---
     const availableYears = computed(() => {
@@ -199,10 +187,6 @@ export default {
         return { expense, income };
     });
 
-    const monthlyTotal = computed(() => monthlyStats.value.expense);
-
-    const monthlyTotalText = computed(() => `RM ${monthlyTotal.value.toFixed(2)}`);
-
     const subscriptions = ref([]);
 
     const fetchSubscriptions = async () => {
@@ -240,11 +224,9 @@ export default {
     
     
     const moneyLeft = computed(() => {
-      if (currentBudget.value === null) return { text: 'N/A', status: 'neutral', label: 'Money Left' };
-      
-      // Budget + Income - Expenses
-      let left = (currentBudget.value + monthlyStats.value.income) - monthlyTotal.value;
-      let label = 'Money Left';
+      // Income - Expenses
+      let left = monthlyStats.value.income - monthlyStats.value.expense;
+      let label = 'Balance';
 
       // If current month, subtract remaining subscriptions
       if (remainingSubscriptions.value > 0) {
@@ -258,7 +240,7 @@ export default {
     });
 
     const categorySummary = computed(() => {
-      if (!filteredTransactions.value.length || monthlyTotal.value === 0) return [];
+      if (!filteredTransactions.value.length || monthlyStats.value.expense === 0) return [];
       const summary = filteredTransactions.value.reduce((acc, tx) => {
         // Match logic with monthlyStats:
         // Exclude transfers
@@ -279,15 +261,15 @@ export default {
       return Object.keys(summary).map(name => ({
         name,
         ...summary[name],
-        percentage: (summary[name].total / monthlyTotal.value) * 100
+        percentage: (summary[name].total / monthlyStats.value.expense) * 100
       })).sort((a, b) => b.total - a.total);
     });
 
     const incomeCategorySummary = computed(() => {
         if (!filteredTransactions.value.length || monthlyStats.value.income === 0) return [];
         const summary = filteredTransactions.value.reduce((acc, tx) => {
-            // Include ONLY income, excluding transfers
-            if (tx.type !== 'income' || tx.category === 'Transfer' || tx.type === 'transfer') return acc;
+            // Include ONLY income, and exclude Transfers
+            if (tx.type !== 'income' || tx.category === 'Transfer') return acc;
             
             const category = tx.category || 'Other';
             const amount = parseFloat(tx.amount.replace('RM', '').trim());
@@ -307,41 +289,6 @@ export default {
     });
 
     // --- METHODS ---
-    const fetchBudget = async () => {
-      if (!selectedYear.value || !selectedMonth.value) return;
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
-      try {
-        const response = await axios.get(`/api/budget/${selectedYear.value}/${monthIndex}`);
-        currentBudget.value = response.data.amount;
-        budgetInput.value = response.data.amount;
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          currentBudget.value = null;
-          budgetInput.value = null;
-        } else {
-          console.error("Error fetching budget:", error);
-        }
-      }
-    };
-
-    const setBudget = async (amount) => {
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
-      try {
-        await axios.post('/api/budget', {
-          year: selectedYear.value,
-          month: monthIndex,
-          amount: amount,
-        });
-        await fetchBudget();
-        isBudgetModalVisible.value = false;
-      } catch (error) {
-        console.error("Error setting budget:", error);
-        alert("Failed to set budget.");
-      }
-    };
-
     const openEditModal = (transaction) => {
       transactionToEdit.value = transaction;
       isModalVisible.value = true;
@@ -380,10 +327,7 @@ export default {
         name: categoryName,
         transactions: filteredTransactions.value.filter(tx => 
             (tx.category || (type === 'income' ? 'Other' : 'Uncategorized')) === categoryName && 
-            (type === 'income' 
-              ? (tx.type === 'income' && tx.category !== 'Transfer' && tx.type !== 'transfer') 
-              : ((tx.type === 'expense' || !tx.type) && tx.category !== 'Transfer' && tx.type !== 'transfer')
-            )
+            (type === 'income' ? tx.type === 'income' : (tx.type === 'expense' || !tx.type))
         )
       };
       isDetailModalVisible.value = true;
@@ -394,10 +338,6 @@ export default {
         if (availableMonths.value.length > 0) {
             selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
         }
-    });
-
-    watch(selectedMonth, (newMonth) => {
-        if (newMonth) fetchBudget();
     });
 
     // --- LIFECYCLE HOOKS (formerly `mounted()`) ---
@@ -427,8 +367,6 @@ export default {
       transactions,
       selectedYear,
       selectedMonth,
-      currentBudget,
-      budgetInput,
       categories,
       isModalVisible,
       transactionToEdit,
@@ -437,19 +375,15 @@ export default {
       availableYears,
       availableMonths,
       filteredTransactions,
-      monthlyTotal,
-      monthlyTotalText,
+      monthlyStats,
       moneyLeft,
       categorySummary,
       incomeCategorySummary,
-      fetchBudget,
-      setBudget,
       openEditModal,
       handleSaveTransaction,
       handleDeleteFromModal,
       handleEditFromModal,
       openDetailModal,
-      isBudgetModalVisible,
       accounts
     };
   }
@@ -545,7 +479,7 @@ export default {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.budget-and-summary {
+.income-expense-summary {
   flex-grow: 1;
 }
 
@@ -592,30 +526,6 @@ export default {
 
 .summary-amount.positive { color: var(--positive-color); }
 .summary-amount.negative { color: var(--negative-color); }
-
-.edit-budget-btn {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  margin-left: 4px;
-}
-
-.edit-budget-btn:hover {
-  background-color: rgba(79, 70, 229, 0.1);
-}
-
-html.dark .edit-budget-btn {
-  color: #f1f5f9; /* Slate 100 */
-}
-
-html.dark .edit-budget-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
 
 .category-breakdown {
   background: var(--card-background);
