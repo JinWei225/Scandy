@@ -1,65 +1,86 @@
 <template>
-  <div class="container">
-    <div class="header-actions">
-      <h1>Subscriptions</h1>
-      <button class="add-btn" @click="openAddModal">
-        <span>+</span> Add Subscription
-      </button>
-    </div>
+  <div class="w-full">
+    <!-- Header Section -->
+    <section class="mb-12">
+      <div class="flex items-center gap-4 mb-2">
+        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0">Recurring Vault</h2>
+      </div>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+      <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+        <div>
+          <p class="font-label text-sm text-on-surface-variant uppercase tracking-[0.1em] mb-1">Total Monthly Commitments</p>
+          <p class="font-headline text-5xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalMonthly.toFixed(2) }}</p>
+        </div>
+        <button @click="openAddModal" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors flex items-center gap-2 w-fit">
+          <span class="material-symbols-outlined text-[18px]">add</span>
+          New Entity
+        </button>
+      </div>
+    </section>
 
-    <div v-if="subscriptions.length > 0" class="subscriptions-list">
-      <div v-for="sub in subscriptions" :key="sub.id" 
-           class="subscription-card">
-        <div class="sub-info">
-          <h3>{{ sub.name }}</h3>
-          <p class="sub-details">
-            <span class="category-pill">{{ sub.category }}</span>
-            <span class="due-date">Due: Day {{ sub.day_of_month }}</span>
-          </p>
+    <!-- Subscriptions List -->
+    <section class="flex flex-col border-t border-outline-variant/20">
+      <div class="hidden md:grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 bg-surface-container-lowest">
+        <div class="col-span-4 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Service</div>
+        <div class="col-span-3 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Category</div>
+        <div class="col-span-3 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Commitment Amount</div>
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
+      </div>
+
+      <div v-if="subscriptions.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+        <p class="font-body text-on-surface-variant">No recurring commitments found.</p>
+      </div>
+
+      <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-6 md:py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="sub in subscriptions" :key="sub.id">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="col-span-1 md:col-span-4 flex items-center gap-4">
+          <div class="w-10 h-10 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant bg-surface-container-high group-hover:border-primary/50 transition-colors">
+            <span class="material-symbols-outlined">event_repeat</span>
+          </div>
+          <div>
+            <div class="font-headline text-lg text-on-surface tracking-tight">{{ sub.name }}</div>
+            <div class="font-body text-sm text-on-surface-variant tracking-[-0.02em] font-mono">Day: {{ sub.day_of_month }}</div>
+          </div>
         </div>
-        <div class="sub-amount">
-          RM {{ parseFloat(sub.amount).toFixed(2) }}
+        <div class="col-span-1 md:col-span-3 flex items-center md:items-start mt-2 md:mt-0">
+          <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ sub.category }}</span>
         </div>
-        <div class="sub-actions">
-          <button @click="openEditModal(sub)" class="icon-btn edit" title="Edit">✎</button>
-          <button @click="deleteSubscription(sub.id)" class="icon-btn delete" title="Delete">🗑</button>
+        <div class="col-span-1 md:col-span-3 flex md:justify-end items-center mt-2 md:mt-0">
+          <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ parseFloat(sub.amount).toFixed(2) }}</span>
+        </div>
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
+          <button @click="openEditModal(sub)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Edit</button>
+          <button @click="deleteSubscription(sub.id)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Del</button>
         </div>
       </div>
-      
-      <div class="total-summary">
-        <h3>Total Monthly: RM {{ totalMonthly.toFixed(2) }}</h3>
-      </div>
-    </div>
-    <div v-else class="no-subscriptions">
-      <p>No subscriptions added yet.</p>
-    </div>
+    </section>
 
     <!-- Modal for Add/Edit -->
-    <div v-if="isModalVisible" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <h2>{{ isEditing ? 'Edit Subscription' : 'Add Subscription' }}</h2>
-        <form @submit.prevent="saveSubscription">
-          <div class="form-group">
-            <label>Name</label>
-            <input v-model="form.name" type="text" required placeholder="e.g. Netflix">
+    <div v-if="isModalVisible" class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="closeModal">
+      <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-8 relative">
+        <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight mb-6">{{ isEditing ? 'Edit Entity' : 'New Entity' }}</h2>
+        <form @submit.prevent="saveSubscription" class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Name</label>
+            <input v-model="form.name" type="text" required placeholder="e.g. Netflix" class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
           </div>
-          <div class="form-group">
-            <label>Amount (RM)</label>
-            <input v-model="form.amount" type="number" step="0.01" required placeholder="0.00">
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Amount (RM)</label>
+            <input v-model="form.amount" type="number" step="0.01" @wheel="$event.target.blur()" required placeholder="0.00" class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
           </div>
-          <div class="form-group">
-            <label>Day of Month</label>
-            <input v-model="form.day_of_month" type="number" min="1" max="31" required placeholder="1-31">
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Day of Month</label>
+            <input v-model="form.day_of_month" type="number" min="1" max="31" required placeholder="1-31" class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
           </div>
-          <div class="form-group">
-            <label>Category</label>
-            <select v-model="form.category" required>
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Category</label>
+            <select v-model="form.category" required class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
               <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
             </select>
           </div>
-          <div class="modal-actions">
-            <button type="button" class="cancel-btn" @click="closeModal">Cancel</button>
-            <button type="submit" class="save-btn">Save</button>
+          <div class="flex justify-end gap-4 mt-4">
+            <button type="button" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors" @click="closeModal">Cancel</button>
+            <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors">Save</button>
           </div>
         </form>
       </div>
@@ -174,302 +195,5 @@ export default {
 </script>
 
 <style scoped>
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
-}
-
-.header-actions h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--text-color);
-  margin: 0;
-  letter-spacing: -0.03em;
-}
-
-.add-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
-}
-
-.add-btn span {
-  font-size: 1.2rem;
-  line-height: 1;
-}
-
-.add-btn:hover {
-  background-color: var(--secondary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
-}
-
-.subscriptions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.subscription-card {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: var(--glass-shadow);
-  transition: all 0.3s ease;
-}
-
-.subscription-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
-}
-
-.sub-info h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-color);
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.sub-details {
-  margin: 0;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  font-size: 0.9rem;
-  color: var(--subtle-text-color);
-}
-
-.category-pill {
-  background-color: rgba(79, 70, 229, 0.1);
-  color: var(--primary-color);
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.due-date {
-  font-weight: 500;
-}
-
-.sub-amount {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--text-color);
-  letter-spacing: -0.02em;
-}
-
-.sub-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-
-
-.total-summary {
-  margin-top: 2rem;
-  text-align: right;
-  font-size: 1.25rem;
-  color: var(--primary-color);
-  font-weight: 700;
-  padding: 1rem;
-  background: rgba(79, 70, 229, 0.05);
-  border-radius: 12px;
-  display: inline-block;
-  align-self: flex-end;
-}
-
-.no-subscriptions {
-  text-align: center;
-  color: var(--subtle-text-color);
-  margin-top: 4rem;
-  font-size: 1.1rem;
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--card-background);
-  padding: 2.5rem;
-  border-radius: 20px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-.modal-content h2 {
-  margin-top: 0;
-  margin-bottom: 2rem;
-  color: var(--text-color);
-  font-size: 1.5rem;
-  font-weight: 800;
-  text-align: center;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-color);
-}
-
-.form-group input, .form-group select {
-  width: 100%;
-  padding: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 1rem;
-  background-color: rgba(255, 255, 255, 0.5);
-  box-sizing: border-box;
-  transition: all 0.2s;
-}
-
-.form-group input:focus, .form-group select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-  background-color: white;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2.5rem;
-}
-
-.save-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.save-btn:hover {
-  background-color: var(--secondary-color);
-}
-
-.cancel-btn {
-  background-color: transparent;
-  color: var(--subtle-text-color);
-  border: 1px solid transparent;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancel-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: var(--text-color);
-}
-
-/* Dark Mode Input Fix */
-html.dark .form-group input,
-html.dark .form-group select {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-html.dark .form-group input:focus,
-html.dark .form-group select:focus {
-  background-color: rgba(30, 41, 59, 0.8);
-}
-
-html.dark .icon-btn {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-html.dark .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-/* Mobile Responsive Styles */
-@media (max-width: 600px) {
-  .header-actions {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .subscription-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .sub-info {
-    width: 100%;
-  }
-
-  .sub-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .sub-amount {
-    align-self: flex-end;
-    font-size: 1.4rem;
-  }
-
-  .sub-actions {
-    width: 100%;
-    justify-content: flex-end;
-    border-top: 1px solid var(--border-color);
-    padding-top: 1rem;
-    margin-top: 0.5rem;
-  }
-}
+/* Empty style, Tailwind is handling everything globally */
 </style>

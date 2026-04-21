@@ -1,89 +1,68 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <h2>Edit Transaction</h2>
-      <form v-if="editableTransaction" @submit.prevent="saveChanges">
-        <div class="form-group">
-          <label for="edit-date">Date</label>
-          <input type="date" id="edit-date" v-model="editableTransaction.date" required>
+  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="$emit('close')">
+    <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      <h2 class="font-headline text-xl sm:text-2xl text-primary-container uppercase tracking-tight mb-4 sm:mb-6">Edit Transaction</h2>
+      
+      <form v-if="editableTransaction" @submit.prevent="saveChanges" class="flex flex-col gap-4 sm:gap-6">
+        
+        <!-- Type Selection -->
+        <div class="flex gap-2">
+          <button type="button" @click="editableTransaction.type = 'expense'" :class="['border px-2 sm:px-6 py-2 font-label text-[10px] sm:text-xs uppercase tracking-widest transition-colors flex-1', editableTransaction.type === 'expense' ? 'border-error text-error bg-error/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Expense</button>
+          <button type="button" @click="editableTransaction.type = 'income'" :class="['border px-2 sm:px-6 py-2 font-label text-[10px] sm:text-xs uppercase tracking-widest transition-colors flex-1', editableTransaction.type === 'income' ? 'border-primary-container text-primary-container bg-primary-container/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Income</button>
+          <button type="button" @click="editableTransaction.type = 'transfer'" :class="['border px-2 sm:px-6 py-2 font-label text-[10px] sm:text-xs uppercase tracking-widest transition-colors flex-1', editableTransaction.type === 'transfer' ? 'border-tertiary text-tertiary bg-tertiary/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Transfer</button>
         </div>
-        <div class="form-group">
-          <label for="edit-time">Time</label>
-          <input type="time" id="edit-time" v-model="editableTransaction.time" step="1" required>
-        </div>
-        <div class="form-group" v-if="editableTransaction.type !== 'transfer'">
-          <label for="edit-description">Description</label>
-          <input type="text" id="edit-description" v-model="editableTransaction.description" required>
-        </div>
-        <div class="form-group" v-if="editableTransaction.type !== 'transfer'">
-          <label for="edit-category">Category</label>
-          <select id="edit-category" v-model="editableTransaction.category" required>
-            <option v-for="category in availableCategories" :key="category" :value="category">
-              {{ category }}
-            </option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit-amount">Amount (RM)</label>
-          <input type="number" id="edit-amount" v-model="editableTransaction.amount" step="0.01" required>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div class="flex flex-col gap-1 sm:gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Date</label>
+            <div class="relative w-full">
+              <input type="text" :value="formattedDateDisplay" readonly class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full pointer-events-none">
+              <input type="date" v-model="editableTransaction.date" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay">
+            </div>
+          </div>
+          
+          <div class="flex flex-col gap-1 sm:gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Time</label>
+            <input type="time" v-model="editableTransaction.time" step="1" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+          
+          <div class="flex flex-col gap-1 sm:gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Amount (RM)</label>
+            <input type="number" v-model.number="editableTransaction.amount" step="0.01" @wheel="$event.target.blur()" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+          
+          <div class="flex flex-col gap-1 sm:gap-2" v-if="editableTransaction.type !== 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
+            <input type="text" v-model="editableTransaction.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+
+          <div class="flex flex-col gap-1 sm:gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">{{ editableTransaction.type === 'transfer' ? 'From Account' : 'Account' }}</label>
+            <select v-model="editableTransaction.account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option :value="null">Unassigned</option>
+              <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1 sm:gap-2" v-if="editableTransaction.type !== 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Category</label>
+            <select v-model="editableTransaction.category" required class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option v-for="category in availableCategories" :key="category" :value="category">{{ category }}</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1 sm:gap-2" v-if="editableTransaction.type === 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">To Account</label>
+            <select v-model="editableTransaction.to_account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option :value="null">Select Account</option>
+              <option v-for="acc in accounts" :key="acc.id" :value="acc.id" :disabled="acc.id === editableTransaction.account_id">{{ acc.name }}</option>
+            </select>
+          </div>
         </div>
         
-        <div class="form-group">
-            <label for="edit-account">
-                 {{ editableTransaction.type === 'transfer' ? 'From Account' : 'Account' }} 
-            </label>
-            <select id="edit-account" v-model="editableTransaction.account_id">
-                <option :value="null">Unassigned</option>
-                <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-            </select>
-        </div>
-
-        <!-- To Account for Transfers -->
-        <div class="form-group" v-if="editableTransaction.type === 'transfer'">
-            <label for="to-account-edit">To Account</label>
-            <select id="to-account-edit" v-model="editableTransaction.to_account_id">
-                <option :value="null">Select Account</option>
-                <option 
-                    v-for="acc in accounts" 
-                    :key="acc.id" 
-                    :value="acc.id"
-                    :disabled="acc.id === editableTransaction.account_id"
-                >
-                    {{ acc.name }}
-                </option>
-            </select>
-        </div>
-
-        <div class="form-group mb-4">
-            <label class="block font-semibold mb-2">Transaction Type</label>
-            <div class="type-selector">
-                <div 
-                    class="type-option expense" 
-                    :class="{ active: editableTransaction.type === 'expense' }"
-                    @click="editableTransaction.type = 'expense'"
-                >
-                    Expense
-                </div>
-                <div 
-                    class="type-option income" 
-                    :class="{ active: editableTransaction.type === 'income' }"
-                    @click="editableTransaction.type = 'income'"
-                >
-                    Income
-                </div>
-                <div 
-                    class="type-option transfer" 
-                    :class="{ active: editableTransaction.type === 'transfer' }"
-                    @click="editableTransaction.type = 'transfer'"
-                >
-                    Transfer
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="cancel-btn" @click="$emit('close')">Cancel</button>
-          <button type="submit" class="save-btn">Save Changes</button>
+        <div class="flex justify-end gap-4 mt-2 sm:mt-4">
+          <button type="button" class="border border-outline text-on-surface px-4 sm:px-6 py-2 sm:py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors" @click="$emit('close')">Cancel</button>
+          <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-4 sm:px-6 py-2 sm:py-3 hover:bg-primary transition-colors">Save Changes</button>
         </div>
       </form>
     </div>
@@ -109,6 +88,12 @@ export default {
     }
   },
   computed: {
+    formattedDateDisplay() {
+      if (!this.editableTransaction || !this.editableTransaction.date) return '';
+      const parts = this.editableTransaction.date.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return this.editableTransaction.date;
+    },
     availableCategories() {
         if (!this.categories) return [];
         if (Array.isArray(this.categories)) return this.categories;
@@ -177,187 +162,13 @@ export default {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-.modal-content {
-  background-color: var(--card-background);
-  color: var(--text-color);
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.modal-content h2 {
-  margin-top: 0;
-  color: var(--primary-color);
-}
-
-.form-group { margin-bottom: 1rem; text-align: left; }
-.form-group label { display: block; font-weight: bold; margin-bottom: 0.5rem; }
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  background-color: var(--card-background);
-  color: var(--text-color);
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: var(--secondary-color);
-  box-shadow: 0 0 0 2px rgba(74, 122, 156, 0.3);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.modal-actions button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 5px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: background-color 0.2s;
-}
-
-.save-btn { background-color: var(--primary-color); color: white; }
-.save-btn:hover { background-color: var(--secondary-color); }
-.cancel-btn { background-color: var(--border-color); color: var(--text-color); }
-.cancel-btn:hover { background-color: #d1d5db; }
-
-.type-selector {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-
-.type-option {
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
+.date-input-overlay::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s ease;
-    flex: 1;
-    text-align: center;
-    background-color: rgba(255, 255, 255, 0.5);
-    color: var(--text-color);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.type-option:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-
-/* Expense Styles */
-.type-option.expense {
-    border-color: rgba(239, 68, 68, 0.2);
-    color: var(--negative-color);
-}
-.type-option.expense.active {
-    background-color: var(--negative-color);
-    color: white;
-    border-color: var(--negative-color);
-}
-
-/* Income Styles */
-.type-option.income {
-    border-color: rgba(34, 197, 94, 0.2);
-    color: var(--positive-color);
-}
-.type-option.income.active {
-    background-color: var(--positive-color);
-    color: white;
-    border-color: var(--positive-color);
-}
-
-/* Transfer Styles - using Blue */
-.type-option.transfer {
-    border-color: rgba(59, 130, 246, 0.2);
-    color: #3b82f6; /* Blue-500 */
-}
-.type-option.transfer.active {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
-
-/* Dark Mode */
-html.dark .type-option {
-    background-color: rgba(30, 41, 59, 0.4);
-}
-html.dark .type-option:hover {
-    background-color: rgba(30, 41, 59, 0.6);
-}
-
-@media (min-width: 768px) {
-  .modal-content {
-    padding: 1.5rem;
-    max-width: 500px;
-  }
-
-  .form-group input, .form-group select {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .form-group label {
-    font-size: 0.85rem;
-    margin-bottom: 0.25rem;
-  }
-
-  /* Grid Layout for compact view */
-  form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem 1rem;
-  }
-
-  /* Description */
-  .form-group:nth-of-type(3) {
-    grid-column: span 2;
-  }
-  
-  /* Account */
-  .form-group:nth-of-type(6) {
-      grid-column: span 2;
-  }
-
-  /* Type Selector container */
-  .form-group.mb-4 {
-    grid-column: span 2;
-    margin-bottom: 0.5rem; /* Override the mb-4 which is likely 1rem */
-  }
-
-  .modal-actions {
-    grid-column: span 2;
-    margin-top: 1rem;
-  }
 }
 </style>

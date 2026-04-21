@@ -1,74 +1,74 @@
 <template>
-  <div class="container">
-    <div class="back-link">
-      <router-link to="/accounts">&larr; Back to Accounts</router-link>
-    </div>
-
-    <div class="page-header">
-        <h1 v-if="account">{{ account.name }} Transactions</h1>
-        <h1 v-else>Loading...</h1>
-    </div>
-
-    <div v-if="transactions.length > 0" class="top-panel">
-      <!-- Only Filter Controls, No Budget Summary -->
-      <div class="filter-controls full-width">
-        <div class="select-wrapper">
-          <label for="year-select">Year</label>
-          <select id="year-select" v-model="selectedYear">
-            <option v-for="year in availableYears" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
-        </div>
-        <div class="select-wrapper">
-          <label for="month-select">Month</label>
-          <select id="month-select" v-model="selectedMonth" :disabled="!selectedYear">
-            <option v-for="month in availableMonths" :key="month" :value="month">
-              {{ month }}
-            </option>
-          </select>
-        </div>
+  <div class="w-full">
+    <!-- Header Section -->
+    <section class="mb-12">
+      <div class="flex items-center gap-4 mb-2">
+        <router-link to="/accounts" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </router-link>
+        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0" v-if="account">{{ account.name }}</h2>
+        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0" v-else>Loading...</h2>
       </div>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+    </section>
+
+    <div v-if="transactions.length > 0">
+      <!-- Section 1: The Filter Controls -->
+      <section class="mb-12 bg-surface-container-lowest border border-outline-variant/30 p-6 flex flex-col md:flex-row gap-6 items-end relative">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
+        <div class="flex flex-col gap-2 flex-1 w-full">
+          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Year</label>
+          <select v-model="selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+            <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-2 flex-1 w-full">
+          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Month</label>
+          <select v-model="selectedMonth" :disabled="!selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full disabled:opacity-50">
+            <option v-for="month in availableMonths" :key="month" :value="month">{{ month }}</option>
+          </select>
+        </div>
+      </section>
     </div>
 
-    <div v-if="categorySummary.length > 0" class="category-breakdown">
-      <h3>Spending by Category</h3>
-      <ul>
-        <li v-for="item in categorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name, 'expense')" class="category-item">
-            <div class="category-info">
-              <span class="category-name">{{ item.name }}</span>
-              <span class="transaction-count">{{ item.count }} transactions</span>
-            </div>
-            <div class="category-spending">
-              <span class="category-total">RM {{ item.total.toFixed(2) }}</span>
-              <span class="category-percentage">{{ item.percentage.toFixed(0) }}%</span>
-            </div>
-          </button>
-        </li>
-      </ul>
-    </div>
+    <!-- Category Breakdown (Expenses) -->
+    <section v-if="categorySummary.length > 0" class="mb-12">
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Spending by Category</h3>
+      <div class="flex flex-col border-t border-outline-variant/20">
+        <button v-for="item in categorySummary" :key="item.name" @click="openDetailModal(item.name, 'expense')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
+          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="col-span-8 flex flex-col">
+            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
+          </div>
+          <div class="col-span-4 flex flex-col items-end">
+            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="px-2 py-1 mt-1 bg-error/10 border border-error/20 font-label text-[10px] text-error uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
+          </div>
+        </button>
+      </div>
+    </section>
     
-    <div v-if="incomeCategorySummary.length > 0" class="category-breakdown income-section">
-      <h3>Income by Category</h3>
-      <ul>
-        <li v-for="item in incomeCategorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name, 'income')" class="category-item">
-            <div class="category-info">
-              <span class="category-name">{{ item.name }}</span>
-              <span class="transaction-count">{{ item.count }} transactions</span>
-            </div>
-            <div class="category-spending">
-              <span class="category-total">RM {{ item.total.toFixed(2) }}</span>
-              <span class="category-percentage">{{ item.percentage.toFixed(0) }}%</span>
-            </div>
-          </button>
-        </li>
-      </ul>
-    </div>
+    <!-- Category Breakdown (Income) -->
+    <section v-if="incomeCategorySummary.length > 0" class="mb-12">
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Income by Category</h3>
+      <div class="flex flex-col border-t border-outline-variant/20">
+        <button v-for="item in incomeCategorySummary" :key="item.name" @click="openDetailModal(item.name, 'income')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
+          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-[#34d399] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="col-span-8 flex flex-col">
+            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
+          </div>
+          <div class="col-span-4 flex flex-col items-end">
+            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="px-2 py-1 mt-1 bg-[#34d399]/10 border border-[#34d399]/20 font-label text-[10px] text-[#34d399] uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
+          </div>
+        </button>
+      </div>
+    </section>
 
-    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="no-transactions">
-      No transactions found for this period.
+    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+      <p class="font-body text-on-surface-variant">No transactions found for this period.</p>
     </div>
   </div>
 
@@ -327,210 +327,4 @@ export default {
 </script>
 
 <style scoped>
-.container { 
-    max-width: 900px; 
-    margin: 0 auto; 
-    padding: 2rem;
-}
-
-.back-link { 
-    margin-bottom: 2rem; 
-}
-
-.back-link a { 
-    font-weight: 600;
-    color: var(--primary-color); 
-    text-decoration: none; 
-    display: inline-flex;
-    align-items: center;
-    transition: transform 0.2s;
-}
-
-.back-link a:hover {
-    transform: translateX(-4px);
-}
-
-.page-header {
-    margin-bottom: 2rem;
-    text-align: center;
-}
-
-.page-header h1 {
-    color: var(--text-color);
-    font-weight: 800;
-}
-
-.top-panel {
-  display: flex;
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  margin-bottom: 2rem;
-  padding: 2rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  justify-content: center;
-}
-
-.top-panel:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.2);
-}
-
-.filter-controls {
-  display: flex;
-  flex-direction: row;
-  gap: 1rem;
-  justify-content: center;
-  align-items: flex-start;
-  width: 100%;
-}
-
-.select-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0; /* Allow shrinking */
-  flex: 1; /* Distribute space equally */
-}
-
-.filter-controls label {
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--subtle-text-color);
-}
-
-.filter-controls select {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.5);
-  font-size: 1rem;
-  color: var(--text-color);
-  cursor: pointer;
-  width: 100%;
-  transition: all 0.2s;
-}
-
-.filter-controls select:hover {
-  border-color: var(--primary-color);
-}
-
-.filter-controls select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.category-breakdown {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  padding: 2rem;
-}
-
-.category-breakdown h3 {
-  margin-top: 0;
-  margin-bottom: 2rem;
-  text-align: center;
-  color: var(--text-color);
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.category-breakdown ul {
-  list-style: none;
-  padding: 0;
-  margin: 2rem 0 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.category-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 1.25rem;
-  border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.4);
-  border: 1px solid var(--border-color);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.category-item:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-  transform: translateX(4px);
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.category-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-color);
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.transaction-count {
-  font-size: 0.75rem;
-  color: var(--subtle-text-color);
-}
-
-.category-spending {
-  text-align: right;
-}
-
-.category-total {
-  font-weight: 700;
-  font-size: 1rem;
-  display: block;
-  color: var(--text-color);
-  margin-bottom: 0.25rem;
-}
-
-.category-percentage {
-  font-size: 0.8rem;
-  color: white;
-  font-weight: 600;
-  background: var(--primary-color);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.income-section {
-  margin-top: 2rem;
-}
-
-.income-section .category-percentage {
-  background-color: var(--positive-color);
-}
-
-.no-transactions {
-  text-align: center;
-  color: var(--subtle-text-color);
-  margin-top: 4rem;
-  font-size: 1.1rem;
-}
-
-/* Dark Mode Overrides */
-html.dark .filter-controls select {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-html.dark .filter-controls select:focus {
-  background-color: rgba(30, 41, 59, 0.8);
-}
 </style>

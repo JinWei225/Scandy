@@ -1,91 +1,93 @@
 <template>
-  <div class="container">
-    <div class="back-link">
-      <router-link to="/">&larr; Back to Home</router-link>
-    </div>
-
-    <div v-if="transactions.length > 0" class="top-panel">
-
-      <!-- Section 1: The Filter Controls -->
-      <div class="filter-controls">
-        <div class="select-wrapper">
-          <label for="year-select">Year</label>
-          <select id="year-select" v-model="selectedYear">
-            <option v-for="year in availableYears" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
-        </div>
-        <div class="select-wrapper">
-          <label for="month-select">Month</label>
-          <select id="month-select" v-model="selectedMonth" :disabled="!selectedYear">
-            <option v-for="month in availableMonths" :key="month" :value="month">
-              {{ month }}
-            </option>
-          </select>
-        </div>
+  <div class="w-full">
+    <!-- Header Section -->
+    <section class="mb-12">
+      <div class="flex items-center gap-4 mb-2">
+        <router-link to="/" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </router-link>
+        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0">Monthly Summary</h2>
       </div>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+    </section>
+
+    <div v-if="transactions.length > 0">
+      <!-- Section 1: The Filter Controls -->
+      <section class="mb-8 bg-surface-container-lowest border border-outline-variant/30 p-6 flex flex-col md:flex-row gap-6 items-end relative">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
+        <div class="flex flex-col gap-2 flex-1 w-full">
+          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Year</label>
+          <select v-model="selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+            <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-2 flex-1 w-full">
+          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Month</label>
+          <select v-model="selectedMonth" :disabled="!selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full disabled:opacity-50">
+            <option v-for="month in availableMonths" :key="month" :value="month">{{ month }}</option>
+          </select>
+        </div>
+      </section>
 
       <!-- Section 2: The Income and Expense Summary -->
-      <div class="income-expense-summary">
-        <div class="summary-grid">
-          <div class="summary-item">
-            <h3>Income</h3>
-            <p class="summary-amount positive">RM {{ monthlyStats.income.toFixed(2) }}</p>
-          </div>
-          <div class="summary-item">
-            <h3>Expenses</h3>
-            <p class="summary-amount">RM {{ monthlyStats.expense.toFixed(2) }}</p>
-          </div>
-          <div class="summary-item">
-            <h3>{{ moneyLeft.label }}</h3>
-            <p class="summary-amount" :class="moneyLeft.status">{{ moneyLeft.text }}</p>
-          </div>
+      <section class="mb-12 grid grid-cols-1 md:grid-cols-3 gap-0 border border-outline-variant/20 bg-surface-container-lowest">
+        <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
+          <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Income</h3>
+          <p class="font-headline text-3xl md:text-4xl text-[#34d399] tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
         </div>
-      </div>
-    </div>
-    <div v-if="categorySummary.length > 0" class="category-breakdown">
-      <h3>Spending by Category</h3>
-      <CategoryChart :categoryData="categorySummary" />
-      <ul>
-        <li v-for="item in categorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name, 'expense')" class="category-item">
-            <div class="category-info">
-              <span class="category-name">{{ item.name }}</span>
-              <span class="transaction-count">{{ item.count }} transactions</span>
-            </div>
-            <div class="category-spending">
-              <span class="category-total">RM {{ item.total.toFixed(2) }}</span>
-              <span class="category-percentage">{{ item.percentage.toFixed(0) }}%</span>
-            </div>
-          </button>
-        </li>
-      </ul>
-    </div>
-    
-    <div v-if="incomeCategorySummary.length > 0" class="category-breakdown income-section">
-      <h3>Income by Category</h3>
-      <!-- No chart for income as requested -->
-      <ul>
-        <li v-for="item in incomeCategorySummary" :key="item.name">
-          <button @click="openDetailModal(item.name, 'income')" class="category-item">
-            <div class="category-info">
-              <span class="category-name">{{ item.name }}</span>
-              <span class="transaction-count">{{ item.count }} transactions</span>
-            </div>
-            <div class="category-spending">
-              <span class="category-total">RM {{ item.total.toFixed(2) }}</span>
-              <span class="category-percentage">{{ item.percentage.toFixed(0) }}%</span>
-            </div>
-          </button>
-        </li>
-      </ul>
+        <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
+          <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Expenses</h3>
+          <p class="font-headline text-3xl md:text-4xl text-error tracking-tighter">RM {{ monthlyStats.expense.toFixed(2) }}</p>
+        </div>
+        <div class="p-6 flex flex-col items-center md:items-start text-center md:text-left relative overflow-hidden group">
+          <div class="absolute inset-0 bg-primary-container/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2 z-10">{{ moneyLeft.label }}</h3>
+          <p class="font-headline text-3xl md:text-4xl tracking-tighter z-10" :class="moneyLeft.status === 'positive' ? 'text-primary-container' : 'text-error'">{{ moneyLeft.text }}</p>
+        </div>
+      </section>
     </div>
 
-    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="no-transactions">
-      No transactions recorded yet.
+    <!-- Category Breakdown (Expenses) -->
+    <section v-if="categorySummary.length > 0" class="mb-12">
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Expenses by Category</h3>
+      <div class="flex flex-col border-t border-outline-variant/20">
+        <button v-for="item in categorySummary" :key="item.name" @click="openDetailModal(item.name, 'expense')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
+          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="col-span-8 flex flex-col">
+            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
+          </div>
+          <div class="col-span-4 flex flex-col items-end">
+            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="px-2 py-1 mt-1 bg-error/10 border border-error/20 font-label text-[10px] text-error uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
+          </div>
+        </button>
+      </div>
+    </section>
+    
+    <!-- Category Breakdown (Income) -->
+    <section v-if="incomeCategorySummary.length > 0" class="mb-12">
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Income by Category</h3>
+      <div class="flex flex-col border-t border-outline-variant/20">
+        <button v-for="item in incomeCategorySummary" :key="item.name" @click="openDetailModal(item.name, 'income')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
+          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-[#34d399] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="col-span-8 flex flex-col">
+            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
+          </div>
+          <div class="col-span-4 flex flex-col items-end">
+            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="px-2 py-1 mt-1 bg-[#34d399]/10 border border-[#34d399]/20 font-label text-[10px] text-[#34d399] uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+      <p class="font-body text-on-surface-variant">No transactions recorded yet.</p>
     </div>
   </div>
+
   <CategoryDetailModal
     v-if="isDetailModalVisible"
     :categoryName="selectedCategoryData.name"
@@ -111,7 +113,6 @@ import { useTransactions } from '../composables/useTransactions';
 
 import EditModal from '../components/EditModal.vue';
 import CategoryDetailModal from '../components/CategoryDetailModal.vue';
-import CategoryChart from '../components/CategoryChart.vue';
 import axios from 'axios';
 
 export default {
@@ -119,7 +120,6 @@ export default {
   components: {
     EditModal,
     CategoryDetailModal,
-    CategoryChart,
   },
   
   // The setup() function is the heart of the Composition API
@@ -391,283 +391,5 @@ export default {
 </script>
 
 <style scoped>
-.container { 
-    max-width: 900px; 
-    margin: 0 auto; 
-    padding: 2rem;
-}
-
-.back-link { 
-    margin-bottom: 2rem; 
-}
-
-.back-link a { 
-    font-weight: 600;
-    color: var(--primary-color); 
-    text-decoration: none; 
-    display: inline-flex;
-    align-items: center;
-    transition: transform 0.2s;
-}
-
-.back-link a:hover {
-    transform: translateX(-4px);
-}
-
-.top-panel {
-  display: flex;
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  margin-bottom: 2rem;
-  padding: 2rem;
-  gap: 3rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.top-panel:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.2);
-}
-
-.filter-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  justify-content: center;
-  flex-basis: 25%;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border-color);
-  padding-right: 2rem;
-}
-
-.select-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-controls label {
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--subtle-text-color);
-}
-
-.filter-controls select {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.5);
-  font-size: 1rem;
-  color: var(--text-color);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-controls select:hover {
-  border-color: var(--primary-color);
-}
-
-.filter-controls select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.income-expense-summary {
-  flex-grow: 1;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  text-align: center;
-  height: 100%;
-  align-items: center;
-}
-
-.summary-item {
-  position: relative;
-  padding: 0 1rem;
-}
-
-.summary-item:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 20%;
-  height: 60%;
-  width: 1px;
-  background-color: var(--border-color);
-}
-
-.summary-item h3 {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  color: var(--subtle-text-color);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.summary-item .summary-amount {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--text-color);
-  letter-spacing: -0.02em;
-  white-space: nowrap; /* Prevent line break */
-}
-
-.summary-amount.positive { color: var(--positive-color); }
-.summary-amount.negative { color: var(--negative-color); }
-
-.category-breakdown {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  padding: 2rem;
-}
-
-.category-breakdown h3 {
-  margin-top: 0;
-  margin-bottom: 2rem;
-  text-align: center;
-  color: var(--text-color);
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.category-breakdown ul {
-  list-style: none;
-  padding: 0;
-  margin: 2rem 0 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.category-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 1.25rem;
-  border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.4);
-  border: 1px solid var(--border-color);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.category-item:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-  transform: translateX(4px);
-  border-color: var(--primary-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.category-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-color);
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.transaction-count {
-  font-size: 0.75rem;
-  color: var(--subtle-text-color);
-}
-
-.category-spending {
-  text-align: right;
-}
-
-.category-total {
-  font-weight: 700;
-  font-size: 1rem;
-  display: block;
-  color: var(--text-color);
-  margin-bottom: 0.25rem;
-}
-
-.category-percentage {
-  font-size: 0.8rem;
-  color: white;
-  font-weight: 600;
-  background: var(--primary-color);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.no-transactions {
-  text-align: center;
-  color: var(--subtle-text-color);
-  margin-top: 4rem;
-  font-size: 1.1rem;
-}
-
-.income-section {
-  margin-top: 2rem;
-}
-
-.income-section .category-percentage {
-  background-color: var(--positive-color);
-}
-
-@media (max-width: 768px) {
-  .top-panel {
-    flex-direction: column;
-    gap: 2rem;
-    padding: 1.5rem;
-  }
-
-  .filter-controls {
-    flex-direction: row;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding-right: 0;
-    padding-bottom: 1.5rem;
-    flex-basis: auto;
-  }
-  
-  .select-wrapper {
-    flex: 1;
-  }
-
-  .summary-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  
-  .summary-item:not(:last-child)::after {
-    display: none;
-  }
-  
-  .summary-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-  }
-  
-  .summary-item h3 {
-    margin: 0;
-    text-align: left;
-  }
-
-  .summary-item .summary-amount {
-    font-size: 1.2rem;
-  }
-}
+/* Scoped styles removed in favor of global Tailwind classes */
 </style>

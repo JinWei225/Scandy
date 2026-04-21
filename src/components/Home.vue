@@ -1,153 +1,148 @@
 <template>
-  <div class="container">
-    <!-- Total Balance Section -->
-    <div class="total-balance-card">
-      <h2 class="total-balance-title">Total Balance</h2>
-      <p class="total-balance-amount">RM {{ totalBalance.toFixed(2) }}</p>
-    </div>
+  <div class="w-full">
+    <!-- Header Section for Page -->
+    <section class="mb-12">
+      <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Scan & Parse</h2>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+    </section>
 
-    <div class="upload-section">
-      <h2>Upload Transaction Records</h2>
-      <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="file-input-hidden">
-      <label for="file-upload" class="file-upload-label">
-        <span class="icon">📁</span> Choose Image
-      </label>
-      <span class="file-name">{{ selectedFile ? selectedFile.name : 'No file selected' }}</span>
+    <!-- Upload Section -->
+    <section class="mb-12 border border-outline-variant/30 bg-surface-container-lowest p-6 md:p-8 relative">
+      <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Upload Document</h3>
+      
+      <div class="flex flex-col md:flex-row gap-6 items-start md:items-center w-full mt-4">
+        <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="hidden">
+        <label for="file-upload" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors cursor-pointer flex items-center gap-2 w-fit">
+          <span class="material-symbols-outlined text-[18px]">folder</span>
+          Select Source
+        </label>
+        <span class="font-body text-sm text-on-surface-variant font-mono">{{ selectedFile ? selectedFile.name : 'NO_FILE_SELECTED' }}</span>
+      </div>
 
-      <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="upload-button">
-        {{ isLoading ? 'Processing...' : 'Upload and Scan' }}
-      </button>
-      <p v-if="message" class="message">{{ message }}</p>
-    </div>
+      <div class="mt-6 flex flex-col items-start w-full">
+        <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-8 py-4 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          {{ isLoading ? 'Processing...' : 'Execute Scan' }}
+        </button>
+        <p v-if="message" class="font-body text-sm text-primary-container mt-4">{{ message }}</p>
+      </div>
+    </section>
 
-    <div class="manual-entry-section">
-      <h2>Manual Entry</h2>
-      <form @submit.prevent="addManualTransaction">
-        <div class="form-row">
-            <div class="form-group half-width">
-                <label for="manual-date">Date</label>
-                <input type="date" id="manual-date" v-model="manualForm.date" required>
-            </div>
-            
-            <div class="form-group half-width">
-                <label for="manual-time">Time</label>
-                <input type="time" id="manual-time" v-model="manualForm.time" step="1" required>
-            </div>
+    <!-- Manual Entry Section -->
+    <section class="mb-12 border-t border-outline-variant/20 pt-8">
+      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Manual Log</h3>
+      
+      <form @submit.prevent="addManualTransaction" class="flex flex-col gap-6">
+        <!-- Type Selection -->
+        <div class="flex gap-2">
+          <button type="button" @click="manualForm.type = 'expense'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'expense' ? 'border-error text-error bg-error/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Expense</button>
+          <button type="button" @click="manualForm.type = 'income'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'income' ? 'border-primary-container text-primary-container bg-primary-container/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Income</button>
+          <button type="button" @click="manualForm.type = 'transfer'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'transfer' ? 'border-tertiary text-tertiary bg-tertiary/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Transfer</button>
         </div>
 
-        <div class="form-row">
-            <div class="form-group half-width">
-                <label for="manual-amount">Amount (RM)</label>
-                <input type="number" id="manual-amount" v-model.number="manualForm.amount" step="0.01" required>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Date</label>
+            <div class="relative w-full">
+              <input type="text" :value="formattedDateDisplay" readonly class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full pointer-events-none">
+              <input type="date" v-model="manualForm.date" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay">
             </div>
-            
-            <div class="form-group half-width" v-if="manualForm.type !== 'transfer'">
-                <label for="manual-description">Description</label>
-                <input type="text" id="manual-description" v-model="manualForm.description" required>
-            </div>
+          </div>
+          
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Time</label>
+            <input type="time" v-model="manualForm.time" step="1" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+          
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Amount (RM)</label>
+            <input type="number" v-model.number="manualForm.amount" step="0.01" @wheel="$event.target.blur()" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+          
+          <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
+            <input type="text" v-model="manualForm.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">{{ manualForm.type === 'transfer' ? 'From Account' : 'Account' }}</label>
+            <select v-model="manualForm.account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option :value="null">Unassigned</option>
+              <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Category</label>
+            <select v-model="manualForm.category" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-2" v-if="manualForm.type === 'transfer'">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">To Account</label>
+            <select v-model="manualForm.to_account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+              <option :value="null">Select Account</option>
+              <option v-for="acc in accounts" :key="acc.id" :value="acc.id" :disabled="acc.id === manualForm.account_id">{{ acc.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <button type="submit" :disabled="isLoading" class="bg-outline-variant text-on-surface font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-outline transition-colors disabled:opacity-50 mt-4">
+            {{ isLoading ? 'Committing...' : 'Commit Log' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Recent Transactions -->
+    <section class="flex flex-col border-t border-outline-variant/20 pt-8">
+      <div class="flex justify-between items-end mb-6">
+        <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
+        <router-link to="/all" class="font-label text-xs text-primary-container uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
+          View Summary <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </router-link>
+      </div>
+
+      <div class="hidden md:grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 bg-surface-container-lowest">
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Date</div>
+        <div class="col-span-4 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Description</div>
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Category</div>
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Amount</div>
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
+      </div>
+
+      <div v-if="transactions.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+        <p class="font-body text-on-surface-variant">No logs found.</p>
+      </div>
+
+      <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="transaction in latestTransactions" :key="transaction.id">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity" :class="transaction.type === 'expense' ? 'bg-error' : (transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container')"></div>
+        
+        <div class="col-span-1 md:col-span-2 flex flex-col md:block">
+          <div class="font-body text-sm text-on-surface font-mono">{{ transaction.date }}</div>
+          <div class="font-label text-[10px] text-on-surface-variant tracking-widest">{{ transaction.time }}</div>
         </div>
         
-        <div class="form-group mb-4">
-            <label class="block font-semibold mb-2">Transaction Type</label>
-            <div class="type-selector">
-                <div 
-                    class="type-option expense" 
-                    :class="{ active: manualForm.type === 'expense' }"
-                    @click="manualForm.type = 'expense'"
-                >
-                    Expense
-                </div>
-                <div 
-                    class="type-option income" 
-                    :class="{ active: manualForm.type === 'income' }"
-                    @click="manualForm.type = 'income'"
-                >
-                    Income
-                </div>
-                <div 
-                    class="type-option transfer" 
-                    :class="{ active: manualForm.type === 'transfer' }"
-                    @click="manualForm.type = 'transfer'"
-                >
-                    Transfer
-                </div>
-            </div>
+        <div class="col-span-1 md:col-span-4">
+          <div class="font-headline text-md text-on-surface tracking-tight">{{ transaction.description }}</div>
         </div>
-
-        <div class="form-row">
-            <div class="form-group half-width">
-               <!-- Dynamic Label based on type -->
-                <label for="manual-account">
-                    {{ manualForm.type === 'transfer' ? 'From Account' : 'Account' }} 
-                </label>
-                <select id="manual-account" v-model="manualForm.account_id">
-                    <option :value="null">Unassigned</option>
-                    <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-                </select>
-            </div>
-            
-            <!-- Category is hidden for transfers -->
-            <div class="form-group half-width" v-if="manualForm.type !== 'transfer'">
-                <label for="manual-category">Category</label>
-                <select id="manual-category" v-model="manualForm.category">
-                    <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
-                </select>
-            </div>
-
-            <!-- To Account for Transfers -->
-            <div class="form-group half-width" v-if="manualForm.type === 'transfer'">
-                <label for="to-account">To Account</label>
-                <select id="to-account" v-model="manualForm.to_account_id">
-                    <option :value="null">Select Account</option>
-                    <option 
-                        v-for="acc in accounts" 
-                        :key="acc.id" 
-                        :value="acc.id"
-                        :disabled="acc.id === manualForm.account_id"
-                    >
-                        {{ acc.name }}
-                    </option>
-                </select>
-            </div>
+        
+        <div class="col-span-1 md:col-span-2 flex items-center">
+          <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest" v-if="transaction.category">{{ transaction.category }}</span>
         </div>
-
-        <button type="submit" :disabled="isLoading" class="submit-manual-button">
-          {{ isLoading ? 'Saving...' : 'Add Transaction' }}
-        </button>
-      </form>
-    </div>
-
-    <div class="transactions-list">
-      <h2>Recent Transactions</h2>
-      <div class="view-all-link">
-        <router-link to="/all">View All Transactions &rarr;</router-link>
+        
+        <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
+          <span class="font-headline text-lg tracking-tighter" :class="transaction.type === 'expense' ? 'text-error' : (transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container')">{{ transaction.amount }}</span>
+        </div>
+        
+        <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0 transition-opacity">
+          <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+          <button @click="deleteTransaction(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+        </div>
       </div>
-      <div v-if="transactions.length === 0" class="no-transactions">
-        No transactions found.
-      </div>
-      <ul v-else>
-        <li v-for="transaction in latestTransactions" :key="transaction.id">
-          <div class="transaction-info">
-            <div class="details">
-                <div class="date-time-row">
-                    <span class="date">{{ transaction.date }}</span>
-                    <span class="time-pill">{{ transaction.time }}</span>
-                </div>
-                <span class="description">{{ transaction.description }}</span>
-            </div>
-            <div class="category-and-amount">
-                <!-- Display the category if it exists -->
-                <span v-if="transaction.category" class="category-pill" :class="{ 'income': transaction.type === 'income' }">{{ transaction.category }}</span>
-                <span class="amount">{{ transaction.amount }}</span>
-            </div>
-          </div>
-          <div class="action-buttons">
-            <button @click="openEditModal(transaction)" class="icon-btn edit" title="Edit">✎</button>
-            <button @click="deleteTransaction(transaction.id)" class="icon-btn delete" title="Delete">🗑</button>
-          </div>
-        </li>
-      </ul>
-    </div>
+    </section>
   </div>
 
   <ConfirmationModal
@@ -233,6 +228,13 @@ export default {
     const fileInput = ref(null); // To reference the file input element
 
     // --- COMPUTED ---
+    const formattedDateDisplay = computed(() => {
+        if (!manualForm.value.date) return '';
+        const parts = manualForm.value.date.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return manualForm.value.date;
+    });
+
     const availableCategories = computed(() => {
         if (!categories.value) return [];
         // If categories is still an array (legacy), return it
@@ -511,6 +513,7 @@ export default {
       fileInput,
       latestTransactions,
       manualForm,
+      formattedDateDisplay,
       categories,
       accounts,
       totalBalance,
@@ -530,520 +533,13 @@ export default {
 </script>
 
 <style scoped>
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
-
-.upload-section {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  padding: 2.5rem;
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  text-align: center;
-  margin-bottom: 2rem;
-  transition: transform 0.3s ease;
-}
-
-.upload-section:hover {
-  transform: translateY(-2px);
-}
-
-.upload-section h2 {
-  margin-top: 0;
-  color: var(--text-color);
-  margin-bottom: 1.5rem;
-  font-weight: 800;
-  font-size: 1.5rem;
-}
-
-.file-input-hidden {
-  display: none;
-}
-
-.file-upload-label {
-  background-color: rgba(79, 70, 229, 0.1);
-  color: var(--primary-color);
-  padding: 1rem 2rem;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  margin-bottom: 1rem;
-  border: 1px dashed var(--primary-color);
-}
-
-.file-upload-label:hover {
-  background-color: rgba(79, 70, 229, 0.2);
-  transform: scale(1.02);
-}
-
-.file-name {
-  display: block;
-  margin-bottom: 1.5rem;
-  color: var(--subtle-text-color);
-  font-style: italic;
-  font-size: 0.9rem;
-}
-
-.upload-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.875rem 2rem;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  width: 100%;
-  max-width: 300px;
-  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
-}
-
-.upload-button:disabled {
-  background-color: #cbd5e1;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.upload-button:hover:not(:disabled) {
-  background-color: var(--secondary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
-}
-
-.message {
-  margin-top: 1rem;
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.manual-entry-section {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  padding: 2.5rem;
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  margin-bottom: 2rem;
-}
-
-.manual-entry-section h2 {
-  text-align: center;
-  margin-top: 0;
-  color: var(--text-color);
-  margin-bottom: 2rem;
-  font-weight: 800;
-  font-size: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-  text-align: left;
-}
-
-.form-group label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: var(--text-color);
-  font-size: 0.9rem;
-}
-
-.form-group input, .form-group select {
-  width: 100%;
-  padding: 0.875rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  background-color: rgba(255, 255, 255, 0.5);
-  transition: all 0.2s;
-}
-
-.form-group input:focus, .form-group select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-  background-color: white;
-}
-
-.submit-manual-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.875rem 2rem;
-  border-radius: 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  width: 100%;
-  margin-top: 1.5rem;
-  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
-}
-
-.submit-manual-button:hover:not(:disabled) {
-  background-color: var(--secondary-color);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
-}
-
-.view-all-link {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.view-all-link a {
-  font-weight: 600;
-  color: var(--primary-color);
-  text-decoration: none;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.view-all-link a:hover {
-  color: var(--secondary-color);
-  gap: 0.5rem;
-}
-
-.transactions-list {
-  background: var(--card-background);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--glass-border);
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
-  list-style: none;
-  margin-top: 2rem;
-}
-
-.transactions-list h2 {
-  text-align: center;
-  padding: 0;
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: var(--text-color);
-  font-weight: 800;
-  font-size: 1.5rem;
-}
-
-.no-transactions {
-  text-align: center;
-  color: var(--subtle-text-color);
-  padding: 2rem;
-  font-size: 1.1rem;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.25rem;
-  border-bottom: 1px solid var(--border-color);
-  transition: background-color 0.2s;
-  border-radius: 8px;
-}
-
-
-
-li:last-child {
-  border-bottom: none;
-}
-
-.transaction-info {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  gap: 8px;
-  margin-right: 1rem;
-}
-
-.transaction-info .details {
-  display: flex;
-  flex-direction: column;
-}
-
-.transaction-info .date-time-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
-}
-
-.transaction-info .date {
-  color: var(--subtle-text-color);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.time-pill {
-    background-color: rgba(79, 70, 229, 0.08);
-    color: var(--primary-color);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-}
-
-.transaction-info .description {
-  color: var(--text-color);
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.transaction-info .category-and-amount {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.transaction-info .amount {
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: var(--primary-color);
-  white-space: nowrap;
-  text-align: right;
-  margin-right: 5px;
-  letter-spacing: -0.02em;
-}
-
-.category-pill {
-  background-color: var(--secondary-color);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-
-@media (max-width: 600px) {
-  li {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .transaction-info {
+.date-input-overlay::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    margin-right: 0;
-    margin-bottom: 0.5rem;
-  }
-
-  .transaction-info .details {
-    width: 100%;
-    margin-bottom: 0.5rem;
-  }
-
-  .transaction-info .category-and-amount {
-    width: 100%;
-    justify-content: space-between;
-    margin-top: 0.25rem;
-  }
-
-  .action-buttons {
-    width: 100%;
-    flex-direction: row;
-    justify-content: flex-end;
-    gap: 1rem;
-    border-top: 1px solid var(--border-color);
-    padding-top: 0.75rem;
-    margin-top: 0.5rem;
-  }
-}
-
-html.dark .form-group input,
-html.dark .form-group select {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-html.dark .form-group input:focus,
-html.dark .form-group select:focus {
-  background-color: rgba(30, 41, 59, 0.8);
-}
-
-html.dark .category-pill {
-  background-color: #c2410c; /* Orange 700 - Darker for contrast */
-  color: #fce7f3; /* Very light text */
-}
-
-.category-pill.income {
-  background-color: var(--positive-color); /* Green/Emerald */
-}
-
-html.dark .category-pill.income {
-  background-color: #15803d; /* Green 700 - Darker for contrast in dark mode */
-}
-
-@media (min-width: 601px) {
-  .transaction-info {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .transaction-info .details {
-    flex-basis: 65%;
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .transaction-info .category-and-amount {
-    flex-basis: 35%;
-  }
-
-  .transaction-info .date-time-row { flex-basis: 180px; margin-bottom: 0;}
-  .transaction-info .description { flex-grow: 1; }
-  .transaction-info .amount { margin: 0; }
-  
-  .action-buttons {
-    flex-direction: row;
-  }
-}
-
-/* New CSS for Total Balance and Layouts */
-.total-balance-card {
-  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-  color: white;
-  padding: 2rem;
-  border-radius: 16px;
-  margin-bottom: 2rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease;
-}
-
-.total-balance-card:hover {
-  transform: translateY(-2px);
-}
-
-.total-balance-title {
-  font-size: 1.125rem;
-  font-weight: 500;
-  opacity: 0.9;
-  margin: 0 0 0.5rem 0;
-}
-
-.total-balance-amount {
-  font-size: 2.25rem;
-  font-weight: 800;
-  margin: 0;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  margin-bottom: 1.25rem;
-}
-
-@media (min-width: 768px) {
-  .form-row {
-    flex-direction: row;
-  }
-}
-
-.half-width {
-  flex: 1;
-  margin-bottom: 0; /* Reset margin for flex children */
-}
-
-.type-selector {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.type-option {
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-weight: 600;
+    height: 100%;
+    opacity: 0;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s ease;
-    flex: 1;
-    text-align: center;
-    min-width: 100px;
-    background-color: rgba(255, 255, 255, 0.5);
-    color: var(--text-color);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-
-.type-option:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-
-/* Expense Styles */
-.type-option.expense {
-    border-color: rgba(239, 68, 68, 0.2);
-    color: var(--negative-color);
-}
-.type-option.expense.active {
-    background-color: var(--negative-color);
-    color: white;
-    border-color: var(--negative-color);
-}
-
-/* Income Styles */
-.type-option.income {
-    border-color: rgba(34, 197, 94, 0.2);
-    color: var(--positive-color);
-}
-.type-option.income.active {
-    background-color: var(--positive-color);
-    color: white;
-    border-color: var(--positive-color);
-}
-
-/* Transfer Styles - using Blue */
-.type-option.transfer {
-    border-color: rgba(59, 130, 246, 0.2);
-    color: #3b82f6; /* Blue-500 */
-}
-.type-option.transfer.active {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
-
-/* Dark Mode */
-html.dark .type-option {
-    background-color: rgba(30, 41, 59, 0.4);
-}
-html.dark .type-option:hover {
-    background-color: rgba(30, 41, 59, 0.6);
-}
-
 </style>
