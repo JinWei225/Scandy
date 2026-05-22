@@ -1,23 +1,53 @@
-.DS_Store
-node_modules
-/dist
+# ==============================================================================
+# Scandy Unified .gitignore Configuration
+# ==============================================================================
 
+# --- Personal Data & Databases (DO NOT UPLOAD) ---
+backend/database.sqlite
+backend/accounts.json
+backend/budgets.json
+backend/subscriptions.json
+*.sqlite
+*.db
 
-# local env files
-.env.local
-.env.*.local
-
-# Log files
+# --- Log Files ---
+*.log
+backend/waitress.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Editor directories and files
-.idea
-.vscode
+# --- Python Environment & Caches ---
+.venv/
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+*$py.class
+build/
+dist/
+wheels/
+*.egg-info/
+
+# --- Node/Frontend Dependencies & Builds ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+.antigravitycli/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# --- OS System Files ---
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# --- Temporary Consolidation Backup ---
+git_backups/
