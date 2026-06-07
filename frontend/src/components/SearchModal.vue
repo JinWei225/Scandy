@@ -1,52 +1,99 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content search-modal">
-      <div class="modal-header">
-        <h2>Search Transactions</h2>
-        <button class="close-btn" @click="$emit('close')">&times;</button>
+  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex flex-col items-center p-4 pt-16" @click.self="$emit('close')">
+    <div class="bg-surface border border-outline-variant/30 w-full max-w-2xl relative flex flex-col max-h-[80vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-5 border-b border-outline-variant/20">
+        <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight">Search Logs</h2>
+        <button @click="$emit('close')" class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
 
-      <div class="search-input-wrapper">
-        <input 
-          type="text" 
-          v-model="searchQuery" 
-          placeholder="Search by description, category, amount..." 
-          class="search-input"
-          ref="searchInput"
-        />
+      <!-- Search Input -->
+      <div class="px-6 py-4 border-b border-outline-variant/20">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Description, category, amount, date..."
+            ref="searchInput"
+            class="flex-1 bg-transparent border-0 focus:ring-0 px-0 py-1 text-on-surface font-body text-sm outline-none placeholder:text-on-surface-variant/50"
+          />
+          <button v-if="searchQuery" @click="searchQuery = ''" class="text-on-surface-variant hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[16px]">backspace</span>
+          </button>
+        </div>
       </div>
 
-      <div class="results-list" v-if="filteredTransactions.length > 0">
-        <ul>
-          <li v-for="transaction in filteredTransactions" :key="transaction.id">
-            <div class="transaction-info">
-              <div class="details">
-                <span class="date">{{ transaction.date }}</span>
-                <span class="description">{{ transaction.description }}</span>
-                <span class="category-pill">{{ transaction.category }}</span>
-              </div>
-              <div class="amount">
+      <!-- Results -->
+      <div class="flex-1 overflow-y-auto">
+        <div v-if="!searchQuery" class="py-12 text-center">
+          <p class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Type to search transactions</p>
+        </div>
+
+        <div v-else-if="filteredTransactions.length === 0" class="py-12 text-center">
+          <p class="font-label text-xs text-on-surface-variant uppercase tracking-widest">No results for "{{ searchQuery }}"</p>
+        </div>
+
+        <div v-else>
+          <div class="hidden md:grid grid-cols-12 gap-4 py-3 px-6 bg-surface-container-lowest border-b border-outline-variant/20">
+            <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Date</div>
+            <div class="col-span-4 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Description</div>
+            <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Category</div>
+            <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em] text-right">Amount</div>
+            <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
+          </div>
+
+          <div
+            v-for="transaction in filteredTransactions"
+            :key="transaction.id"
+            class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-6 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative"
+          >
+            <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity"
+              :class="transaction.type === 'expense' ? 'bg-error' : transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container'"></div>
+
+            <div class="col-span-1 md:col-span-2 flex flex-col">
+              <span class="font-body text-sm text-on-surface font-mono">{{ transaction.date }}</span>
+              <span class="font-label text-[10px] text-on-surface-variant tracking-widest">{{ transaction.time }}</span>
+            </div>
+
+            <div class="col-span-1 md:col-span-4">
+              <span class="font-headline text-md text-on-surface tracking-tight">{{ transaction.description }}</span>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 flex items-center">
+              <span v-if="transaction.category" class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ transaction.category }}</span>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
+              <span class="font-headline text-lg tracking-tighter"
+                :class="transaction.type === 'expense' ? 'text-error' : transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container'">
                 {{ transaction.amount }}
-              </div>
+              </span>
             </div>
-            <div class="action-buttons">
-              <button @click="openEditModal(transaction)" class="icon-btn edit" title="Edit">✎</button>
-              <button @click="deleteTransaction(transaction.id)" class="icon-btn delete" title="Delete">🗑</button>
+
+            <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0">
+              <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1">
+                <span class="material-symbols-outlined text-[18px]">edit</span>
+              </button>
+              <button @click="deleteTransaction(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1">
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+              </button>
             </div>
-          </li>
-        </ul>
+          </div>
+        </div>
       </div>
-      <div v-else-if="searchQuery" class="no-results">
-        No transactions found matching "{{ searchQuery }}"
-      </div>
-      <div v-else class="no-results">
-        Type to search...
+
+      <!-- Footer count -->
+      <div v-if="searchQuery && filteredTransactions.length > 0" class="px-6 py-3 border-t border-outline-variant/20 bg-surface-container-lowest">
+        <p class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ filteredTransactions.length }} result{{ filteredTransactions.length !== 1 ? 's' : '' }} found</p>
       </div>
     </div>
   </div>
-  
-  <EditModal 
-    v-if="isEditModalVisible" 
+
+  <EditModal
+    v-if="isEditModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
     @close="isEditModalVisible = false"
@@ -64,15 +111,15 @@ export default {
   components: { EditModal },
   emits: ['close'],
   setup() {
-    const { transactions, categories, deleteTransaction, updateTransaction } = useTransactions();
+    const { transactions, categories, fetchTransactions, deleteTransaction, updateTransaction } = useTransactions();
     const searchQuery = ref('');
     const searchInput = ref(null);
-    
-    // Edit Modal State
+
     const isEditModalVisible = ref(false);
     const transactionToEdit = ref(null);
 
-    onMounted(() => {
+    onMounted(async () => {
+      await fetchTransactions();
       nextTick(() => {
         searchInput.value?.focus();
       });
@@ -83,10 +130,10 @@ export default {
       const query = searchQuery.value.toLowerCase();
       return transactions.value.filter(tx => {
         return (
-          tx.description.toLowerCase().includes(query) ||
-          tx.category.toLowerCase().includes(query) ||
-          tx.amount.toString().toLowerCase().includes(query) ||
-          tx.date.includes(query)
+          tx.description?.toLowerCase().includes(query) ||
+          tx.category?.toLowerCase().includes(query) ||
+          tx.amount?.toString().toLowerCase().includes(query) ||
+          tx.date?.includes(query)
         );
       });
     });
@@ -115,210 +162,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 4rem;
-  z-index: 1000;
-}
-
-.modal-content.search-modal {
-  background-color: var(--card-background);
-  padding: 1.5rem;
-  border-radius: 20px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: var(--text-color);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: var(--subtle-text-color);
-  line-height: 1;
-}
-
-.search-input-wrapper {
-  margin-bottom: 1.5rem;
-}
-
-.search-input {
-  width: 100%;
-  padding: 1rem;
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
-  font-size: 1.1rem;
-  background-color: rgba(255, 255, 255, 0.5);
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.results-list {
-  overflow-y: auto;
-  flex-grow: 1;
-  padding-right: 0.5rem;
-}
-
-.results-list ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.results-list li {
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s;
-}
-
-.results-list li:hover {
-  background: rgba(255, 255, 255, 0.8);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-
-.transaction-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-grow: 1;
-}
-
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.date {
-  font-size: 0.85rem;
-  color: var(--subtle-text-color);
-}
-
-.description {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.category-pill {
-  display: inline-block;
-  background-color: var(--secondary-color);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  align-self: flex-start;
-}
-
-.amount {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--primary-color);
-  margin-left: auto;
-  margin-right: 1rem;
-  white-space: nowrap;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.no-results {
-  text-align: center;
-  color: var(--subtle-text-color);
-  padding: 2rem;
-  font-style: italic;
-}
-
-/* Dark Mode Support */
-:global(html.dark) .modal-content.search-modal {
-  background-color: rgba(30, 41, 59, 0.95);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-:global(html.dark) .search-input {
-  background-color: rgba(15, 23, 42, 0.5);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-:global(html.dark) .search-input:focus {
-  background-color: rgba(15, 23, 42, 0.8);
-}
-
-:global(html.dark) .results-list li {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-:global(html.dark) .results-list li:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-@media (max-width: 600px) {
-  .transaction-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .amount {
-    margin-left: 0;
-  }
-  
-  .results-list li {
-    align-items: flex-start;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-  }
-}
-</style>

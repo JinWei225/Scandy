@@ -6,7 +6,7 @@
         <router-link to="/" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
           <span class="material-symbols-outlined">arrow_back</span>
         </router-link>
-        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0">Monthly Summary</h2>
+        <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight m-0">Monthly Summary</h2>
       </div>
       <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
     </section>
@@ -33,32 +33,32 @@
       <section class="mb-12 grid grid-cols-1 md:grid-cols-3 gap-0 border border-outline-variant/20 bg-surface-container-lowest">
         <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Income</h3>
-          <p class="font-headline text-3xl md:text-4xl text-[#34d399] tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
+          <p class="font-headline text-2xl md:text-4xl text-[#34d399] tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
         </div>
         <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Expenses</h3>
-          <p class="font-headline text-3xl md:text-4xl text-error tracking-tighter">RM {{ monthlyStats.expense.toFixed(2) }}</p>
+          <p class="font-headline text-2xl md:text-4xl text-error tracking-tighter">RM {{ monthlyStats.expense.toFixed(2) }}</p>
         </div>
         <div class="p-6 flex flex-col items-center md:items-start text-center md:text-left relative overflow-hidden group">
           <div class="absolute inset-0 bg-primary-container/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2 z-10">{{ moneyLeft.label }}</h3>
-          <p class="font-headline text-3xl md:text-4xl tracking-tighter z-10" :class="moneyLeft.status === 'positive' ? 'text-primary-container' : 'text-error'">{{ moneyLeft.text }}</p>
+          <p class="font-headline text-2xl md:text-4xl tracking-tighter z-10" :class="moneyLeft.status === 'positive' ? 'text-primary-container' : 'text-error'">{{ moneyLeft.text }}</p>
         </div>
       </section>
     </div>
 
     <!-- Category Breakdown (Expenses) -->
     <section v-if="categorySummary.length > 0" class="mb-12">
-      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Expenses by Category</h3>
+      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Expenses by Category</h3>
       <div class="flex flex-col border-t border-outline-variant/20">
         <button v-for="item in categorySummary" :key="item.name" @click="openDetailModal(item.name, 'expense')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
           <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div class="col-span-8 flex flex-col">
-            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ item.name }}</span>
             <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
           </div>
           <div class="col-span-4 flex flex-col items-end">
-            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="font-headline text-lg md:text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
             <span class="px-2 py-1 mt-1 bg-error/10 border border-error/20 font-label text-[10px] text-error uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
           </div>
         </button>
@@ -67,16 +67,16 @@
     
     <!-- Category Breakdown (Income) -->
     <section v-if="incomeCategorySummary.length > 0" class="mb-12">
-      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Income by Category</h3>
+      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Income by Category</h3>
       <div class="flex flex-col border-t border-outline-variant/20">
         <button v-for="item in incomeCategorySummary" :key="item.name" @click="openDetailModal(item.name, 'income')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
           <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-[#34d399] opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div class="col-span-8 flex flex-col">
-            <span class="font-headline text-lg text-on-surface tracking-tight">{{ item.name }}</span>
+            <span class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ item.name }}</span>
             <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
           </div>
           <div class="col-span-4 flex flex-col items-end">
-            <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
+            <span class="font-headline text-lg md:text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
             <span class="px-2 py-1 mt-1 bg-[#34d399]/10 border border-[#34d399]/20 font-label text-[10px] text-[#34d399] uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
           </div>
         </button>
@@ -96,13 +96,19 @@
     @edit="handleEditFromModal"
     @delete="handleDeleteFromModal"
   />
-  <EditModal 
-    v-if="isModalVisible" 
+  <EditModal
+    v-if="isModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
     :accounts="accounts"
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
+  />
+
+  <ConfirmDeleteModal
+    v-if="isConfirmDeleteVisible"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
   />
 </template>
 
@@ -113,12 +119,14 @@ import { useTransactions } from '../composables/useTransactions';
 
 import EditModal from '../components/EditModal.vue';
 import CategoryDetailModal from '../components/CategoryDetailModal.vue';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
 import axios from 'axios';
 
 export default {
   name: 'AllTransactions',
   components: {
     EditModal,
+    ConfirmDeleteModal,
     CategoryDetailModal,
   },
   
@@ -136,6 +144,8 @@ export default {
     const transactionToEdit = ref(null);
     const isDetailModalVisible = ref(false);
     const selectedCategoryData = ref({ name: '', transactions: [] });
+    const isConfirmDeleteVisible = ref(false);
+    const pendingDeleteId = ref(null);
 
     // --- COMPUTED PROPERTIES ---
     const availableYears = computed(() => {
@@ -306,16 +316,27 @@ export default {
       }
     };
 
-    const handleDeleteFromModal = async (transactionId) => {
-      if (!confirm('Are you sure you want to delete this transaction?')) return;
+    const handleDeleteFromModal = (transactionId) => {
+      pendingDeleteId.value = transactionId;
+      isConfirmDeleteVisible.value = true;
+    };
+
+    const confirmDelete = async () => {
+      isConfirmDeleteVisible.value = false;
       try {
-        await axios.delete(`/api/transactions/${transactionId}`);
-        await fetchTransactions(); // Refresh data from composable
+        await axios.delete(`/api/transactions/${pendingDeleteId.value}`);
+        await fetchTransactions();
         isDetailModalVisible.value = false;
       } catch (error) {
         console.error('Error deleting transaction:', error);
-        alert('Failed to delete transaction.');
+      } finally {
+        pendingDeleteId.value = null;
       }
+    };
+
+    const cancelDelete = () => {
+      isConfirmDeleteVisible.value = false;
+      pendingDeleteId.value = null;
     };
     
     const handleEditFromModal = (transaction) => {
@@ -382,6 +403,9 @@ export default {
       openEditModal,
       handleSaveTransaction,
       handleDeleteFromModal,
+      confirmDelete,
+      cancelDelete,
+      isConfirmDeleteVisible,
       handleEditFromModal,
       openDetailModal,
       accounts

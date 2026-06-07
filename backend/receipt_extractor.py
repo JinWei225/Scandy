@@ -1,5 +1,6 @@
 import json
 import threading
+import datetime
 from mlx_vlm import load, generate
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm.utils import load_config
@@ -33,9 +34,14 @@ def extract_receipt_data(image_path: str) -> dict:
     # 1. Ensure model is loaded
     _load_model_if_needed()
 
-    # 2. Define the strict JSON prompt
-    system_prompt = """
+    # 2. Get current datetime
+    now = datetime.datetime.now()
+    current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 3. Define the strict JSON prompt
+    system_prompt = f"""
     You are a silent, automated data extraction tool. Your ONLY job is to extract data from the image into a JSON format.
+    The current datetime is: {current_time_str}. If there is not enough information from the image given, refer to this current time.
     Find the following fields:
     1. 'date': The transaction date. Format it strictly as DD/MM/YYYY. If no date is found, return null.
     2. 'time': The transaction time. Format it strictly as HH:MM:SS. If no time is found, return null.

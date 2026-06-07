@@ -3,13 +3,13 @@
     <!-- Header Section -->
     <section class="mb-12">
       <div class="flex items-center gap-4 mb-2">
-        <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight m-0">Recurring Vault</h2>
+        <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight m-0">Recurring Vault</h2>
       </div>
       <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
       <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <p class="font-label text-sm text-on-surface-variant uppercase tracking-[0.1em] mb-1">Total Monthly Commitments</p>
-          <p class="font-headline text-5xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalMonthly.toFixed(2) }}</p>
+          <p class="font-headline text-4xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalMonthly.toFixed(2) }}</p>
         </div>
         <button @click="openAddModal" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors flex items-center gap-2 w-fit">
           <span class="material-symbols-outlined text-[18px]">add</span>
@@ -38,7 +38,7 @@
             <span class="material-symbols-outlined">event_repeat</span>
           </div>
           <div>
-            <div class="font-headline text-lg text-on-surface tracking-tight">{{ sub.name }}</div>
+            <div class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ sub.name }}</div>
             <div class="font-body text-sm text-on-surface-variant tracking-[-0.02em] font-mono">Day: {{ sub.day_of_month }}</div>
           </div>
         </div>
@@ -46,7 +46,7 @@
           <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ sub.category }}</span>
         </div>
         <div class="col-span-1 md:col-span-3 flex md:justify-end items-center mt-2 md:mt-0">
-          <span class="font-headline text-xl text-on-surface tracking-tighter">RM {{ parseFloat(sub.amount).toFixed(2) }}</span>
+          <span class="font-headline text-lg md:text-xl text-on-surface tracking-tighter">RM {{ parseFloat(sub.amount).toFixed(2) }}</span>
         </div>
         <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
           <button @click="openEditModal(sub)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Edit</button>
@@ -78,6 +78,13 @@
               <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
             </select>
           </div>
+          <div class="flex flex-col gap-2">
+            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Account</label>
+            <select v-model="form.account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
+              <option :value="null">Unassigned</option>
+              <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+            </select>
+          </div>
           <div class="flex justify-end gap-4 mt-4">
             <button type="button" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors" @click="closeModal">Cancel</button>
             <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors">Save</button>
@@ -97,6 +104,7 @@ export default {
   setup() {
     const subscriptions = ref([]);
     const categories = ref([]);
+    const accounts = ref([]);
     const isModalVisible = ref(false);
     const isEditing = ref(false);
     const form = ref({
@@ -104,7 +112,8 @@ export default {
       name: '',
       amount: '',
       day_of_month: '',
-      category: 'Bills & Utilities'
+      category: 'Bills & Utilities',
+      account_id: null
     });
 
     const fetchSubscriptions = async () => {
@@ -119,7 +128,7 @@ export default {
     const fetchCategories = async () => {
       try {
         const response = await axios.get('/api/categories');
-        categories.value = response.data;
+        categories.value = response.data.expense;
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
@@ -131,7 +140,7 @@ export default {
 
     const openAddModal = () => {
       isEditing.value = false;
-      form.value = { id: null, name: '', amount: '', day_of_month: '', category: 'Bills & Utilities' };
+      form.value = { id: null, name: '', amount: '', day_of_month: '', category: 'Bills & Utilities', account_id: null };
       isModalVisible.value = true;
     };
 
@@ -172,14 +181,25 @@ export default {
       }
     };
 
+    const fetchAccounts = async () => {
+      try {
+        const response = await axios.get('/api/accounts');
+        accounts.value = response.data;
+      } catch (error) {
+        console.error("Error fetching accounts:", error);
+      }
+    };
+
     onMounted(() => {
       fetchSubscriptions();
       fetchCategories();
+      fetchAccounts();
     });
 
     return {
       subscriptions,
       categories,
+      accounts,
       isModalVisible,
       isEditing,
       form,

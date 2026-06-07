@@ -406,7 +406,8 @@ def check_and_record_subscriptions():
                 "date": transaction_date,
                 "description": f"Subscription: {sub.get('name')}",
                 "amount": sub.get("amount"),
-                "category": sub.get("category", "Bills & Utilities")
+                "category": sub.get("category", "Bills & Utilities"),
+                "account_id": sub.get("account_id")
             }
             
             create_manual_transaction(tx_data)
