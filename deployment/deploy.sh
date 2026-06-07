@@ -39,9 +39,14 @@ echo ""
 
 # Copy nginx configuration
 echo "Step 3: Setting up nginx configuration..."
-NGINX_CONF_DIR="/usr/local/etc/nginx/servers"
+if [ -d "/opt/homebrew/etc/nginx" ]; then
+    NGINX_CONF_DIR="/opt/homebrew/etc/nginx/servers"
+else
+    NGINX_CONF_DIR="/usr/local/etc/nginx/servers"
+fi
+
 if [ ! -d "$NGINX_CONF_DIR" ]; then
-    echo "Creating nginx servers directory..."
+    echo "Creating nginx servers directory at $NGINX_CONF_DIR..."
     sudo mkdir -p "$NGINX_CONF_DIR"
 fi
 

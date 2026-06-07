@@ -2,14 +2,14 @@
   <div class="w-full">
     <!-- Header Section for Page -->
     <section class="mb-12">
-      <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Scan & Parse</h2>
+      <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Scan & Parse</h2>
       <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
     </section>
 
     <!-- Upload Section -->
     <section class="mb-12 border border-outline-variant/30 bg-surface-container-lowest p-6 md:p-8 relative">
       <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
-      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Upload Document</h3>
+      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Upload Document</h3>
       
       <div class="flex flex-col md:flex-row gap-6 items-start md:items-center w-full mt-4">
         <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="hidden">
@@ -24,13 +24,16 @@
         <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-8 py-4 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           {{ isLoading ? 'Processing...' : 'Execute Scan' }}
         </button>
-        <p v-if="message" class="font-body text-sm text-primary-container mt-4">{{ message }}</p>
+        <div v-if="scanMessage" class="mt-4 flex items-center gap-3 border px-4 py-3 w-full" :class="scanMessageType === 'error' ? 'border-error/40 bg-error/5' : scanMessageType === 'success' ? 'border-primary-container/40 bg-primary-container/5' : 'border-outline-variant/40 bg-surface-container-lowest'">
+          <span class="material-symbols-outlined text-[16px]" :class="scanMessageType === 'error' ? 'text-error' : scanMessageType === 'success' ? 'text-primary-container' : 'text-on-surface-variant'">{{ scanMessageType === 'error' ? 'error' : scanMessageType === 'success' ? 'check_circle' : 'info' }}</span>
+          <p class="font-label text-xs uppercase tracking-widest" :class="scanMessageType === 'error' ? 'text-error' : scanMessageType === 'success' ? 'text-primary-container' : 'text-on-surface-variant'">{{ scanMessage }}</p>
+        </div>
       </div>
     </section>
 
     <!-- Manual Entry Section -->
     <section class="mb-12 border-t border-outline-variant/20 pt-8">
-      <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight mb-6">Manual Log</h3>
+      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Manual Log</h3>
       
       <form @submit.prevent="addManualTransaction" class="flex flex-col gap-6">
         <!-- Type Selection -->
@@ -88,10 +91,14 @@
           </div>
         </div>
 
-        <div>
+        <div class="flex flex-col items-start gap-4">
           <button type="submit" :disabled="isLoading" class="bg-outline-variant text-on-surface font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-outline transition-colors disabled:opacity-50 mt-4">
             {{ isLoading ? 'Committing...' : 'Commit Log' }}
           </button>
+          <div v-if="manualMessage" class="flex items-center gap-3 border px-4 py-3 w-full" :class="manualMessageType === 'error' ? 'border-error/40 bg-error/5' : 'border-primary-container/40 bg-primary-container/5'">
+            <span class="material-symbols-outlined text-[16px]" :class="manualMessageType === 'error' ? 'text-error' : 'text-primary-container'">{{ manualMessageType === 'error' ? 'error' : 'check_circle' }}</span>
+            <p class="font-label text-xs uppercase tracking-widest" :class="manualMessageType === 'error' ? 'text-error' : 'text-primary-container'">{{ manualMessage }}</p>
+          </div>
         </div>
       </form>
     </section>
@@ -99,7 +106,7 @@
     <!-- Recent Transactions -->
     <section class="flex flex-col border-t border-outline-variant/20 pt-8">
       <div class="flex justify-between items-end mb-6">
-        <h3 class="font-headline text-2xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
+        <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
         <router-link to="/all" class="font-label text-xs text-primary-container uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
           View Summary <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
         </router-link>
@@ -134,7 +141,7 @@
         </div>
         
         <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
-          <span class="font-headline text-lg tracking-tighter" :class="transaction.type === 'expense' ? 'text-error' : (transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container')">{{ transaction.amount }}</span>
+          <span class="font-headline text-base md:text-lg tracking-tighter" :class="transaction.type === 'expense' ? 'text-error' : (transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container')">{{ transaction.amount }}</span>
         </div>
         
         <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0 transition-opacity">
@@ -154,13 +161,19 @@
     @save="handleSaveConfirmation"
   />
 
-  <EditModal 
-    v-if="isModalVisible" 
+  <EditModal
+    v-if="isModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
     :accounts="accounts"
     @close="isModalVisible = false"
     @save="handleSaveTransaction"
+  />
+
+  <ConfirmDeleteModal
+    v-if="isConfirmDeleteVisible"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
   />
 </template>
 
@@ -170,6 +183,7 @@ import { useTransactions } from '../composables/useTransactions';
 import { useIntent } from '../composables/useIntent';
 import EditModal from '../components/EditModal.vue';
 import ConfirmationModal from '../components/ConfirmationModal.vue';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 import { registerPlugin } from '@capacitor/core';
@@ -181,6 +195,7 @@ export default {
   components: {
     EditModal,
     ConfirmationModal,
+    ConfirmDeleteModal,
   },
   setup() {
     // --- COMPOSABLE ---
@@ -191,7 +206,10 @@ export default {
     const selectedFile = ref(null);
     const isLoading = ref(false);
     const isProcessingIntent = ref(false);
-    const message = ref('');
+    const scanMessage = ref('');
+    const scanMessageType = ref('');
+    const manualMessage = ref('');
+    const manualMessageType = ref('');
     const categories = ref([]);
     const manualForm = ref({
       date: new Date().toISOString().substr(0, 10),
@@ -225,6 +243,8 @@ export default {
     const isConfirmationModalVisible = ref(false);
     const isModalVisible = ref(false);
     const transactionToEdit = ref(null);
+    const isConfirmDeleteVisible = ref(false);
+    const pendingDeleteId = ref(null);
     const fileInput = ref(null); // To reference the file input element
 
     // --- COMPUTED ---
@@ -255,13 +275,15 @@ export default {
     // --- METHODS ---
     const handleFileUpload = (event) => {
       selectedFile.value = event.target.files[0];
-      message.value = '';
+      scanMessage.value = '';
+      scanMessageType.value = '';
     };
 
     const uploadImage = async () => {
       if (!selectedFile.value) return;
       isLoading.value = true;
-      message.value = 'Scanning...';
+      scanMessage.value = 'Scanning document...';
+      scanMessageType.value = 'info';
       const formData = new FormData();
       formData.append('file', selectedFile.value);
       try {
@@ -276,9 +298,11 @@ export default {
           category: 'Uncategorized'
         };
         isConfirmationModalVisible.value = true;
-        message.value = '';
+        scanMessage.value = '';
+        scanMessageType.value = '';
       } catch (error) {
-        message.value = error.response?.data?.error || 'Error scanning file.';
+        scanMessage.value = error.response?.data?.error || 'Error scanning file.';
+        scanMessageType.value = 'error';
         selectedFile.value = null;
         if (fileInput.value) fileInput.value.value = null;
       } finally {
@@ -288,7 +312,6 @@ export default {
 
     const handleSaveConfirmation = async (transactionPayload) => {
       isLoading.value = true;
-      message.value = 'Saving transaction...';
       try {
         if (transactionPayload.type === 'transfer') {
             if (!transactionPayload.account_id || !transactionPayload.to_account_id) {
@@ -308,17 +331,20 @@ export default {
         } else {
             await axios.post('/api/transactions/manual', transactionPayload);
         }
-        message.value = 'Transaction saved successfully!';
-        await fetchTransactions(); // Refresh shared data
-        await fetchAccounts(); // Refresh accounts to update balance
+        scanMessage.value = 'Transaction saved from scan.';
+        scanMessageType.value = 'success';
+        setTimeout(() => { scanMessage.value = ''; scanMessageType.value = ''; }, 4000);
+        await fetchTransactions();
+        await fetchAccounts();
       } catch (error) {
-        message.value = 'Failed to save transaction.';
+        scanMessage.value = 'Failed to save scanned transaction.';
+        scanMessageType.value = 'error';
       } finally {
         isLoading.value = false;
         isConfirmationModalVisible.value = false;
         selectedFile.value = null;
-        scannedData.value = null; // Clear scanned data
-        consumeIntent(); // Mark intent as fully consumed to prevent re-trigger on remount
+        scannedData.value = null;
+        consumeIntent();
         if (fileInput.value) fileInput.value.value = null;
       }
     };
@@ -327,8 +353,9 @@ export default {
       isConfirmationModalVisible.value = false;
       selectedFile.value = null;
       scannedData.value = null;
-      message.value = '';
-      consumeIntent(); // Mark intent as fully consumed to prevent re-trigger on remount
+      scanMessage.value = '';
+      scanMessageType.value = '';
+      consumeIntent();
       if (fileInput.value) fileInput.value.value = null;
     };
     
@@ -360,11 +387,9 @@ export default {
             await axios.post('/api/transactions/manual', payload);
         }
         
-        // Refresh transactions and accounts
         await fetchTransactions();
         await fetchAccounts();
-        
-        // Reset form
+
         manualForm.value = {
           date: new Date().toISOString().substr(0, 10),
           time: new Date().toTimeString().substr(0, 8),
@@ -375,25 +400,40 @@ export default {
           to_account_id: null,
           type: 'expense'
         };
-        message.value = 'Transaction added successfully!';
-        setTimeout(() => message.value = '', 3000);
+        manualMessage.value = 'Transaction committed successfully.';
+        manualMessageType.value = 'success';
+        setTimeout(() => { manualMessage.value = ''; manualMessageType.value = ''; }, 4000);
       } catch (err) {
         console.error(err);
-        message.value = 'Error adding transaction.';
+        manualMessage.value = 'Failed to commit transaction.';
+        manualMessageType.value = 'error';
       } finally {
         isLoading.value = false;
       }
     };
     
-    const deleteTransaction = async (id) => {
-        if (!confirm('Are you sure you want to delete this transaction?')) return;
-        try {
-            await axios.delete(`/api/transactions/${id}`);
-            await fetchTransactions(); // Refresh shared data
-            await fetchAccounts(); // Refresh accounts to update balance
-        } catch (error) {
-            message.value = 'Failed to delete transaction.';
-        }
+    const deleteTransaction = (id) => {
+      pendingDeleteId.value = id;
+      isConfirmDeleteVisible.value = true;
+    };
+
+    const confirmDelete = async () => {
+      isConfirmDeleteVisible.value = false;
+      try {
+        await axios.delete(`/api/transactions/${pendingDeleteId.value}`);
+        await fetchTransactions();
+        await fetchAccounts();
+      } catch (error) {
+        manualMessage.value = 'Failed to delete transaction.';
+        manualMessageType.value = 'error';
+      } finally {
+        pendingDeleteId.value = null;
+      }
+    };
+
+    const cancelDelete = () => {
+      isConfirmDeleteVisible.value = false;
+      pendingDeleteId.value = null;
     };
     
     const openEditModal = (transaction) => {
@@ -441,7 +481,8 @@ export default {
       try {
         isProcessingIntent.value = true;
         isLoading.value = true;
-        message.value = 'Loading shared image...';
+        scanMessage.value = 'Loading shared image...';
+        scanMessageType.value = 'info';
         
         // Clear intent data early so we don't re-trigger from clearing it later
         clearIntentData();
@@ -482,7 +523,8 @@ export default {
         await uploadImage();
       } catch (error) {
         logger.error('Error handling shared image: ' + error.message, 'Home.vue');
-        message.value = 'Failed to load shared image: ' + error.message;
+        scanMessage.value = 'Failed to load shared image: ' + error.message;
+        scanMessageType.value = 'error';
         isLoading.value = false;
       } finally {
         isProcessingIntent.value = false;
@@ -505,7 +547,10 @@ export default {
       selectedFile,
       transactions,
       isLoading,
-      message,
+      scanMessage,
+      scanMessageType,
+      manualMessage,
+      manualMessageType,
       scannedData,
       isConfirmationModalVisible,
       isModalVisible,
@@ -523,6 +568,9 @@ export default {
       handleCancelConfirmation,
       addManualTransaction,
       deleteTransaction,
+      confirmDelete,
+      cancelDelete,
+      isConfirmDeleteVisible,
       openEditModal,
       handleSaveTransaction,
       fetchAccounts,

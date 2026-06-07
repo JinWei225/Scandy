@@ -2,12 +2,12 @@
   <div class="w-full">
     <!-- Header Section -->
     <section class="mb-12">
-      <h2 class="font-headline text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Accounts</h2>
+      <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Accounts</h2>
       <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
       <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <p class="font-label text-sm text-on-surface-variant uppercase tracking-[0.1em] mb-1">Total Net Balance</p>
-          <p class="font-headline text-5xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalBalance.toFixed(2) }}</p>
+          <p class="font-headline text-4xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalBalance.toFixed(2) }}</p>
         </div>
         <button @click="openAddModal" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors flex items-center gap-2 w-fit">
           <span class="material-symbols-outlined text-[18px]">add</span>
@@ -34,14 +34,14 @@
             <span class="material-symbols-outlined">{{ getAccountIcon(account.type) }}</span>
           </div>
           <div>
-            <div class="font-headline text-lg text-on-surface tracking-tight">{{ account.name }}</div>
+            <div class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ account.name }}</div>
           </div>
         </div>
         <div class="col-span-1 md:col-span-2 flex items-center md:items-start mt-2 md:mt-0">
           <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ account.type || 'Account' }}</span>
         </div>
         <div class="col-span-1 md:col-span-3 flex md:justify-end items-center mt-2 md:mt-0">
-          <span class="font-headline text-xl tracking-tighter" :class="{'text-error': (account.balance || 0) < 0, 'text-primary-container': (account.balance || 0) >= 0}">RM {{ (account.balance || 0).toFixed(2) }}</span>
+          <span class="font-headline text-lg md:text-xl tracking-tighter" :class="{'text-error': (account.balance || 0) < 0, 'text-primary-container': (account.balance || 0) >= 0}">RM {{ (account.balance || 0).toFixed(2) }}</span>
         </div>
         <div class="col-span-1 md:col-span-3 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
           <button @click.stop="editAccount(account)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Manage</button>
