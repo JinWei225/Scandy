@@ -63,14 +63,14 @@ def json_date_converter(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 def extract_data_from_image(image_path):
-    # Try local OCR first
     try:
         data = extract_receipt_data(image_path)
-        # Check if basic fields are present (amount, date)
         if data.get("amount") and data.get("date"):
             return _clean_extracted_data(data)
+        return {"error": "Could not extract amount or date from image", "date": None, "time": None, "amount": None}
     except Exception as e:
         print(f"Local OCR failed: {e}")
+        return {"error": str(e), "date": None, "time": None, "amount": None}
 
 def _clean_extracted_data(data):
     if "error" in data:
