@@ -1,4 +1,4 @@
-from mlx_vlm import load, generate
+from mlx_vlm import generate, load
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm.utils import load_config
 
@@ -28,12 +28,7 @@ prompt = """
     """
 
 # 4. Apply the chat template (handles image token processing)
-formatted_prompt = apply_chat_template(
-    processor,
-    config,
-    prompt,
-    num_images=1
-)
+formatted_prompt = apply_chat_template(processor, config, prompt, num_images=1)
 
 # 5. Generate the output
 print("Extracting data...")
@@ -44,7 +39,7 @@ output = generate(
     [image_path],
     verbose=False,
     max_tokens=200,  # Limit tokens since we only want specific fields
-    temperature=0.0  # Zero temperature for deterministic/factual results
+    temperature=0.0,  # Zero temperature for deterministic/factual results
 )
 
 print("\n--- Extraction Result ---")

@@ -1,7 +1,8 @@
+import datetime
 import json
 import threading
-import datetime
-from mlx_vlm import load, generate
+
+from mlx_vlm import generate, load
 from mlx_vlm.prompt_utils import apply_chat_template
 from mlx_vlm.utils import load_config
 
@@ -9,9 +10,10 @@ from mlx_vlm.utils import load_config
 _MODEL = None
 _PROCESSOR = None
 _CONFIG = None
-_MODEL_PATH = "mlx-community/Qwen3-VL-2B-Instruct-4bit"
+_MODEL_PATH = "mlx-community/Qwen3.5-0.8B-4bit"
 
 _GPU_LOCK = threading.Lock()
+
 
 def _load_model_if_needed():
     """
@@ -52,10 +54,7 @@ def extract_receipt_data(image_path: str) -> dict:
 
     # 3. Format prompt using the chat template
     formatted_prompt = apply_chat_template(
-        _PROCESSOR,
-        _CONFIG,
-        system_prompt,
-        num_images=1
+        _PROCESSOR, _CONFIG, system_prompt, num_images=1
     )
 
     # 4. Generate output
@@ -68,7 +67,7 @@ def extract_receipt_data(image_path: str) -> dict:
             [image_path],
             verbose=False,
             max_tokens=200,
-            temperature=0.0
+            temperature=0.0,
         )
 
     # 5. Clean and Parse JSON
@@ -80,7 +79,12 @@ def extract_receipt_data(image_path: str) -> dict:
         return data
     except json.JSONDecodeError:
         print(f"Warning: Model returned invalid JSON: {clean_json}")
-        return {"date": None, "time": None, "amount": None, "error": "JSON parse failed"}
+        return {
+            "date": None,
+            "time": None,
+            "amount": None,
+            "error": "JSON parse failed",
+        }
 
 
 # Optional: Allow running this file directly for testing
