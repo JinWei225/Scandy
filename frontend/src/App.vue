@@ -4,7 +4,7 @@
     <header class="bg-surface rounded-none border-b border-outline-variant/20 flex justify-between items-center w-full px-6 min-h-[4rem] py-4 md:py-0 sticky top-0 z-50">
       <div class="flex items-center gap-4">
         <h1 class="text-2xl font-black text-primary-container tracking-tighter font-headline uppercase m-0">SCANDY</h1>
-        
+
         <!-- Desktop Nav -->
         <nav class="hidden md:flex gap-6 ml-8 h-full items-center">
           <router-link to="/" class="font-label text-sm text-on-surface-variant uppercase tracking-widest hover:text-primary transition-colors h-full flex items-center border-b-2 border-transparent" active-class="text-primary border-primary">Home</router-link>
@@ -14,7 +14,8 @@
         </nav>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="isSearchModalVisible = true" class="text-primary-container hover:bg-white/5 transition-colors duration-150 ease-in-out p-2 flex items-center justify-center">
+        <ThemeSwitcher />
+        <button @click="isSearchModalVisible = true" class="text-primary-container hover:bg-on-surface/5 transition-colors duration-150 ease-in-out p-2 flex items-center justify-center">
           <span class="material-symbols-outlined">search</span>
         </button>
       </div>
@@ -44,38 +45,38 @@
         <span class="font-body font-bold text-[10px] tracking-[0.1em] uppercase">RECURRING</span>
       </router-link>
     </nav>
-    
-    <SearchModal 
-      v-if="isSearchModalVisible" 
-      @close="isSearchModalVisible = false" 
+
+    <SearchModal
+      v-if="isSearchModalVisible"
+      @close="isSearchModalVisible = false"
     />
   </div>
 </template>
 
 <script>
 import SearchModal from './components/SearchModal.vue';
-import { themeStore } from './themeStore.js'; // Import to initialize
+import ThemeSwitcher from './components/ThemeSwitcher.vue';
 import { onMounted, ref } from 'vue';
 import axios from 'axios';
-import { Capacitor, registerPlugin } from '@capacitor/core';
-const SendIntent = registerPlugin('SendIntent');
+import { Capacitor } from '@capacitor/core';
 
-import { useTransactions } from './composables/useTransactions';
-import { useIntent } from './composables/useIntent';
+import { useIntent, SendIntent } from './composables/useIntent';
 import { logger } from './utils/logger';
 
 export default {
   name: 'App',
   components: {
-    SearchModal
+    SearchModal,
+    ThemeSwitcher
   },
   setup() {
-    const { fetchTransactions } = useTransactions();
     const { setIntentData } = useIntent();
 
-    // 1. Initialize BaseURL IMMEDIATEY for remote logging to work
+    // 1. Initialize BaseURL IMMEDIATELY for remote logging to work.
+    // The address is configurable via .env.production so a Tailscale IP
+    // change doesn't require a code edit.
     if (Capacitor.isNativePlatform()) {
-      axios.defaults.baseURL = 'http://100.69.155.6:5001';
+      axios.defaults.baseURL = process.env.VUE_APP_NATIVE_API_URL || 'http://100.69.155.6:5001';
       document.body.classList.add('is-native');
       logger.info('App started', 'App');
 
@@ -107,7 +108,7 @@ export default {
             setIntentData(data);
           }
         });
-        
+
         logger.info('Listener active', 'App');
       } catch (error) {
         logger.error('Intent setup err', 'App');
@@ -115,11 +116,6 @@ export default {
     }
 
     onMounted(async () => {
-      // Force dark mode class on HTML per new design
-      document.documentElement.classList.add('dark');
-      
-      await fetchTransactions();
-
       try {
         await axios.post('/api/subscriptions/check');
       } catch (error) {
@@ -129,13 +125,12 @@ export default {
 
     const isSearchModalVisible = ref(false);
 
-    return { themeStore, isSearchModalVisible }
+    return { isSearchModalVisible }
   }
 }
 </script>
 
 <style>
-/* Remove old global styles, let Tailwind handle it */
 body.is-native header {
   padding-top: calc(1.5rem + env(safe-area-inset-top));
   padding-bottom: 0.5rem;

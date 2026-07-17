@@ -27,7 +27,7 @@
       </div>
 
       <!-- Item -->
-      <div class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-6 md:py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative cursor-pointer" v-for="account in accounts" :key="account.id" @click="viewAccount(account.name)">
+      <div class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-6 md:py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative cursor-pointer" v-for="account in accounts" :key="account.id" @click="viewAccount(account)">
         <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="col-span-1 md:col-span-4 flex items-center gap-4">
           <div class="w-10 h-10 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant bg-surface-container-high group-hover:border-primary/50 transition-colors">
@@ -45,10 +45,10 @@
         </div>
         <div class="col-span-1 md:col-span-3 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
           <button @click.stop="editAccount(account)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Manage</button>
-          <button @click.stop="confirmDelete(account)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Delete</button>
+          <button @click.stop="requestDelete(account)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Delete</button>
         </div>
       </div>
-      
+
       <!-- Empty State -->
       <div v-if="accounts.length === 0" class="py-12 text-center border-b border-outline-variant/20">
         <p class="font-body text-on-surface-variant">No entities found. Initialize one to proceed.</p>
@@ -59,13 +59,13 @@
     <div v-if="showModal" class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="showModal = false">
       <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-8 relative">
         <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight mb-6">{{ isEditing ? 'Edit Entity' : 'New Entity' }}</h2>
-        
-        <form @submit.prevent="saveAccount" class="flex flex-col gap-6">
+
+        <form @submit.prevent="submitAccount" class="flex flex-col gap-6">
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Account Name</label>
             <input v-model="form.name" type="text" required placeholder="e.g. Maybank" class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
           </div>
-          
+
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Type</label>
             <select v-model="form.type" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
@@ -76,13 +76,13 @@
               <option value="Other">Other</option>
             </select>
           </div>
-          
+
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Initial Balance</label>
             <input v-model.number="form.initial_balance" type="number" step="0.01" class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none">
             <p class="font-body text-xs text-on-surface-variant mt-1">Starting balance before any transactions.</p>
           </div>
-          
+
           <div class="flex justify-end gap-4 mt-4">
             <button type="button" @click="showModal = false" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Cancel</button>
             <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors">{{ isEditing ? 'Save' : 'Create' }}</button>
@@ -90,98 +90,108 @@
         </form>
       </div>
     </div>
+
+    <ConfirmDeleteModal
+      v-if="accountToDelete"
+      title="Delete Account"
+      :message="`Delete ${accountToDelete.name}? Its transactions will remain but become unassigned. This cannot be undone.`"
+      @confirm="confirmDelete"
+      @cancel="accountToDelete = null"
+    />
   </div>
 </template>
 
 <script>
-import axios from 'axios';
-
-const API_URL = '/api';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAccounts } from '../composables/useAccounts';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
 
 export default {
   name: 'AccountsPage',
-  data() {
-    return {
-      accounts: [],
-      showModal: false,
-      isEditing: false,
-      form: {
-        id: null,
-        name: '',
-        type: 'Bank',
-        initial_balance: 0
-      }
+  components: { ConfirmDeleteModal },
+  setup() {
+    const router = useRouter();
+    const { accounts, fetchAccounts, saveAccount, deleteAccount } = useAccounts();
+
+    const showModal = ref(false);
+    const isEditing = ref(false);
+    const form = ref({ id: null, name: '', type: 'Bank', initial_balance: 0 });
+    const accountToDelete = ref(null);
+
+    const totalBalance = computed(() =>
+      accounts.value.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+    );
+
+    const viewAccount = (account) => {
+      router.push(`/accounts/${account.id}`);
     };
-  },
-  computed: {
-    totalBalance() {
-      return this.accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
-    }
-  },
-  mounted() {
-    this.fetchAccounts();
-  },
-  methods: {
-    async fetchAccounts() {
+
+    const openAddModal = () => {
+      isEditing.value = false;
+      form.value = { id: null, name: '', type: 'Bank', initial_balance: 0 };
+      showModal.value = true;
+    };
+
+    const editAccount = (account) => {
+      isEditing.value = true;
+      form.value = { ...account };
+      showModal.value = true;
+    };
+
+    const submitAccount = async () => {
       try {
-        const response = await axios.get(`${API_URL}/accounts`);
-        this.accounts = response.data;
-      } catch (error) {
-        console.error('Error fetching accounts:', error);
-      }
-    },
-    viewAccount(name) {
-        this.$router.push(`/accounts/${name}`);
-    },
-    openAddModal() {
-      this.isEditing = false;
-      this.form = { id: null, name: '', type: 'Bank', initial_balance: 0 };
-      this.showModal = true;
-    },
-    editAccount(account) {
-      this.isEditing = true;
-      this.form = { ...account };
-      this.showModal = true;
-    },
-    async saveAccount() {
-      try {
-        if (this.isEditing) {
-          await axios.put(`${API_URL}/accounts/${this.form.id}`, this.form);
-        } else {
-          await axios.post(`${API_URL}/accounts`, this.form);
-        }
-        await this.fetchAccounts();
-        this.showModal = false;
+        await saveAccount(form.value);
+        showModal.value = false;
       } catch (error) {
         console.error('Error saving account:', error);
         alert('Failed to save account');
       }
-    },
-    async confirmDelete(account) {
-      if (confirm(`Are you sure you want to delete ${account.name}?`)) {
-        try {
-          await axios.delete(`${API_URL}/accounts/${account.id}`);
-          await this.fetchAccounts();
-        } catch (error) {
-          console.error('Error deleting account:', error);
-          alert('Failed to delete account');
-        }
+    };
+
+    const requestDelete = (account) => {
+      accountToDelete.value = account;
+    };
+
+    const confirmDelete = async () => {
+      const account = accountToDelete.value;
+      accountToDelete.value = null;
+      try {
+        await deleteAccount(account.id);
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('Failed to delete account');
       }
-    },
-    getAccountIcon(type) {
-        const map = {
-            'Bank': 'account_balance',
-            'E-Wallet': 'account_balance_wallet',
-            'Cash': 'payments',
-            'Card': 'credit_card',
-            'Other': 'folder'
-        };
-        return map[type] || 'folder';
-    }
+    };
+
+    const getAccountIcon = (type) => {
+      const map = {
+        'Bank': 'account_balance',
+        'E-Wallet': 'account_balance_wallet',
+        'Cash': 'payments',
+        'Card': 'credit_card',
+        'Other': 'folder'
+      };
+      return map[type] || 'folder';
+    };
+
+    onMounted(fetchAccounts);
+
+    return {
+      accounts,
+      showModal,
+      isEditing,
+      form,
+      accountToDelete,
+      totalBalance,
+      viewAccount,
+      openAddModal,
+      editAccount,
+      submitAccount,
+      requestDelete,
+      confirmDelete,
+      getAccountIcon
+    };
   }
 };
 </script>
-
-<style scoped>
-/* Scoped styles are removed as we use Tailwind CSS globally for this design */
-</style>

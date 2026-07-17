@@ -77,7 +77,7 @@
               <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1">
                 <span class="material-symbols-outlined text-[18px]">edit</span>
               </button>
-              <button @click="deleteTransaction(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1">
+              <button @click="requestDelete(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1">
                 <span class="material-symbols-outlined text-[18px]">delete</span>
               </button>
             </div>
@@ -92,33 +92,44 @@
     </div>
   </div>
 
-  <EditModal
+  <TransactionFormModal
     v-if="isEditModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
+    :accounts="accounts"
     @close="isEditModalVisible = false"
     @save="handleSaveTransaction"
+  />
+
+  <ConfirmDeleteModal
+    v-if="isConfirmDeleteVisible"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
   />
 </template>
 
 <script>
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useTransactions } from '../composables/useTransactions';
-import EditModal from './EditModal.vue';
+import { useAccounts } from '../composables/useAccounts';
+import { useTransactionModals } from '../composables/useTransactionModals';
+import TransactionFormModal from './TransactionFormModal.vue';
+import ConfirmDeleteModal from './ConfirmDeleteModal.vue';
 
 export default {
   name: 'SearchModal',
-  components: { EditModal },
+  components: { TransactionFormModal, ConfirmDeleteModal },
   emits: ['close'],
   setup() {
-    const { transactions, categories, fetchTransactions, deleteTransaction, updateTransaction } = useTransactions();
+    const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
+    const { accounts, fetchAccounts } = useAccounts();
+    const modals = useTransactionModals();
     const searchQuery = ref('');
     const searchInput = ref(null);
 
-    const isEditModalVisible = ref(false);
-    const transactionToEdit = ref(null);
-
     onMounted(async () => {
+      fetchCategories();
+      fetchAccounts();
       await fetchTransactions();
       nextTick(() => {
         searchInput.value?.focus();
@@ -138,26 +149,13 @@ export default {
       });
     });
 
-    const openEditModal = (transaction) => {
-      transactionToEdit.value = { ...transaction };
-      isEditModalVisible.value = true;
-    };
-
-    const handleSaveTransaction = async (updatedData) => {
-      await updateTransaction(updatedData);
-      isEditModalVisible.value = false;
-    };
-
     return {
       searchQuery,
       searchInput,
       filteredTransactions,
-      deleteTransaction,
       categories,
-      isEditModalVisible,
-      transactionToEdit,
-      openEditModal,
-      handleSaveTransaction
+      accounts,
+      ...modals
     };
   }
 }

@@ -1,22 +1,27 @@
 import { reactive, watch } from 'vue';
 
-// 1. Create a reactive object to hold our state
-export const themeStore = reactive({
-  // 2. Initialize theme from localStorage or default to 'light'
-  theme: localStorage.getItem('theme') || 'light',
+// The color palette lives in CSS variables (see assets/main.css): :root/.dark
+// hold the dark values and html.light overrides them, so toggling classes on
+// <html> re-themes everything.
+const applyTheme = (theme) => {
+  const root = document.documentElement;
+  root.classList.toggle('light', theme === 'light');
+  root.classList.toggle('dark', theme !== 'light');
+};
 
-  // 3. A method to toggle the theme
+export const themeStore = reactive({
+  // Dark is the design default
+  theme: localStorage.getItem('theme') || 'dark',
+
   toggleTheme() {
     this.theme = this.theme === 'light' ? 'dark' : 'light';
   }
 });
 
-// 4. Watch for changes in the theme and save it to localStorage
 watch(() => themeStore.theme, (newTheme) => {
   localStorage.setItem('theme', newTheme);
-  // Also update the class on the main <html> element
-  document.documentElement.className = newTheme;
+  applyTheme(newTheme);
 });
 
-// 5. Apply the initial theme class when the app loads
-document.documentElement.className = themeStore.theme;
+// Apply the initial theme class when the app loads
+applyTheme(themeStore.theme);

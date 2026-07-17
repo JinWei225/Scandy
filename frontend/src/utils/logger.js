@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 export const logger = {
     log(message, context = '', level = 'info') {
@@ -11,13 +12,12 @@ export const logger = {
         // Print to local console too
         console[level === 'error' ? 'error' : 'log'](`[${context}] ${message}`);
 
-        // Send to remote server
-        if (!axios.defaults.baseURL) {
-            console.warn('Remote log attempted before baseURL was set.');
-        }
+        // Remote logging only matters on the device, where there is no
+        // devtools console; on web it would just spam the backend.
+        if (!Capacitor.isNativePlatform()) return;
 
-        axios.post('/api/logs', payload).catch(err => {
-            console.error('Failed to send remote log:', err);
+        axios.post('/api/logs', payload).catch(() => {
+            // Swallow: a dead backend shouldn't produce a second error per log line
         });
     },
     info(message, context) { this.log(message, context, 'info'); },

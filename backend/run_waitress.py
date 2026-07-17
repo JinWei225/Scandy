@@ -3,16 +3,10 @@
 Production server startup script using Waitress WSGI server.
 Run this instead of app.py for production deployments.
 """
-import os
 from waitress import serve
 from app import app
 
 if __name__ == '__main__':
-    # Ensure upload folder exists
-    UPLOAD_FOLDER = 'img'
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-    
     print("=" * 60)
     print("Starting ReceiptOCR Backend with Waitress WSGI Server")
     print("=" * 60)

@@ -25,7 +25,7 @@ const routes = [
     component: () => import('../views/AccountsPage.vue')
   },
   {
-    path: '/accounts/:name',
+    path: '/accounts/:id',
     name: 'AccountTransactions',
     component: () => import('../views/AccountTransactions.vue')
   }

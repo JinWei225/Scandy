@@ -1,5 +1,9 @@
 // src/composables/useIntent.js
 import { ref } from 'vue';
+import { registerPlugin } from '@capacitor/core';
+
+// Single registration shared by App.vue (listener setup) and Home.vue (content reads)
+export const SendIntent = registerPlugin('SendIntent');
 
 const sharedIntentData = ref(null);
 // Persists across component remounts to prevent re-processing the same intent

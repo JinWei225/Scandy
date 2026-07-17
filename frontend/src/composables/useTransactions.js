@@ -35,8 +35,8 @@ export function useTransactions() {
   const deleteTransaction = async (id) => {
     try {
       await axios.delete(`/api/transactions/${id}`);
-      // Optimistic update
-      transactions.value = transactions.value.filter(t => t.id !== id);
+      // Optimistic update — the backend also removes the other leg of a transfer pair
+      transactions.value = transactions.value.filter(t => t.id !== id && t.transfer_related_id !== id);
     } catch (error) {
       console.error('Error deleting transaction:', error);
       // Re-fetch to ensure sync
@@ -45,15 +45,12 @@ export function useTransactions() {
   };
 
   const updateTransaction = async (updatedData) => {
+    // No optimistic patch here: editing a transfer replaces BOTH legs with new
+    // ids on the backend, so a single-row patch would leave stale data. Errors
+    // propagate to the caller for user feedback.
     try {
-      const response = await axios.put(`/api/transactions/${updatedData.id}`, updatedData);
-      // Optimistic update
-      const index = transactions.value.findIndex(t => t.id === updatedData.id);
-      if (index !== -1) {
-        transactions.value[index] = response.data;
-      }
-    } catch (error) {
-      console.error('Error updating transaction:', error);
+      await axios.put(`/api/transactions/${updatedData.id}`, updatedData);
+    } finally {
       await fetchTransactions();
     }
   };

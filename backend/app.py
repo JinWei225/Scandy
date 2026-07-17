@@ -1,23 +1,23 @@
 import os
+import traceback
+import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from werkzeug.utils import secure_filename
-from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, get_all_budgets, save_budget_for_month, update_transaction_by_id, extract_data_from_image, CATEGORIES, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
+from receipt_extractor import OCRBusyError
+from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, CATEGORIES, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
 
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_FOLDER = 'img'
+# Absolute path so uploads land next to this file regardless of the CWD the server was started from
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# @app.route('/favicon.ico')
-# def favicon():
-#     return '', 204
 
 @app.route('/api/transactions', methods=['GET'])
 def list_transactions():
@@ -36,7 +36,10 @@ def upload_file():
         return jsonify({'error': 'No selected file'}), 400
         
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
+        # Random server-side name: avoids collisions between concurrent uploads
+        # and problems with filenames secure_filename() would reduce to ''.
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
@@ -45,17 +48,18 @@ def upload_file():
             print(f"OCR Started: {filename}")
             extracted_data = extract_data_from_image(filepath)
             print("OCR Success")
-            
+
             if 'error' in extracted_data:
                 print("OCR returned error:", extracted_data['error'])
                 return jsonify(extracted_data), 500
-                
+
             # Send the raw extracted data back to the frontend for confirmation.
             return jsonify(extracted_data), 200
-        except Exception as e:
-            import traceback
+        except OCRBusyError as e:
+            return jsonify({'error': str(e)}), 429
+        except Exception:
             traceback.print_exc()
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': 'Failed to process the image'}), 500
         finally:
             # Clean up the image after extraction, regardless of success or failure
             if os.path.exists(filepath):
@@ -70,13 +74,16 @@ def update_transaction_route(transaction_id):
     
     try:
         updated_transaction = update_transaction_by_id(transaction_id, data)
-        
+
         if updated_transaction:
             return jsonify(updated_transaction), 200
         else:
             return jsonify({"error": "Transaction not found"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": str(e) or "Invalid transaction data"}), 400
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Failed to update transaction"}), 500
 
 @app.route('/api/transactions/<transaction_id>', methods=['DELETE'])
 def delete_transaction(transaction_id):
@@ -96,10 +103,11 @@ def add_manual_transaction_route():
     try:
         created_record = create_manual_transaction(data)
         return jsonify(created_record), 201
-    except Exception as e:
-        import traceback
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid amount"}), 400
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to create transaction"}), 500
 
 @app.route('/api/transactions/transfer', methods=['POST'])
 def add_transfer_transaction_route():
@@ -111,36 +119,11 @@ def add_transfer_transaction_route():
     try:
         created_records = create_transfer_transactions(data)
         return jsonify(created_records), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-# Endpoint to GET the budget for a specific month
-@app.route('/api/budget/<year>/<month>', methods=['GET'])
-def get_budget_route(year, month):
-    budgets = get_all_budgets()
-    budget_key = f"{year}-{int(month):02d}"
-    
-    budget_amount = budgets.get(budget_key)
-    
-    if budget_amount is not None:
-        return jsonify({"amount": budget_amount})
-    else:
-        # It's not an error to not have a budget, so return a specific response
-        return jsonify({"message": "No budget set for this month"}), 404
-
-# Endpoint to POST (set or update) a budget for a month
-@app.route('/api/budget', methods=['POST'])
-def set_budget_route():
-    data = request.get_json()
-    year = data.get('year')
-    month = data.get('month')
-    amount = data.get('amount')
-    
-    if not all([year, month, amount]):
-        return jsonify({"error": "Missing year, month, or amount"}), 400
-        
-    saved_budget = save_budget_for_month(year, month, amount)
-    return jsonify(saved_budget), 201
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid amount"}), 400
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Failed to create transfer"}), 500
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
@@ -151,18 +134,38 @@ def get_categories():
 def list_subscriptions():
     return jsonify(get_all_subscriptions())
 
+def _validate_subscription(data):
+    """Returns an error message, or None if the payload is valid. A bad amount stored here would 500 the startup subscription check for every client."""
+    if not data or not data.get('name') or 'amount' not in data:
+        return "Missing required fields"
+    try:
+        float(data['amount'])
+    except (ValueError, TypeError):
+        return "Amount must be a number"
+    try:
+        day = int(data.get('day_of_month', 1))
+        if not 1 <= day <= 31:
+            return "Day of month must be between 1 and 31"
+    except (ValueError, TypeError):
+        return "Day of month must be a number"
+    return None
+
 @app.route('/api/subscriptions', methods=['POST'])
 def add_subscription():
     data = request.get_json()
-    if not data or 'name' not in data or 'amount' not in data:
-        return jsonify({"error": "Missing required fields"}), 400
-    
+    error = _validate_subscription(data)
+    if error:
+        return jsonify({"error": error}), 400
+
     saved = save_subscription(data)
     return jsonify(saved), 201
 
 @app.route('/api/subscriptions/<sub_id>', methods=['PUT'])
 def update_subscription(sub_id):
     data = request.get_json()
+    error = _validate_subscription(data)
+    if error:
+        return jsonify({"error": error}), 400
     data['id'] = sub_id
     saved = save_subscription(data)
     return jsonify(saved), 200
@@ -215,15 +218,17 @@ def remove_account(acc_id):
 
 @app.route('/api/logs', methods=['POST'])
 def remote_logs():
-    data = request.get_json()
-    level = data.get('level', 'INFO').upper()
-    message = data.get('message', '')
-    context = data.get('context', '')
-    print(f"[REMOTE {level}] {context}: {message}")
+    data = request.get_json(silent=True) or {}
+    # Unauthenticated sink: cap sizes and whitelist the level so it can't be
+    # used to flood the terminal or inject control sequences.
+    level = str(data.get('level', 'info')).lower()
+    if level not in ('info', 'warn', 'error'):
+        level = 'info'
+    message = str(data.get('message', ''))[:2000].replace('\x1b', '')
+    context = str(data.get('context', ''))[:100].replace('\x1b', '')
+    print(f"[REMOTE {level.upper()}] {context}: {message}")
     return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
     print("Flask app is ready to be served by a WSGI server like Waitress.")
     app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)

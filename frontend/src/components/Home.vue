@@ -10,7 +10,7 @@
     <section class="mb-12 border border-outline-variant/30 bg-surface-container-lowest p-6 md:p-8 relative">
       <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
       <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Upload Document</h3>
-      
+
       <div class="flex flex-col md:flex-row gap-6 items-start md:items-center w-full mt-4">
         <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="hidden">
         <label for="file-upload" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors cursor-pointer flex items-center gap-2 w-fit">
@@ -34,7 +34,7 @@
     <!-- Manual Entry Section -->
     <section class="mb-12 border-t border-outline-variant/20 pt-8">
       <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Manual Log</h3>
-      
+
       <form @submit.prevent="addManualTransaction" class="flex flex-col gap-6">
         <!-- Type Selection -->
         <div class="flex gap-2">
@@ -51,17 +51,17 @@
               <input type="date" v-model="manualForm.date" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay">
             </div>
           </div>
-          
+
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Time</label>
             <input type="time" v-model="manualForm.time" step="1" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
           </div>
-          
+
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Amount (RM)</label>
             <input type="number" v-model.number="manualForm.amount" step="0.01" @wheel="$event.target.blur()" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
           </div>
-          
+
           <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
             <input type="text" v-model="manualForm.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
@@ -126,47 +126,49 @@
 
       <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="transaction in latestTransactions" :key="transaction.id">
         <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity" :class="transaction.type === 'expense' ? 'bg-error' : (transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container')"></div>
-        
+
         <div class="col-span-1 md:col-span-2 flex flex-col md:block">
           <div class="font-body text-sm text-on-surface font-mono">{{ transaction.date }}</div>
           <div class="font-label text-[10px] text-on-surface-variant tracking-widest">{{ transaction.time }}</div>
         </div>
-        
+
         <div class="col-span-1 md:col-span-4">
           <div class="font-headline text-md text-on-surface tracking-tight">{{ transaction.description }}</div>
         </div>
-        
+
         <div class="col-span-1 md:col-span-2 flex items-center">
           <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest" v-if="transaction.category">{{ transaction.category }}</span>
         </div>
-        
+
         <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
           <span class="font-headline text-base md:text-lg tracking-tighter" :class="transaction.type === 'expense' ? 'text-error' : (transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container')">{{ transaction.amount }}</span>
         </div>
-        
+
         <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0 transition-opacity">
           <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
-          <button @click="deleteTransaction(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+          <button @click="requestDelete(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>
         </div>
       </div>
     </section>
   </div>
 
-  <ConfirmationModal
+  <TransactionFormModal
     v-if="isConfirmationModalVisible"
-    :scannedData="scannedData"
+    :transaction="scannedData"
     :categories="categories"
     :accounts="accounts"
+    title="Confirm Details"
+    submitLabel="Commit"
     @close="handleCancelConfirmation"
     @save="handleSaveConfirmation"
   />
 
-  <EditModal
-    v-if="isModalVisible"
+  <TransactionFormModal
+    v-if="isEditModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
     :accounts="accounts"
-    @close="isModalVisible = false"
+    @close="isEditModalVisible = false"
     @save="handleSaveTransaction"
   />
 
@@ -180,27 +182,27 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactions } from '../composables/useTransactions';
-import { useIntent } from '../composables/useIntent';
-import EditModal from '../components/EditModal.vue';
-import ConfirmationModal from '../components/ConfirmationModal.vue';
+import { useAccounts } from '../composables/useAccounts';
+import { useIntent, SendIntent } from '../composables/useIntent';
+import { useTransactionModals } from '../composables/useTransactionModals';
+import TransactionFormModal from '../components/TransactionFormModal.vue';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
 import axios from 'axios';
 import { logger } from '../utils/logger';
-import { registerPlugin } from '@capacitor/core';
-const SendIntent = registerPlugin('SendIntent');
 
 
 export default {
   name: 'HomePage',
   components: {
-    EditModal,
-    ConfirmationModal,
+    TransactionFormModal,
     ConfirmDeleteModal,
   },
   setup() {
-    // --- COMPOSABLE ---
+    // --- COMPOSABLES ---
     const { transactions, fetchTransactions } = useTransactions();
+    const { accounts, fetchAccounts } = useAccounts();
     const { sharedIntentData, intentConsumed, clearIntentData, consumeIntent } = useIntent();
+    const modals = useTransactionModals({ afterChange: fetchAccounts });
 
     // --- STATE ---
     const selectedFile = ref(null);
@@ -211,8 +213,15 @@ export default {
     const manualMessage = ref('');
     const manualMessageType = ref('');
     const categories = ref([]);
-    const manualForm = ref({
-      date: new Date().toISOString().substr(0, 10),
+
+    // Local date (not toISOString, which is UTC and gives yesterday's date before 8 AM in MYT)
+    const localDateString = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    };
+
+    const makeEmptyForm = () => ({
+      date: localDateString(),
       time: new Date().toTimeString().substr(0, 8),
       description: '',
       amount: '',
@@ -221,30 +230,10 @@ export default {
       to_account_id: null,
       type: 'expense'
     });
-    
-    // Account related state
-    const accounts = ref([]);
-    const totalBalance = ref(0);
-    
-    // Load accounts
-    const fetchAccounts = async () => {
-        try {
-            const res = await axios.get('/api/accounts');
-            // Defensive check to prevent reduce errors if API fails or returns non-array
-            accounts.value = Array.isArray(res.data) ? res.data : [];
-            totalBalance.value = accounts.value.reduce((sum, acc) => sum + (acc.balance || 0), 0);
-        } catch (err) {
-            console.error("Failed to load accounts", err);
-            accounts.value = [];
-            totalBalance.value = 0;
-        }
-    };
+
+    const manualForm = ref(makeEmptyForm());
     const scannedData = ref(null);
     const isConfirmationModalVisible = ref(false);
-    const isModalVisible = ref(false);
-    const transactionToEdit = ref(null);
-    const isConfirmDeleteVisible = ref(false);
-    const pendingDeleteId = ref(null);
     const fileInput = ref(null); // To reference the file input element
 
     // --- COMPUTED ---
@@ -259,7 +248,7 @@ export default {
         if (!categories.value) return [];
         // If categories is still an array (legacy), return it
         if (Array.isArray(categories.value)) return categories.value;
-        
+
         // Return based on type
         const type = manualForm.value.type;
         if (type === 'income') return categories.value.income || [];
@@ -268,7 +257,6 @@ export default {
     });
 
     const latestTransactions = computed(() => {
-      // The transactions array is now reactive from the composable
       return transactions.value.slice(0, 5);
     });
 
@@ -288,13 +276,13 @@ export default {
       formData.append('file', selectedFile.value);
       try {
         const response = await axios.post('/api/upload', formData);
-        const dateParts = response.data.date.split('/');
-        const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-        const numericAmount = parseFloat(response.data.amount.replace('RM', '').trim());
+        const dateParts = String(response.data.date || '').split('/');
+        const formattedDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : localDateString();
+        const numericAmount = parseFloat(String(response.data.amount || '').replace('RM', '').trim());
         scannedData.value = {
           date: formattedDate,
           time: response.data.time || '00:00:00',
-          amount: numericAmount,
+          amount: isNaN(numericAmount) ? 0 : numericAmount,
           category: 'Uncategorized'
         };
         isConfirmationModalVisible.value = true;
@@ -314,11 +302,6 @@ export default {
       isLoading.value = true;
       try {
         if (transactionPayload.type === 'transfer') {
-            if (!transactionPayload.account_id || !transactionPayload.to_account_id) {
-                alert("Please select both From and To accounts.");
-                isLoading.value = false;
-                return;
-            }
             const transferPayload = {
                 date: transactionPayload.date,
                 time: transactionPayload.time,
@@ -358,7 +341,7 @@ export default {
       consumeIntent();
       if (fileInput.value) fileInput.value.value = null;
     };
-    
+
     const addManualTransaction = async () => {
       isLoading.value = true;
       try {
@@ -366,7 +349,7 @@ export default {
         // Ensure date is dd/mm/yyyy
         const parts = payload.date.split('-');
         payload.date = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        
+
         if (payload.type === 'transfer') {
             if (!payload.account_id || !payload.to_account_id) {
                 alert("Please select both From and To accounts."); // Simple validation
@@ -386,20 +369,11 @@ export default {
         } else {
             await axios.post('/api/transactions/manual', payload);
         }
-        
+
         await fetchTransactions();
         await fetchAccounts();
 
-        manualForm.value = {
-          date: new Date().toISOString().substr(0, 10),
-          time: new Date().toTimeString().substr(0, 8),
-          description: '',
-          amount: '',
-          category: 'Uncategorized',
-          account_id: null,
-          to_account_id: null,
-          type: 'expense'
-        };
+        manualForm.value = makeEmptyForm();
         manualMessage.value = 'Transaction committed successfully.';
         manualMessageType.value = 'success';
         setTimeout(() => { manualMessage.value = ''; manualMessageType.value = ''; }, 4000);
@@ -411,52 +385,12 @@ export default {
         isLoading.value = false;
       }
     };
-    
-    const deleteTransaction = (id) => {
-      pendingDeleteId.value = id;
-      isConfirmDeleteVisible.value = true;
-    };
-
-    const confirmDelete = async () => {
-      isConfirmDeleteVisible.value = false;
-      try {
-        await axios.delete(`/api/transactions/${pendingDeleteId.value}`);
-        await fetchTransactions();
-        await fetchAccounts();
-      } catch (error) {
-        manualMessage.value = 'Failed to delete transaction.';
-        manualMessageType.value = 'error';
-      } finally {
-        pendingDeleteId.value = null;
-      }
-    };
-
-    const cancelDelete = () => {
-      isConfirmDeleteVisible.value = false;
-      pendingDeleteId.value = null;
-    };
-    
-    const openEditModal = (transaction) => {
-        transactionToEdit.value = transaction;
-        isModalVisible.value = true;
-    };
-    
-    const handleSaveTransaction = async (updatedTransaction) => {
-        try {
-            await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
-            isModalVisible.value = false;
-            await fetchTransactions(); // Refresh shared data
-            await fetchAccounts(); // Refresh accounts to update balance
-        } catch (error) {
-            alert('Failed to update transaction.');
-        }
-    };
 
     // --- WATCHERS ---
     watch(sharedIntentData, async (newData) => {
       // Handle both the 'url' property and the 'extras.STREAM' property from the intent
       const sharedUrl = newData?.url || newData?.extras?.['android.intent.extra.STREAM'];
-      
+
       if (!sharedUrl) {
           if (newData) logger.warn('Intent data present but no valid URL found', 'Home.vue');
           return;
@@ -483,10 +417,10 @@ export default {
         isLoading.value = true;
         scanMessage.value = 'Loading shared image...';
         scanMessageType.value = 'info';
-        
+
         // Clear intent data early so we don't re-trigger from clearing it later
         clearIntentData();
-        
+
         // Use native bridge for content:// URIs as fetch() will fail due to security
         let blob;
         if (sharedUrl.startsWith('content://')) {
@@ -514,10 +448,10 @@ export default {
           blob = await response.blob();
           logger.info('Blob fetched successfully via fetch(). Size: ' + blob.size, 'Home.vue');
         }
-        
+
         // Create a file object from the blob
         selectedFile.value = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
-        
+
         // Automatically trigger upload and scan
         logger.info('Triggering uploadImage after intent processing', 'Home.vue');
         await uploadImage();
@@ -535,7 +469,7 @@ export default {
     onMounted(() => {
       fetchTransactions();
       fetchAccounts();
-        
+
       // Load categories
       axios.get('/api/categories')
            .then(res => categories.value = res.data)
@@ -553,28 +487,20 @@ export default {
       manualMessageType,
       scannedData,
       isConfirmationModalVisible,
-      isModalVisible,
-      transactionToEdit,
       fileInput,
       latestTransactions,
       manualForm,
       formattedDateDisplay,
       categories,
       accounts,
-      totalBalance,
       handleFileUpload,
       uploadImage,
       handleSaveConfirmation,
       handleCancelConfirmation,
       addManualTransaction,
-      deleteTransaction,
-      confirmDelete,
-      cancelDelete,
-      isConfirmDeleteVisible,
-      openEditModal,
-      handleSaveTransaction,
       fetchAccounts,
-      availableCategories
+      availableCategories,
+      ...modals
     };
   }
 }

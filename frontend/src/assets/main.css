@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme palettes as space-separated RGB triplets, consumed by
+ * tailwind.config.js as rgb(var(--c-*) / <alpha-value>).
+ * Dark is the default (:root); html.light switches to the light scheme.
+ * Both derive from the same Material-3 orange seed; #ff6b00 is the brand
+ * accent (primary-container) in both themes.
+ */
+
+/* === DARK (default) === */
+:root {
+  --c-tertiary-fixed-dim: 156 202 255; /* #9ccaff */
+  --c-outline-variant: 90 65 54; /* #5a4136 */
+  --c-on-error-container: 255 218 214; /* #ffdad6 */
+  --c-surface-container-lowest: 14 14 14; /* #0e0e0e */
+  --c-tertiary-container: 5 158 255; /* #059eff */
+  --c-surface-container: 32 31 31; /* #201f1f */
+  --c-background: 19 19 19; /* #131313 */
+  --c-on-primary-fixed: 53 16 0; /* #351000 */
+  --c-surface-bright: 58 57 57; /* #3a3939 */
+  --c-on-tertiary: 0 50 87; /* #003257 */
+  --c-surface-tint: 255 182 147; /* #ffb693 */
+  --c-on-error: 105 0 5; /* #690005 */
+  --c-error: 255 180 171; /* #ffb4ab */
+  --c-tertiary-fixed: 208 228 255; /* #d0e4ff */
+  --c-on-surface: 229 226 225; /* #e5e2e1 */
+  --c-inverse-on-surface: 49 48 48; /* #313030 */
+  --c-secondary: 255 182 147; /* #ffb693 */
+  --c-on-background: 229 226 225; /* #e5e2e1 */
+  --c-on-secondary-fixed-variant: 120 50 7; /* #783207 */
+  --c-secondary-container: 123 52 9; /* #7b3409 */
+  --c-on-secondary-container: 255 161 115; /* #ffa173 */
+  --c-primary-container: 255 107 0; /* #ff6b00 */
+  --c-surface-container-highest: 53 53 52; /* #353534 */
+  --c-on-surface-variant: 226 191 176; /* #e2bfb0 */
+  --c-on-tertiary-fixed: 0 29 53; /* #001d35 */
+  --c-inverse-surface: 229 226 225; /* #e5e2e1 */
+  --c-surface-dim: 19 19 19; /* #131313 */
+  --c-surface: 19 19 19; /* #131313 */
+  --c-error-container: 147 0 10; /* #93000a */
+  --c-primary-fixed: 255 219 204; /* #ffdbcc */
+  --c-primary-fixed-dim: 255 182 147; /* #ffb693 */
+  --c-primary: 255 182 147; /* #ffb693 */
+  --c-tertiary: 156 202 255; /* #9ccaff */
+  --c-secondary-fixed-dim: 255 182 147; /* #ffb693 */
+  --c-surface-container-high: 42 42 42; /* #2a2a2a */
+  --c-surface-container-low: 28 27 27; /* #1c1b1b */
+  --c-on-primary: 86 31 0; /* #561f00 */
+  --c-inverse-primary: 160 65 0; /* #a04100 */
+  --c-on-tertiary-container: 0 51 87; /* #003357 */
+  --c-secondary-fixed: 255 219 204; /* #ffdbcc */
+  --c-on-secondary: 86 31 0; /* #561f00 */
+  --c-on-primary-container: 87 32 0; /* #572000 */
+  --c-on-primary-fixed-variant: 122 48 0; /* #7a3000 */
+  --c-surface-variant: 53 53 52; /* #353534 */
+  --c-on-tertiary-fixed-variant: 0 73 123; /* #00497b */
+  --c-outline: 169 138 125; /* #a98a7d */
+  --c-on-secondary-fixed: 53 16 0; /* #351000 */
+  --c-income: 52 211 153; /* #34d399 */
+}
+
+/* === LIGHT === */
+html.light {
+  --c-primary: 160 65 0; /* #a04100 */
+  --c-on-primary: 255 255 255; /* #ffffff */
+  --c-primary-container: 255 107 0; /* #ff6b00 */
+  --c-on-primary-container: 255 255 255; /* #ffffff */
+  --c-inverse-primary: 255 182 147; /* #ffb693 */
+  --c-secondary: 139 74 37; /* #8b4a25 */
+  --c-on-secondary: 255 255 255; /* #ffffff */
+  --c-secondary-container: 255 219 204; /* #ffdbcc */
+  --c-on-secondary-container: 112 55 21; /* #703715 */
+  --c-tertiary: 11 98 150; /* #0b6296 */
+  --c-on-tertiary: 255 255 255; /* #ffffff */
+  --c-tertiary-container: 5 158 255; /* #059eff */
+  --c-on-tertiary-container: 255 255 255; /* #ffffff */
+  --c-error: 186 26 26; /* #ba1a1a */
+  --c-on-error: 255 255 255; /* #ffffff */
+  --c-error-container: 255 218 214; /* #ffdad6 */
+  --c-on-error-container: 65 0 2; /* #410002 */
+  --c-background: 255 248 246; /* #fff8f6 */
+  --c-on-background: 34 26 21; /* #221a15 */
+  --c-surface: 255 248 246; /* #fff8f6 */
+  --c-on-surface: 34 26 21; /* #221a15 */
+  --c-surface-variant: 245 222 211; /* #f5ded3 */
+  --c-on-surface-variant: 82 68 60; /* #52443c */
+  --c-surface-dim: 232 214 206; /* #e8d6ce */
+  --c-surface-bright: 255 248 246; /* #fff8f6 */
+  --c-surface-container-lowest: 255 255 255; /* #ffffff */
+  --c-surface-container-low: 255 241 234; /* #fff1ea */
+  --c-surface-container: 252 235 226; /* #fcebe2 */
+  --c-surface-container-high: 246 229 220; /* #f6e5dc */
+  --c-surface-container-highest: 240 223 215; /* #f0dfd7 */
+  --c-outline: 133 115 107; /* #85736b */
+  --c-outline-variant: 216 194 184; /* #d8c2b8 */
+  --c-inverse-surface: 56 46 41; /* #382e29 */
+  --c-inverse-on-surface: 255 237 228; /* #ffede4 */
+  --c-surface-tint: 160 65 0; /* #a04100 */
+  --c-income: 4 120 87; /* #047857 */
+}

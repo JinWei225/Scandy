@@ -33,7 +33,7 @@
       <section class="mb-12 grid grid-cols-1 md:grid-cols-3 gap-0 border border-outline-variant/20 bg-surface-container-lowest">
         <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Income</h3>
-          <p class="font-headline text-2xl md:text-4xl text-[#34d399] tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
+          <p class="font-headline text-2xl md:text-4xl text-income tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
         </div>
         <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Expenses</h3>
@@ -47,41 +47,8 @@
       </section>
     </div>
 
-    <!-- Category Breakdown (Expenses) -->
-    <section v-if="categorySummary.length > 0" class="mb-12">
-      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Expenses by Category</h3>
-      <div class="flex flex-col border-t border-outline-variant/20">
-        <button v-for="item in categorySummary" :key="item.name" @click="openDetailModal(item.name, 'expense')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
-          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div class="col-span-8 flex flex-col">
-            <span class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ item.name }}</span>
-            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
-          </div>
-          <div class="col-span-4 flex flex-col items-end">
-            <span class="font-headline text-lg md:text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
-            <span class="px-2 py-1 mt-1 bg-error/10 border border-error/20 font-label text-[10px] text-error uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
-          </div>
-        </button>
-      </div>
-    </section>
-    
-    <!-- Category Breakdown (Income) -->
-    <section v-if="incomeCategorySummary.length > 0" class="mb-12">
-      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Income by Category</h3>
-      <div class="flex flex-col border-t border-outline-variant/20">
-        <button v-for="item in incomeCategorySummary" :key="item.name" @click="openDetailModal(item.name, 'income')" class="group grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative text-left w-full">
-          <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-[#34d399] opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div class="col-span-8 flex flex-col">
-            <span class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ item.name }}</span>
-            <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">{{ item.count }} transactions</span>
-          </div>
-          <div class="col-span-4 flex flex-col items-end">
-            <span class="font-headline text-lg md:text-xl text-on-surface tracking-tighter">RM {{ item.total.toFixed(2) }}</span>
-            <span class="px-2 py-1 mt-1 bg-[#34d399]/10 border border-[#34d399]/20 font-label text-[10px] text-[#34d399] uppercase tracking-widest">{{ item.percentage.toFixed(0) }}%</span>
-          </div>
-        </button>
-      </div>
-    </section>
+    <CategorySummaryList title="Expenses by Category" :items="categorySummary" variant="expense" @select="name => openDetail(name, 'expense')" />
+    <CategorySummaryList title="Income by Category" :items="incomeCategorySummary" variant="income" @select="name => openDetail(name, 'income')" />
 
     <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="py-12 text-center border-b border-outline-variant/20">
       <p class="font-body text-on-surface-variant">No transactions recorded yet.</p>
@@ -93,15 +60,15 @@
     :categoryName="selectedCategoryData.name"
     :transactions="selectedCategoryData.transactions"
     @close="isDetailModalVisible = false"
-    @edit="handleEditFromModal"
-    @delete="handleDeleteFromModal"
+    @edit="openEditModal"
+    @delete="requestDelete"
   />
-  <EditModal
-    v-if="isModalVisible"
+  <TransactionFormModal
+    v-if="isEditModalVisible"
     :transaction="transactionToEdit"
     :categories="categories"
     :accounts="accounts"
-    @close="isModalVisible = false"
+    @close="isEditModalVisible = false"
     @save="handleSaveTransaction"
   />
 
@@ -113,307 +80,97 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 import { useTransactions } from '../composables/useTransactions';
+import { useAccounts } from '../composables/useAccounts';
+import { useMonthlyFilter, MONTH_NAMES } from '../composables/useMonthlyFilter';
+import { useTransactionModals } from '../composables/useTransactionModals';
 
-import EditModal from '../components/EditModal.vue';
-import CategoryDetailModal from '../components/CategoryDetailModal.vue';
-import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
-import axios from 'axios';
+import TransactionFormModal from './TransactionFormModal.vue';
+import CategoryDetailModal from './CategoryDetailModal.vue';
+import CategorySummaryList from './CategorySummaryList.vue';
+import ConfirmDeleteModal from './ConfirmDeleteModal.vue';
 
 export default {
   name: 'AllTransactions',
   components: {
-    EditModal,
+    TransactionFormModal,
     ConfirmDeleteModal,
     CategoryDetailModal,
+    CategorySummaryList,
   },
-  
-  // The setup() function is the heart of the Composition API
   setup() {
-    // --- COMPOSABLE ---
-    // Get all our shared transaction data and methods from the composable!
     const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
+    const { accounts, fetchAccounts } = useAccounts();
 
-    // --- STATE (formerly `data()`) ---
-    // All data properties are now defined as 'refs'
-    const selectedYear = ref(null);
-    const selectedMonth = ref(null);
-    const isModalVisible = ref(false);
-    const transactionToEdit = ref(null);
-    const isDetailModalVisible = ref(false);
-    const selectedCategoryData = ref({ name: '', transactions: [] });
-    const isConfirmDeleteVisible = ref(false);
-    const pendingDeleteId = ref(null);
+    const monthly = useMonthlyFilter(computed(() => transactions.value));
+    const modals = useTransactionModals();
 
-    // --- COMPUTED PROPERTIES ---
-    const availableYears = computed(() => {
-      if (!transactions.value.length) return [];
-      const years = new Set(transactions.value.map(tx => tx.date.split('/')[2]));
-      return Array.from(years).sort((a, b) => b - a);
-    });
-
-    const availableMonths = computed(() => {
-      if (!selectedYear.value) return [];
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const months = new Set(
-        transactions.value
-          .filter(tx => tx.date.endsWith(`/${selectedYear.value}`))
-          .map(tx => monthNames[parseInt(tx.date.split('/')[1], 10) - 1])
-      );
-      return Array.from(months).sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
-    });
-    
-    const filteredTransactions = computed(() => {
-        if (!selectedYear.value || !selectedMonth.value) return [];
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const monthIndex = monthNames.indexOf(selectedMonth.value) + 1;
-        const monthString = monthIndex < 10 ? `0${monthIndex}` : `${monthIndex}`;
-        return transactions.value.filter(tx => tx.date.split('/')[1] === monthString && tx.date.split('/')[2] === selectedYear.value);
-    });
-
-    const monthlyStats = computed(() => {
-        let expense = 0;
-        let income = 0;
-        
-        if (!filteredTransactions.value.length) return { expense, income };
-        
-        filteredTransactions.value.forEach(tx => {
-            // Exclude transfers from calculations
-            if (tx.category === 'Transfer' || tx.type === 'transfer') return;
-            
-            const amount = parseFloat(tx.amount.replace('RM', '').trim());
-            if (isNaN(amount)) return;
-            
-            if (tx.type === 'income') {
-                income += amount;
-            } else {
-                // Default to expense
-                expense += amount;
-            }
-        });
-        
-        return { expense, income };
-    });
-
+    // Subscriptions feed the "Safe to Spend" figure for the current month
     const subscriptions = ref([]);
-
     const fetchSubscriptions = async () => {
       try {
         const response = await axios.get('/api/subscriptions');
-        subscriptions.value = response.data;
+        subscriptions.value = Array.isArray(response.data) ? response.data : [];
       } catch (error) {
-        console.error("Error fetching subscriptions:", error);
+        console.error('Error fetching subscriptions:', error);
       }
     };
 
     const remainingSubscriptions = computed(() => {
       const now = new Date();
-      const currentYear = now.getFullYear().toString();
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const currentMonthName = monthNames[now.getMonth()];
-
-      // Only calculate for current month/year
-      if (selectedYear.value !== currentYear || selectedMonth.value !== currentMonthName) {
+      // Only applies when viewing the current month/year
+      if (monthly.selectedYear.value !== String(now.getFullYear()) ||
+          monthly.selectedMonth.value !== MONTH_NAMES[now.getMonth()]) {
         return 0;
       }
-
       const today = now.getDate();
       return subscriptions.value.reduce((sum, sub) => {
-        // If day_of_month > today, it's remaining.
         const day = parseInt(sub.day_of_month) || 1;
-        if (day > today) {
-          return sum + parseFloat(sub.amount);
+        const amount = parseFloat(sub.amount);
+        if (day > today && !isNaN(amount)) {
+          return sum + amount;
         }
         return sum;
       }, 0);
     });
 
-    const accounts = ref([]);
-    
-    
     const moneyLeft = computed(() => {
-      // Income - Expenses
-      let left = monthlyStats.value.income - monthlyStats.value.expense;
+      let left = monthly.monthlyStats.value.income - monthly.monthlyStats.value.expense;
       let label = 'Balance';
 
-      // If current month, subtract remaining subscriptions
       if (remainingSubscriptions.value > 0) {
         left -= remainingSubscriptions.value;
         label = 'Safe to Spend';
       }
 
       const status = left >= 0 ? 'positive' : 'negative';
-      const text = `RM ${left.toFixed(2)}`;
-      return { text, status, label };
+      return { text: `RM ${left.toFixed(2)}`, status, label };
     });
 
-    const categorySummary = computed(() => {
-      if (!filteredTransactions.value.length || monthlyStats.value.expense === 0) return [];
-      const summary = filteredTransactions.value.reduce((acc, tx) => {
-        // Match logic with monthlyStats:
-        // Exclude transfers
-        if (tx.category === 'Transfer' || tx.type === 'transfer') return acc;
-        // Exclude income
-        if (tx.type === 'income') return acc;
-        
-        // Everything else is treated as an expense
-        const category = tx.category || 'Uncategorized';
-        const amount = parseFloat(tx.amount.replace('RM', '').trim());
-        if (!isNaN(amount)) {
-          if (!acc[category]) acc[category] = { total: 0, count: 0 };
-          acc[category].total += amount;
-          acc[category].count += 1;
-        }
-        return acc;
-      }, {});
-      return Object.keys(summary).map(name => ({
-        name,
-        ...summary[name],
-        percentage: (summary[name].total / monthlyStats.value.expense) * 100
-      })).sort((a, b) => b.total - a.total);
-    });
-
-    const incomeCategorySummary = computed(() => {
-        if (!filteredTransactions.value.length || monthlyStats.value.income === 0) return [];
-        const summary = filteredTransactions.value.reduce((acc, tx) => {
-            // Include ONLY income, and exclude Transfers
-            if (tx.type !== 'income' || tx.category === 'Transfer') return acc;
-            
-            const category = tx.category || 'Other';
-            const amount = parseFloat(tx.amount.replace('RM', '').trim());
-            if (!isNaN(amount)) {
-                if (!acc[category]) acc[category] = { total: 0, count: 0 };
-                acc[category].total += amount;
-                acc[category].count += 1;
-            }
-            return acc;
-        }, {});
-        
-        return Object.keys(summary).map(name => ({
-            name,
-            ...summary[name],
-            percentage: (summary[name].total / monthlyStats.value.income) * 100
-        })).sort((a, b) => b.total - a.total);
-    });
-
-    // --- METHODS ---
-    const openEditModal = (transaction) => {
-      transactionToEdit.value = transaction;
-      isModalVisible.value = true;
+    const openDetail = (name, type) => {
+      modals.openDetailModal(name, type, monthly.filteredTransactions.value);
     };
 
-    const handleSaveTransaction = async (updatedTransaction) => {
-      try {
-        await axios.put(`/api/transactions/${updatedTransaction.id}`, updatedTransaction);
-        isModalVisible.value = false;
-        await fetchTransactions(); // Refresh data from composable
-        isDetailModalVisible.value = false;
-      } catch (error) {
-        console.error('Error updating transaction:', error);
-        alert('Failed to update transaction.');
-      }
-    };
-
-    const handleDeleteFromModal = (transactionId) => {
-      pendingDeleteId.value = transactionId;
-      isConfirmDeleteVisible.value = true;
-    };
-
-    const confirmDelete = async () => {
-      isConfirmDeleteVisible.value = false;
-      try {
-        await axios.delete(`/api/transactions/${pendingDeleteId.value}`);
-        await fetchTransactions();
-        isDetailModalVisible.value = false;
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-      } finally {
-        pendingDeleteId.value = null;
-      }
-    };
-
-    const cancelDelete = () => {
-      isConfirmDeleteVisible.value = false;
-      pendingDeleteId.value = null;
-    };
-    
-    const handleEditFromModal = (transaction) => {
-      openEditModal(transaction);
-    };
-
-    const openDetailModal = (categoryName, type) => {
-      selectedCategoryData.value = {
-        name: categoryName,
-        transactions: filteredTransactions.value.filter(tx => 
-            (tx.category || (type === 'income' ? 'Other' : 'Uncategorized')) === categoryName && 
-            (type === 'income' ? tx.type === 'income' : (tx.type === 'expense' || !tx.type))
-        )
-      };
-      isDetailModalVisible.value = true;
-    };
-    
-    // --- WATCHERS ---
-    watch(selectedYear, () => {
-        if (availableMonths.value.length > 0) {
-            selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
-        }
-    });
-
-    // --- LIFECYCLE HOOKS (formerly `mounted()`) ---
     onMounted(async () => {
-      await fetchTransactions(); // Call methods from the composable
-      fetchCategories(); 
+      await fetchTransactions();
+      fetchCategories();
       fetchSubscriptions();
-      
-      axios.get('/api/accounts')
-           .then(res => accounts.value = res.data)
-           .catch(err => console.error(err));
-      
-      if (availableYears.value.length > 0) {
-        selectedYear.value = availableYears.value[0];
-        
-        await nextTick();
-        
-        if (availableMonths.value.length > 0) {
-          selectedMonth.value = availableMonths.value[availableMonths.value.length - 1];
-        }
-      }
+      fetchAccounts();
+      monthly.selectLatestPeriod();
     });
 
-    // --- RETURN ---
-    // We must return everything the template needs to access.
     return {
       transactions,
-      selectedYear,
-      selectedMonth,
       categories,
-      isModalVisible,
-      transactionToEdit,
-      isDetailModalVisible,
-      selectedCategoryData,
-      availableYears,
-      availableMonths,
-      filteredTransactions,
-      monthlyStats,
+      accounts,
       moneyLeft,
-      categorySummary,
-      incomeCategorySummary,
-      openEditModal,
-      handleSaveTransaction,
-      handleDeleteFromModal,
-      confirmDelete,
-      cancelDelete,
-      isConfirmDeleteVisible,
-      handleEditFromModal,
-      openDetailModal,
-      accounts
+      openDetail,
+      ...monthly,
+      ...modals,
     };
   }
 }
 </script>
-
-<style scoped>
-/* Scoped styles removed in favor of global Tailwind classes */
-</style>
