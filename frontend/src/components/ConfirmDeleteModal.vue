@@ -5,8 +5,8 @@
       <div class="flex items-start gap-4 mb-6">
         <span class="material-symbols-outlined text-error text-[24px] mt-0.5">warning</span>
         <div>
-          <h2 class="font-headline text-xl text-on-surface uppercase tracking-tight mb-2">Delete Transaction</h2>
-          <p class="font-body text-sm text-on-surface-variant">This action cannot be undone. The transaction will be permanently removed.</p>
+          <h2 class="font-headline text-xl text-on-surface uppercase tracking-tight mb-2">{{ title }}</h2>
+          <p class="font-body text-sm text-on-surface-variant">{{ message }}</p>
         </div>
       </div>
       <div class="flex justify-end gap-3">
@@ -24,6 +24,10 @@
 <script>
 export default {
   name: 'ConfirmDeleteModal',
+  props: {
+    title: { type: String, default: 'Delete Transaction' },
+    message: { type: String, default: 'This action cannot be undone. The transaction will be permanently removed.' }
+  },
   emits: ['confirm', 'cancel']
 }
 </script>

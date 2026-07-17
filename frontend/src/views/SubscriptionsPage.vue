@@ -50,7 +50,7 @@
         </div>
         <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
           <button @click="openEditModal(sub)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Edit</button>
-          <button @click="deleteSubscription(sub.id)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Del</button>
+          <button @click="requestDelete(sub)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Del</button>
         </div>
       </div>
     </section>
@@ -92,19 +92,31 @@
         </form>
       </div>
     </div>
+
+    <ConfirmDeleteModal
+      v-if="subToDelete"
+      title="Delete Subscription"
+      :message="`Delete ${subToDelete.name}? Future months will no longer be recorded automatically.`"
+      @confirm="confirmDelete"
+      @cancel="subToDelete = null"
+    />
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useAccounts } from '../composables/useAccounts';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
 
 export default {
   name: 'SubscriptionsPage',
+  components: { ConfirmDeleteModal },
   setup() {
     const subscriptions = ref([]);
     const categories = ref([]);
-    const accounts = ref([]);
+    const { accounts, fetchAccounts } = useAccounts();
+    const subToDelete = ref(null);
     const isModalVisible = ref(false);
     const isEditing = ref(false);
     const form = ref({
@@ -170,23 +182,19 @@ export default {
       }
     };
 
-    const deleteSubscription = async (id) => {
-      if (!confirm("Are you sure you want to delete this subscription?")) return;
+    const requestDelete = (sub) => {
+      subToDelete.value = sub;
+    };
+
+    const confirmDelete = async () => {
+      const sub = subToDelete.value;
+      subToDelete.value = null;
       try {
-        await axios.delete(`/api/subscriptions/${id}`);
+        await axios.delete(`/api/subscriptions/${sub.id}`);
         await fetchSubscriptions();
       } catch (error) {
         console.error("Error deleting subscription:", error);
         alert("Failed to delete subscription.");
-      }
-    };
-
-    const fetchAccounts = async () => {
-      try {
-        const response = await axios.get('/api/accounts');
-        accounts.value = response.data;
-      } catch (error) {
-        console.error("Error fetching accounts:", error);
       }
     };
 
@@ -203,12 +211,14 @@ export default {
       isModalVisible,
       isEditing,
       form,
+      subToDelete,
       totalMonthly,
       openAddModal,
       openEditModal,
       closeModal,
       saveSubscription,
-      deleteSubscription
+      requestDelete,
+      confirmDelete
     };
   }
 }
