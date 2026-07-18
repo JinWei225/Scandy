@@ -40,6 +40,7 @@
           <div>
             <div class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ sub.name }}</div>
             <div class="font-body text-sm text-on-surface-variant tracking-[-0.02em] font-mono">Day: {{ sub.day_of_month }}</div>
+            <div class="font-body text-xs text-on-surface-variant/70 tracking-[-0.02em]">{{ lastChargedLabel(sub) }}</div>
           </div>
         </div>
         <div class="col-span-1 md:col-span-3 flex items-center md:items-start mt-2 md:mt-0">
@@ -56,9 +57,7 @@
     </section>
 
     <!-- Modal for Add/Edit -->
-    <div v-if="isModalVisible" class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="closeModal">
-      <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-8 relative">
-        <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight mb-6">{{ isEditing ? 'Edit Entity' : 'New Entity' }}</h2>
+    <BaseModal v-if="isModalVisible" size="md" :title="isEditing ? 'Edit Entity' : 'New Entity'" @close="closeModal">
         <form @submit.prevent="saveSubscription" class="flex flex-col gap-6">
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Name</label>
@@ -90,8 +89,7 @@
             <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors">Save</button>
           </div>
         </form>
-      </div>
-    </div>
+    </BaseModal>
 
     <ConfirmDeleteModal
       v-if="subToDelete"
@@ -108,10 +106,11 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useAccounts } from '../composables/useAccounts';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
+import BaseModal from '../components/BaseModal.vue';
 
 export default {
   name: 'SubscriptionsPage',
-  components: { ConfirmDeleteModal },
+  components: { ConfirmDeleteModal, BaseModal },
   setup() {
     const subscriptions = ref([]);
     const categories = ref([]);
@@ -149,6 +148,17 @@ export default {
     const totalMonthly = computed(() => {
       return subscriptions.value.reduce((sum, sub) => sum + parseFloat(sub.amount), 0);
     });
+
+    // Charges are only recorded when a client opens the app during the due month
+    // (see improvements.md 1.14) — surfacing the last one makes a skipped month visible.
+    const lastChargedLabel = (sub) => {
+      const raw = sub.last_recorded_date;
+      if (!raw) return 'Never charged';
+      const parsed = new Date(`${raw}T00:00:00`);
+      if (isNaN(parsed)) return 'Never charged';
+      const formatted = parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `Last charged ${formatted}`;
+    };
 
     const openAddModal = () => {
       isEditing.value = false;
@@ -213,6 +223,7 @@ export default {
       form,
       subToDelete,
       totalMonthly,
+      lastChargedLabel,
       openAddModal,
       openEditModal,
       closeModal,

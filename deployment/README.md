@@ -1,6 +1,6 @@
-# ReceiptOCR - Deployment Scripts
+# Scandy - Deployment Scripts
 
-This directory contains scripts for deploying and managing the ReceiptOCR application with nginx and Tailscale support.
+This directory contains scripts for deploying and managing the Scandy application with nginx and Tailscale support.
 
 ## Files
 

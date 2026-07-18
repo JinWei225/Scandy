@@ -2,6 +2,10 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 
+// Applies the saved theme class to <html> on import. Must load eagerly:
+// the toggle itself lives on the lazy-loaded Settings page.
+import './themeStore.js'
+
 // Self-hosted fonts and icons: no CDN dependency, so the native app renders
 // correctly offline. Latin subsets only — the UI is English.
 import '@fontsource/space-grotesk/latin-300.css'

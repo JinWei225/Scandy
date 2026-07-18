@@ -4,7 +4,7 @@ import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from receipt_extractor import OCRBusyError
-from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, CATEGORIES, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
+from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, get_all_categories, add_category, rename_category, delete_category, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
 
 app = Flask(__name__)
 CORS(app)
@@ -128,7 +128,43 @@ def add_transfer_transaction_route():
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
     """Endpoint to get the list of available transaction categories."""
-    return jsonify(CATEGORIES)
+    return jsonify(get_all_categories())
+
+@app.route('/api/categories', methods=['POST'])
+def add_category_route():
+    data = request.get_json(silent=True) or {}
+    try:
+        categories = add_category(data.get('type'), data.get('name'))
+        return jsonify(categories), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Failed to add category"}), 500
+
+@app.route('/api/categories', methods=['PUT'])
+def rename_category_route():
+    data = request.get_json(silent=True) or {}
+    try:
+        categories = rename_category(data.get('type'), data.get('old_name'), data.get('new_name'))
+        return jsonify(categories), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Failed to rename category"}), 500
+
+@app.route('/api/categories', methods=['DELETE'])
+def delete_category_route():
+    data = request.get_json(silent=True) or {}
+    try:
+        categories = delete_category(data.get('type'), data.get('name'))
+        return jsonify(categories), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Failed to delete category"}), 500
 
 @app.route('/api/subscriptions', methods=['GET'])
 def list_subscriptions():

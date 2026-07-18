@@ -9,7 +9,7 @@ module.exports = {
         allowedHosts: 'all',
         proxy: {
             '/api': {
-                target: 'http://localhost:5001',
+                target: process.env.DEV_API_TARGET || 'http://localhost:5001',
                 changeOrigin: true
             }
         }

@@ -1,8 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="$emit('close')">
-    <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
-      <h2 class="font-headline text-xl sm:text-2xl text-primary-container uppercase tracking-tight mb-4 sm:mb-6">{{ title }}</h2>
-
+  <BaseModal size="md" :title="title" @close="$emit('close')">
       <form v-if="formData" @submit.prevent="save" class="flex flex-col gap-4 sm:gap-6">
 
         <!-- Type Selection -->
@@ -65,13 +62,15 @@
           <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-4 sm:px-6 py-2 sm:py-3 hover:bg-primary transition-colors">{{ submitLabel }}</button>
         </div>
       </form>
-    </div>
-  </div>
+  </BaseModal>
 </template>
 
 <script>
+import BaseModal from './BaseModal.vue'
+
 export default {
   name: 'TransactionFormModal',
+  components: { BaseModal },
   props: {
     // Initial values: either an existing transaction from the API (edit) or
     // scanned/partial data (confirm). Dates in DD/MM/YYYY or YYYY-MM-DD both work.

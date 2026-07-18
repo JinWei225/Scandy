@@ -1,3 +1,4 @@
+import calendar
 import json
 import os
 import sqlite3
@@ -20,6 +21,34 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def _to_iso_date(value):
+    """Normalizes a date string to ISO YYYY-MM-DD for storage. Accepts
+    DD/MM/YYYY (the API surface format) or already-ISO input; anything
+    unparseable is returned unchanged rather than dropped."""
+    s = str(value or "").strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return value
+
+def _to_display_date(value):
+    """Converts a stored ISO date back to the DD/MM/YYYY the API serves."""
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").strftime("%d/%m/%Y")
+    except (ValueError, TypeError):
+        return value
+
+def _normalize_time(value):
+    s = str(value or "").strip()
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(s, fmt).strftime("%H:%M:%S")
+        except ValueError:
+            continue
+    return "00:00:00"
+
 def init_db():
     conn = get_db_connection()
     conn.execute("""
@@ -38,10 +67,35 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
-ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
+def migrate_datetime_format():
+    """One-time, idempotent: rewrites legacy DD/MM/YYYY dates and HH:MM times
+    to the canonical ISO forms so SQLite can sort with an index instead of
+    Python re-parsing and re-sorting every row on every request."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute("""
+            SELECT id, date, time FROM transactions
+            WHERE date LIKE '%/%' OR time IS NULL OR time NOT LIKE '__:__:__'
+        """).fetchall()
+        for row in rows:
+            conn.execute(
+                "UPDATE transactions SET date = ?, time = ? WHERE id = ?",
+                (_to_iso_date(row["date"]), _normalize_time(row["time"]), row["id"])
+            )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_date_time ON transactions(date DESC, time DESC)")
+        conn.commit()
+        if rows:
+            print(f"Migrated {len(rows)} transactions to ISO date/time storage")
+    finally:
+        conn.close()
 
-CATEGORIES = {
+init_db()
+migrate_datetime_format()
+ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
+CATEGORIES_FILE = os.path.join(BASE_DIR, "categories.json")
+
+# Seed for categories.json; once that file exists it is the source of truth.
+_DEFAULT_CATEGORIES = {
     "expense": [
         "Food & Drink",
         "Shopping",
@@ -62,6 +116,91 @@ CATEGORIES = {
     ],
     "transfer": ["Transfer"]
 }
+
+def get_all_categories():
+    with _JSON_LOCK:
+        try:
+            with open(CATEGORIES_FILE, "r") as f:
+                categories = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            categories = {k: list(v) for k, v in _DEFAULT_CATEGORIES.items()}
+            _write_json_atomic(CATEGORIES_FILE, categories)
+    categories.setdefault("expense", [])
+    categories.setdefault("income", [])
+    categories["transfer"] = ["Transfer"]
+    return categories
+
+def _validate_category_name(cat_type, name):
+    if cat_type not in ("expense", "income"):
+        raise ValueError("Category type must be 'expense' or 'income'")
+    name = str(name or "").strip()
+    if not name:
+        raise ValueError("Category name cannot be empty")
+    if len(name) > 40:
+        raise ValueError("Category name is too long (max 40 characters)")
+    if name.lower() == "transfer":
+        raise ValueError("'Transfer' is reserved")
+    return name
+
+def add_category(cat_type, name):
+    name = _validate_category_name(cat_type, name)
+    with _JSON_LOCK:
+        categories = get_all_categories()
+        if name.lower() in (c.lower() for c in categories[cat_type]):
+            raise ValueError(f"Category '{name}' already exists")
+        categories[cat_type].append(name)
+        _write_json_atomic(CATEGORIES_FILE, categories)
+    return categories
+
+def rename_category(cat_type, old_name, new_name):
+    new_name = _validate_category_name(cat_type, new_name)
+    old_name = str(old_name or "").strip()
+    with _JSON_LOCK:
+        categories = get_all_categories()
+        names = categories[cat_type]
+        if old_name not in names:
+            raise ValueError(f"Category '{old_name}' not found")
+        if new_name != old_name and new_name.lower() in (c.lower() for c in names if c != old_name):
+            raise ValueError(f"Category '{new_name}' already exists")
+        names[names.index(old_name)] = new_name
+        _write_json_atomic(CATEGORIES_FILE, categories)
+
+        # Cascade so history and recurring charges follow the rename.
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "UPDATE transactions SET category = ? WHERE category = ? AND type = ?",
+                (new_name, old_name, cat_type)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        if cat_type == "expense":
+            subscriptions = get_all_subscriptions()
+            changed = False
+            for sub in subscriptions:
+                if sub.get("category") == old_name:
+                    sub["category"] = new_name
+                    changed = True
+            if changed:
+                save_all_subscriptions(subscriptions)
+    return categories
+
+def delete_category(cat_type, name):
+    if cat_type not in ("expense", "income"):
+        raise ValueError("Category type must be 'expense' or 'income'")
+    name = str(name or "").strip()
+    with _JSON_LOCK:
+        categories = get_all_categories()
+        names = categories[cat_type]
+        if name not in names:
+            raise ValueError(f"Category '{name}' not found")
+        if len(names) == 1:
+            raise ValueError(f"Cannot delete the last {cat_type} category")
+        names.remove(name)
+        _write_json_atomic(CATEGORIES_FILE, categories)
+    return categories
 
 def format_amount(raw):
     """Formats a stored cents value (TEXT column) as 'RM x.xx'. Falls back to RM 0.00 so a bad row can never break the frontend summaries."""
@@ -98,7 +237,9 @@ def _clean_extracted_data(data):
 def get_all_transactions():
     try:
         conn = get_db_connection()
-        rows = conn.execute("SELECT * FROM transactions").fetchall()
+        # Dates are stored ISO (see migrate_datetime_format) so the index can
+        # do the newest-first ordering; the API keeps serving DD/MM/YYYY.
+        rows = conn.execute("SELECT * FROM transactions ORDER BY date DESC, time DESC").fetchall()
         conn.close()
         data = []
         account_by_id = {}
@@ -110,6 +251,7 @@ def get_all_transactions():
                 cents = 0
             d["amount_cents"] = cents
             d["amount"] = format_amount(cents)
+            d["date"] = _to_display_date(d.get("date"))
             account_by_id[d["id"]] = d.get("account_id")
             data.append(d)
 
@@ -126,56 +268,17 @@ def get_all_transactions():
                     d["from_account_id"] = d.get("account_id")
                     d["to_account_id"] = counterpart_account
 
-        return sort_transactions(data)
+        return data
     except Exception as e:
         print(f"Error reading DB: {e}")
         return []
-
-def sort_transactions(data):
-    # Sort by date and time, newest first.
-    # Date format in JSON is "DD/MM/YYYY" or "YYYY-MM-DD"
-    # Time format is "HH:MM:SS" or "HH:MM"
-    
-    def parse_datetime(item):
-        d_str = item.get("date")
-        t_str = item.get("time", "00:00:00")
-        
-        if not d_str or not isinstance(d_str, str):
-            return datetime.min
-            
-        # Try finding the right date parser
-        dt = None
-        for d_fmt in ["%d/%m/%Y", "%Y-%m-%d"]:
-            try:
-                dt = datetime.strptime(d_str, d_fmt)
-                break
-            except ValueError:
-                continue
-        
-        if not dt:
-            return datetime.min
-            
-        # Try finding the right time parser
-        for t_fmt in ["%H:%M:%S", "%H:%M"]:
-            try:
-                tm = datetime.strptime(t_str, t_fmt).time()
-                return datetime.combine(dt.date(), tm)
-            except ValueError:
-                continue
-        
-        # Fallback to date only if time is weird
-        return dt
-
-    # Sort
-    sorted_data = sorted(data, key=parse_datetime, reverse=True)
-    return sorted_data
 
 def create_manual_transaction(data):
     amount_int = int(round(float(data.get('amount', 0)) * 100))
     new_record = {
         "id": str(uuid.uuid4()),
-        "date": data.get("date"),
-        "time": data.get("time", "00:00:00"),
+        "date": _to_iso_date(data.get("date")),
+        "time": _normalize_time(data.get("time")),
         "description": data.get("description"),
         "amount": str(amount_int),
         "category": data.get("category", "Uncategorized"),
@@ -192,15 +295,16 @@ def create_manual_transaction(data):
     conn.commit()
     conn.close()
 
-    # Format amount for frontend response
+    # Format amount and date for frontend response
     new_record["amount_cents"] = amount_int
     new_record["amount"] = format_amount(amount_int)
+    new_record["date"] = _to_display_date(new_record["date"])
     return new_record
 
 def _insert_transfer_pair(conn, data):
     """Inserts a transfer pair on an existing connection. Does not commit."""
-    date_str = data.get("date")
-    time_str = data.get("time", "00:00:00")
+    date_str = _to_iso_date(data.get("date"))
+    time_str = _normalize_time(data.get("time"))
     amount_int = int(round(float(data.get("amount", 0)) * 100))
     from_account = data.get("from_account_id")
     to_account = data.get("to_account_id")
@@ -242,6 +346,7 @@ def _insert_transfer_pair(conn, data):
     for t in [outgoing, incoming]:
         t["amount_cents"] = amount_int
         t["amount"] = format_amount(amount_int)
+        t["date"] = _to_display_date(t["date"])
 
     return [outgoing, incoming]
 
@@ -307,8 +412,8 @@ def update_transaction_by_id(transaction_id, data_to_update):
             transaction_to_update["transfer_related_id"] = None
 
         # Update the fields from the provided data
-        transaction_to_update["date"] = data_to_update.get("date", transaction_to_update["date"])
-        transaction_to_update["time"] = data_to_update.get("time", transaction_to_update.get("time", "00:00:00"))
+        transaction_to_update["date"] = _to_iso_date(data_to_update.get("date", transaction_to_update["date"]))
+        transaction_to_update["time"] = _normalize_time(data_to_update.get("time", transaction_to_update.get("time")))
         transaction_to_update["description"] = data_to_update.get("description", transaction_to_update["description"])
 
         # Handle amount update - if it's a number, format it
@@ -344,6 +449,7 @@ def update_transaction_by_id(transaction_id, data_to_update):
     except (ValueError, TypeError):
         transaction_to_update["amount_cents"] = 0
     transaction_to_update["amount"] = format_amount(transaction_to_update["amount"])
+    transaction_to_update["date"] = _to_display_date(transaction_to_update["date"])
     return transaction_to_update
 
 def delete_transaction_by_id(transaction_id):
@@ -434,9 +540,12 @@ def check_and_record_subscriptions():
                     day_of_month = int(sub.get("day_of_month", 1))
                 except (ValueError, TypeError):
                     day_of_month = 1
+                # Clamp to the month's length so a day-31 subscription still
+                # charges in shorter months (and the date is always valid).
+                due_day = min(day_of_month, calendar.monthrange(today.year, today.month)[1])
 
-                if today.day >= day_of_month:
-                    transaction_date = f"{day_of_month:02d}/{today.month:02d}/{today.year}"
+                if today.day >= due_day:
+                    transaction_date = f"{due_day:02d}/{today.month:02d}/{today.year}"
 
                     tx_data = {
                         "date": transaction_date,

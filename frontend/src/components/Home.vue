@@ -105,11 +105,30 @@
 
     <!-- Recent Transactions -->
     <section class="flex flex-col border-t border-outline-variant/20 pt-8">
-      <div class="flex justify-between items-end mb-6">
+      <div class="flex justify-between items-end mb-4">
         <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
         <router-link to="/all" class="font-label text-xs text-primary-container uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
           View Summary <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
         </router-link>
+      </div>
+
+      <!-- Date range filter -->
+      <div class="flex items-center gap-2 flex-wrap mb-6">
+        <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 flex items-center gap-2 hover:border-primary/50 transition-colors">
+          <span class="material-symbols-outlined text-[16px] text-on-surface-variant">calendar_today</span>
+          <span class="font-body text-xs font-mono" :class="rangeStart ? 'text-on-surface' : 'text-on-surface-variant'">{{ rangeStartDisplay || 'FROM' }}</span>
+          <input type="date" v-model="rangeStart" :max="rangeEnd || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter from date">
+        </div>
+        <span class="font-label text-xs text-on-surface-variant">&mdash;</span>
+        <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 flex items-center gap-2 hover:border-primary/50 transition-colors">
+          <span class="material-symbols-outlined text-[16px] text-on-surface-variant">event</span>
+          <span class="font-body text-xs font-mono" :class="rangeEnd ? 'text-on-surface' : 'text-on-surface-variant'">{{ rangeEndDisplay || 'TO' }}</span>
+          <input type="date" v-model="rangeEnd" :min="rangeStart || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter to date">
+        </div>
+        <button v-if="hasRange" @click="clearRange" class="text-on-surface-variant hover:text-error transition-colors p-1 flex items-center" aria-label="Clear date range">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+        <span v-if="hasRange" class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest ml-auto">{{ displayedTransactions.length }} logs</span>
       </div>
 
       <div class="hidden md:grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 bg-surface-container-lowest">
@@ -120,11 +139,11 @@
         <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
       </div>
 
-      <div v-if="transactions.length === 0" class="py-12 text-center border-b border-outline-variant/20">
-        <p class="font-body text-on-surface-variant">No logs found.</p>
+      <div v-if="displayedTransactions.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+        <p class="font-body text-on-surface-variant">{{ hasRange ? 'No logs in the selected range.' : 'No logs found.' }}</p>
       </div>
 
-      <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="transaction in latestTransactions" :key="transaction.id">
+      <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="transaction in displayedTransactions" :key="transaction.id">
         <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity" :class="transaction.type === 'expense' ? 'bg-error' : (transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container')"></div>
 
         <div class="col-span-1 md:col-span-2 flex flex-col md:block">
@@ -199,7 +218,7 @@ export default {
   },
   setup() {
     // --- COMPOSABLES ---
-    const { transactions, fetchTransactions } = useTransactions();
+    const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
     const { accounts, fetchAccounts } = useAccounts();
     const { sharedIntentData, intentConsumed, clearIntentData, consumeIntent } = useIntent();
     const modals = useTransactionModals({ afterChange: fetchAccounts });
@@ -212,7 +231,6 @@ export default {
     const scanMessageType = ref('');
     const manualMessage = ref('');
     const manualMessageType = ref('');
-    const categories = ref([]);
 
     // Local date (not toISOString, which is UTC and gives yesterday's date before 8 AM in MYT)
     const localDateString = () => {
@@ -256,8 +274,33 @@ export default {
         return categories.value.expense || [];
     });
 
-    const latestTransactions = computed(() => {
-      return transactions.value.slice(0, 5);
+    // --- DATE RANGE FILTER (Recent Logs) ---
+    // Native date inputs hold YYYY-MM-DD; the API serves DD/MM/YYYY.
+    const rangeStart = ref('');
+    const rangeEnd = ref('');
+    const hasRange = computed(() => !!(rangeStart.value || rangeEnd.value));
+    const clearRange = () => {
+      rangeStart.value = '';
+      rangeEnd.value = '';
+    };
+
+    const isoToDisplay = (iso) => {
+      const parts = String(iso || '').split('-');
+      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : '';
+    };
+    const rangeStartDisplay = computed(() => isoToDisplay(rangeStart.value));
+    const rangeEndDisplay = computed(() => isoToDisplay(rangeEnd.value));
+
+    const displayedTransactions = computed(() => {
+      if (!hasRange.value) return transactions.value.slice(0, 5);
+      const start = rangeStart.value ? rangeStart.value.replace(/-/g, '') : '';
+      const end = rangeEnd.value ? rangeEnd.value.replace(/-/g, '') : '99999999';
+      return transactions.value.filter(tx => {
+        const parts = String(tx.date || '').split('/');
+        if (parts.length !== 3) return false;
+        const key = `${parts[2]}${parts[1]}${parts[0]}`;
+        return key >= start && key <= end;
+      });
     });
 
     // --- METHODS ---
@@ -469,11 +512,7 @@ export default {
     onMounted(() => {
       fetchTransactions();
       fetchAccounts();
-
-      // Load categories
-      axios.get('/api/categories')
-           .then(res => categories.value = res.data)
-           .catch(err => console.error(err));
+      fetchCategories();
     });
 
     // --- RETURN ---
@@ -488,7 +527,13 @@ export default {
       scannedData,
       isConfirmationModalVisible,
       fileInput,
-      latestTransactions,
+      displayedTransactions,
+      rangeStart,
+      rangeEnd,
+      rangeStartDisplay,
+      rangeEndDisplay,
+      hasRange,
+      clearRange,
       manualForm,
       formattedDateDisplay,
       categories,

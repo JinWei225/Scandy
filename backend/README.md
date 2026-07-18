@@ -1,13 +1,21 @@
-# ReceiptOCR Backend
+# Scandy Backend
 
-This is the backend server for the ReceiptOCR application, built with Flask.
+This is the backend server for the Scandy application, built with Flask.
 
 ## Requirements
 
-Install all dependencies:
+Dependencies are declared in the project root's `pyproject.toml` and pinned by `uv.lock`.
+From the project root:
 
 ```bash
-pip3 install -r requirements.txt
+uv sync
+```
+
+`requirements.txt` in this directory is a **generated** pinned export of `uv.lock`, kept
+for environments without uv. Do not edit it by hand — regenerate it from the project root:
+
+```bash
+uv export --no-dev --no-hashes --no-emit-project -o backend/requirements.txt
 ```
 
 ## Running the Server
@@ -51,6 +59,9 @@ python3 app.py
 - `DELETE /api/transactions/<id>` - Delete a transaction
 - `POST /api/upload` - Upload and scan a receipt image
 - `GET /api/categories` - Get available categories
+- `POST /api/categories` - Add a category
+- `PUT /api/categories/<name>` - Rename a category (cascades to transactions)
+- `DELETE /api/categories/<name>` - Delete a category
 - `GET /api/accounts` - Get all accounts with balances
 - `POST /api/accounts` - Add a new account
 - `PUT /api/accounts/<id>` - Update an account
@@ -59,8 +70,7 @@ python3 app.py
 - `POST /api/subscriptions` - Add a new subscription
 - `PUT /api/subscriptions/<id>` - Update a subscription
 - `DELETE /api/subscriptions/<id>` - Delete a subscription
-- `GET /api/budget/<year>/<month>` - Get budget for specific month
-- `POST /api/budget` - Set budget for a month
+- `POST /api/subscriptions/check` - Record any subscription charges due this month
 
 ## Troubleshooting
 

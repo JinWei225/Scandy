@@ -47,21 +47,36 @@ Follow these steps to run the complete stack locally.
 ### Prerequisites
 - **Python 3.13+**
 - **Node.js 18+** & **npm**
-- **Ollama** installed locally (if using Ollama for receipt extraction)
+- **[uv](https://docs.astral.sh/uv/)** (recommended) — manages the Python environment
+- Apple Silicon Mac — receipt extraction runs locally via MLX
 
 ---
 
 ### 1. Backend Setup
 
-The backend dependencies can be installed using standard `pip` or using `uv` (recommended).
+`pyproject.toml` + `uv.lock` are the source of truth for Python dependencies.
 
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Install dependencies
-pip install -r requirements.txt
+# From the project root — creates .venv and installs the locked dependencies
+uv sync
 ```
+
+<details>
+<summary>Alternative: plain pip</summary>
+
+`backend/requirements.txt` is a **generated** pinned export of `uv.lock`, kept for
+environments without uv. Regenerate it whenever `pyproject.toml` or `uv.lock` changes:
+
+```bash
+uv export --no-dev --no-hashes --no-emit-project -o backend/requirements.txt
+```
+
+To install from it:
+
+```bash
+pip install -r backend/requirements.txt
+```
+</details>
 
 #### Running the Backend
 

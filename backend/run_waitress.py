@@ -8,7 +8,7 @@ from app import app
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("Starting ReceiptOCR Backend with Waitress WSGI Server")
+    print("Starting Scandy Backend with Waitress WSGI Server")
     print("=" * 60)
     print(f"Server running at: http://0.0.0.0:5001")
     print(f"API endpoints available at: http://0.0.0.0:5001/api/")

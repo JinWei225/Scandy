@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[200] flex justify-center items-center p-4" @click.self="$emit('cancel')">
+  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[200] flex justify-center items-center modal-inset-safe" @click.self="$emit('cancel')">
     <div class="bg-surface border border-outline-variant/30 w-full max-w-sm p-8 relative">
       <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-error"></div>
       <div class="flex items-start gap-4 mb-6">

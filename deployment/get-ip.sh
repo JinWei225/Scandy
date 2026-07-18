@@ -14,7 +14,7 @@ get_tailscale_ip() {
 }
 
 echo "======================================"
-echo "ReceiptOCR - Tailscale IP Address"
+echo "Scandy - Tailscale IP Address"
 echo "======================================"
 echo ""
 

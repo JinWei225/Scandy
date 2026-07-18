@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# ReceiptOCR Deployment Script
+# Scandy Deployment Script
 # This script builds the frontend and sets up nginx configuration
 
 set -e  # Exit on error
 
 echo "======================================"
-echo "ReceiptOCR Deployment Script"
+echo "Scandy Deployment Script"
 echo "======================================"
 echo ""
 
@@ -50,8 +50,11 @@ if [ ! -d "$NGINX_CONF_DIR" ]; then
     sudo mkdir -p "$NGINX_CONF_DIR"
 fi
 
-sudo cp "$PROJECT_ROOT/deployment/nginx.conf" "$NGINX_CONF_DIR/receiptocr.conf"
-echo "✓ nginx configuration copied to $NGINX_CONF_DIR/receiptocr.conf"
+# Remove the pre-rename config. nginx.conf is a catch-all (server_name _), so
+# leaving it behind would create two competing server blocks on port 80.
+sudo rm -f "$NGINX_CONF_DIR/receiptocr.conf"
+sudo cp "$PROJECT_ROOT/deployment/nginx.conf" "$NGINX_CONF_DIR/scandy.conf"
+echo "✓ nginx configuration copied to $NGINX_CONF_DIR/scandy.conf"
 echo ""
 
 # Test nginx configuration
