@@ -28,6 +28,11 @@ const routes = [
     path: '/accounts/:id',
     name: 'AccountTransactions',
     component: () => import('../views/AccountTransactions.vue')
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/SettingsPage.vue')
   }
 ];
 

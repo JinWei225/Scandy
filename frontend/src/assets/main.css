@@ -3,6 +3,27 @@
 @tailwind utilities;
 
 /*
+ * Modal backdrops are `fixed inset-0`, so they span the full viewport —
+ * including the strip under the Android system navigation bar and the status
+ * bar / notch. Pair this with `max-h-full` (not `max-h-[90vh]`) on the panel:
+ * vh units also ignore the insets, so a tall panel's action row could sit
+ * behind the system bar on phones using 3-button navigation. Making the panel
+ * height container-relative means the inset is accounted for in one place.
+ */
+.modal-inset-safe {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
+}
+
+/* SearchModal is top-aligned rather than centered, so it keeps its larger
+   top offset (pt-16) and only needs the inset added to it. */
+.modal-inset-safe-top {
+  padding-top: calc(4rem + env(safe-area-inset-top));
+}
+
+/*
  * Theme palettes as space-separated RGB triplets, consumed by
  * tailwind.config.js as rgb(var(--c-*) / <alpha-value>).
  * Dark is the default (:root); html.light switches to the light scheme.

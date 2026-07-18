@@ -1,4 +1,4 @@
-package com.jinwei.receiptocr;
+package com.jinwei.scandy;
 
 import android.content.Intent;
 import android.util.Log;

@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex flex-col items-center p-4 pt-16" @click.self="$emit('close')">
-    <div class="bg-surface border border-outline-variant/30 w-full max-w-2xl relative flex flex-col max-h-[80vh]">
+  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex flex-col items-center modal-inset-safe modal-inset-safe-top" @click.self="$emit('close')">
+    <div class="bg-surface border border-outline-variant/30 w-full max-w-2xl relative flex flex-col max-h-full">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-5 border-b border-outline-variant/20">
         <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight">Search Logs</h2>

@@ -1,6 +1,6 @@
 {
-  "appId": "com.jinwei.receiptocr",
-  "appName": "ReceiptOCR",
+  "appId": "com.jinwei.scandy",
+  "appName": "Scandy",
   "webDir": "dist",
   "plugins": {
     "CapacitorHttp": {

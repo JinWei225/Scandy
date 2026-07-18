@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ReceiptOCR Startup Script
+# Scandy Startup Script
 # Starts both backend and nginx for production access
 
 set -e
@@ -8,7 +8,7 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "======================================"
-echo "Starting ReceiptOCR Application"
+echo "Starting Scandy Application"
 echo "======================================"
 echo ""
 

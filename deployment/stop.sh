@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# ReceiptOCR Stop Script
+# Scandy Stop Script
 # Stops backend and nginx
 
 echo "======================================"
-echo "Stopping ReceiptOCR Application"
+echo "Stopping Scandy Application"
 echo "======================================"
 echo ""
 

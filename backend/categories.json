@@ -1,0 +1,23 @@
+{
+    "expense": [
+        "Food & Drink",
+        "Shopping",
+        "Transport",
+        "Bills & Utilities",
+        "Entertainment",
+        "Health",
+        "Installments",
+        "Other"
+    ],
+    "income": [
+        "Salary",
+        "Investments",
+        "Gifts",
+        "Refunds",
+        "Other",
+        "Monthly Living Income"
+    ],
+    "transfer": [
+        "Transfer"
+    ]
+}

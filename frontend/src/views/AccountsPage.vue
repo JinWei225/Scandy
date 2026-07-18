@@ -56,10 +56,7 @@
     </section>
 
     <!-- Add/Edit Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center p-4" @click.self="showModal = false">
-      <div class="bg-surface border border-outline-variant/30 w-full max-w-md p-8 relative">
-        <h2 class="font-headline text-2xl text-primary-container uppercase tracking-tight mb-6">{{ isEditing ? 'Edit Entity' : 'New Entity' }}</h2>
-
+    <BaseModal v-if="showModal" size="md" :title="isEditing ? 'Edit Entity' : 'New Entity'" @close="showModal = false">
         <form @submit.prevent="submitAccount" class="flex flex-col gap-6">
           <div class="flex flex-col gap-2">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Account Name</label>
@@ -88,8 +85,7 @@
             <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors">{{ isEditing ? 'Save' : 'Create' }}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </BaseModal>
 
     <ConfirmDeleteModal
       v-if="accountToDelete"
@@ -106,10 +102,11 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAccounts } from '../composables/useAccounts';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
+import BaseModal from '../components/BaseModal.vue';
 
 export default {
   name: 'AccountsPage',
-  components: { ConfirmDeleteModal },
+  components: { ConfirmDeleteModal, BaseModal },
   setup() {
     const router = useRouter();
     const { accounts, fetchAccounts, saveAccount, deleteAccount } = useAccounts();
