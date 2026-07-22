@@ -1,0 +1,31 @@
+# Scandy backend — Flask + Waitress.
+# OCR is delegated to the Ollama service (OCR_BACKEND=ollama); MLX is not
+# installable here, so none of the Apple-only dependencies are present.
+# Build context is the repository root.
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OCR_BACKEND=ollama \
+    SCANDY_DATA_DIR=/data
+
+WORKDIR /app
+
+COPY docker/requirements.docker.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./backend/
+
+# Run unprivileged; /data is the mount point for the named volume holding the
+# SQLite database and JSON files, so it must be writable by that user.
+RUN useradd --create-home --uid 1000 scandy \
+    && mkdir -p /data \
+    && chown -R scandy:scandy /data /app
+USER scandy
+
+VOLUME ["/data"]
+WORKDIR /app/backend
+EXPOSE 5001
+
+# run_waitress.py already binds 0.0.0.0:5001 with 4 threads.
+CMD ["python", "run_waitress.py"]

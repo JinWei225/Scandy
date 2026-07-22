@@ -55,13 +55,14 @@ python3 app.py
 
 - `GET /api/transactions` - Get all transactions
 - `POST /api/transactions/manual` - Add a manual transaction
+- `POST /api/transactions/transfer` - Create a transfer between two accounts
 - `PUT /api/transactions/<id>` - Update a transaction
 - `DELETE /api/transactions/<id>` - Delete a transaction
 - `POST /api/upload` - Upload and scan a receipt image
 - `GET /api/categories` - Get available categories
-- `POST /api/categories` - Add a category
-- `PUT /api/categories/<name>` - Rename a category (cascades to transactions)
-- `DELETE /api/categories/<name>` - Delete a category
+- `POST /api/categories` - Add a category (body: `type`, `name`)
+- `PUT /api/categories` - Rename a category (body: `type`, `old_name`, `new_name`) — cascades to transactions
+- `DELETE /api/categories` - Delete a category (body: `type`, `name`)
 - `GET /api/accounts` - Get all accounts with balances
 - `POST /api/accounts` - Add a new account
 - `PUT /api/accounts/<id>` - Update an account
@@ -71,6 +72,7 @@ python3 app.py
 - `PUT /api/subscriptions/<id>` - Update a subscription
 - `DELETE /api/subscriptions/<id>` - Delete a subscription
 - `POST /api/subscriptions/check` - Record any subscription charges due this month
+- `POST /api/logs` - Sink for client-side logs
 
 ## Troubleshooting
 

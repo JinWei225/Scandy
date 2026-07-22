@@ -1,0 +1,12 @@
+# Container-only dependency set.
+#
+# Deliberately NOT backend/requirements.txt: that file pins mlx-vlm and torch,
+# which are Apple Silicon only and add multiple gigabytes. In Docker the OCR work
+# is done by the Ollama service over HTTP, so the backend needs nothing more than
+# the web stack. Ollama is called with stdlib urllib, so it adds no dependency.
+
+flask>=3.1.3
+flask-cors>=6.0.2
+pillow>=12.2.0
+waitress>=3.0.2
+werkzeug>=3.1.8
