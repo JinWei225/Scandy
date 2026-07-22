@@ -34,7 +34,7 @@
     </div>
 
     <!-- Main Content Canvas -->
-    <main class="flex-grow flex flex-col pb-nav-safe md:pb-8 w-full max-w-5xl mx-auto px-4 md:px-8 pt-8">
+    <main class="flex-grow flex flex-col pb-nav-safe md:pb-8 w-full max-w-5xl mx-auto px-4 md:px-8 pt-4 md:pt-8">
       <router-view />
     </main>
 
@@ -161,25 +161,15 @@ export default {
 
 <style>
 body.is-native header {
-  padding-top: calc(1.5rem + env(safe-area-inset-top));
-  padding-bottom: 0.5rem;
+  padding-top: calc(0.25rem + env(safe-area-inset-top));
+  padding-bottom: 0.25rem;
 }
-/*
- * The bottom nav must GROW by the safe-area inset, not absorb it.
- * Tailwind's preflight sets box-sizing: border-box, so a fixed `h-20` plus
- * `padding-bottom: env(...)` keeps the total at 5rem and shrinks the content
- * box instead. On phones using 3-button navigation the inset is ~48px, which
- * leaves ~32px for a stack that needs ~44px — the icons then overflow above
- * the bar's painted background. Height and padding are set together here so
- * they can't drift apart again.
- */
+
 .bottom-nav-safe {
   height: calc(5rem + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Keep the last row of content clear of the nav, inset included. Scoped below
-   the md breakpoint so it can't fight the `md:pb-8` on the same element. */
 @media (max-width: 767px) {
   .pb-nav-safe {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom));

@@ -1,36 +1,36 @@
 <template>
   <div class="w-full">
     <!-- Header Section -->
-    <section class="mb-12">
+    <section class="mb-6">
       <div class="flex items-center gap-4 mb-2">
         <router-link to="/" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
           <span class="material-symbols-outlined">arrow_back</span>
         </router-link>
-        <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight m-0">Monthly Summary</h2>
+        <h2 class="font-headline text-2xl md:text-3xl font-light text-on-surface uppercase tracking-tight m-0">Monthly Summary</h2>
       </div>
-      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-3 mb-5"></div>
     </section>
 
     <div v-if="transactions.length > 0">
       <!-- Section 1: The Filter Controls -->
-      <section class="mb-8 bg-surface-container-lowest border border-outline-variant/30 p-6 flex flex-col md:flex-row gap-6 items-end relative">
+      <section class="mb-5 bg-surface-container-lowest border border-outline-variant/30 px-4 py-3 flex flex-row gap-4 items-end relative">
         <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
-        <div class="flex flex-col gap-2 flex-1 w-full">
-          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Year</label>
-          <select v-model="selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+        <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+          <label class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Year</label>
+          <select v-model="selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1 text-on-surface font-body text-sm rounded-none outline-none w-full">
             <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
           </select>
         </div>
-        <div class="flex flex-col gap-2 flex-1 w-full">
-          <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Month</label>
-          <select v-model="selectedMonth" :disabled="!selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full disabled:opacity-50">
+        <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+          <label class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Month</label>
+          <select v-model="selectedMonth" :disabled="!selectedYear" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1 text-on-surface font-body text-sm rounded-none outline-none w-full disabled:opacity-50">
             <option v-for="month in availableMonths" :key="month" :value="month">{{ month }}</option>
           </select>
         </div>
       </section>
 
       <!-- Section 2: The Income and Expense Summary -->
-      <section class="mb-12 grid grid-cols-1 md:grid-cols-3 gap-0 border border-outline-variant/20 bg-surface-container-lowest">
+      <section class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-0 border border-outline-variant/20 bg-surface-container-lowest">
         <div class="p-6 border-b md:border-b-0 md:border-r border-outline-variant/20 flex flex-col items-center md:items-start text-center md:text-left">
           <h3 class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] mb-2">Income</h3>
           <p class="font-headline text-2xl md:text-4xl text-income tracking-tighter">RM {{ monthlyStats.income.toFixed(2) }}</p>
@@ -50,7 +50,7 @@
     <CategorySummaryList title="Expenses by Category" :items="categorySummary" variant="expense" @select="name => openDetail(name, 'expense')" />
     <CategorySummaryList title="Income by Category" :items="incomeCategorySummary" variant="income" @select="name => openDetail(name, 'income')" />
 
-    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+    <div v-if="categorySummary.length === 0 && incomeCategorySummary.length === 0" class="py-10 text-center border-b border-outline-variant/20">
       <p class="font-body text-on-surface-variant">No transactions recorded yet.</p>
     </div>
   </div>
@@ -60,9 +60,18 @@
     :categoryName="selectedCategoryData.name"
     :transactions="selectedCategoryData.transactions"
     @close="isDetailModalVisible = false"
+    @select="openViewModal"
     @edit="openEditModal"
     @delete="requestDelete"
   />
+
+  <TransactionDetailModal
+    v-if="transactionToView"
+    :transaction="transactionToView"
+    :accounts="accounts"
+    @close="closeViewModal"
+  />
+
   <TransactionFormModal
     v-if="isEditModalVisible"
     :transaction="transactionToEdit"
@@ -92,6 +101,7 @@ import TransactionFormModal from './TransactionFormModal.vue';
 import CategoryDetailModal from './CategoryDetailModal.vue';
 import CategorySummaryList from './CategorySummaryList.vue';
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue';
+import TransactionDetailModal from './TransactionDetailModal.vue';
 
 export default {
   name: 'AllTransactions',
@@ -100,6 +110,7 @@ export default {
     ConfirmDeleteModal,
     CategoryDetailModal,
     CategorySummaryList,
+    TransactionDetailModal,
   },
   setup() {
     const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();

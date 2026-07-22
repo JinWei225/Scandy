@@ -1,5 +1,6 @@
 <template>
-  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex flex-col items-center modal-inset-safe modal-inset-safe-top" @click.self="$emit('close')">
+  <!-- Scrim matches BaseModal (see the note there). -->
+  <div class="fixed inset-0 bg-on-surface/40 backdrop-blur-md z-[100] flex flex-col items-center modal-inset-safe modal-inset-safe-top" @click.self="$emit('close')">
     <div class="bg-surface border border-outline-variant/30 w-full max-w-2xl relative flex flex-col max-h-full">
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-5 border-b border-outline-variant/20">
@@ -28,16 +29,16 @@
 
       <!-- Results -->
       <div class="flex-1 overflow-y-auto">
-        <div v-if="!searchQuery" class="py-12 text-center">
+        <div v-if="!searchQuery" class="py-10 text-center">
           <p class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Type to search transactions</p>
         </div>
 
-        <div v-else-if="filteredTransactions.length === 0" class="py-12 text-center">
+        <div v-else-if="filteredTransactions.length === 0" class="py-10 text-center">
           <p class="font-label text-xs text-on-surface-variant uppercase tracking-widest">No results for "{{ searchQuery }}"</p>
         </div>
 
         <div v-else>
-          <div class="hidden md:grid grid-cols-12 gap-4 py-3 px-6 bg-surface-container-lowest border-b border-outline-variant/20">
+          <div class="hidden md:grid grid-cols-12 gap-4 py-2.5 px-3 bg-surface-container-lowest border-b border-outline-variant/20">
             <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Date</div>
             <div class="col-span-4 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Description</div>
             <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em]">Category</div>
@@ -45,43 +46,14 @@
             <div class="col-span-2 font-label text-[10px] text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
           </div>
 
-          <div
+          <TransactionRow
             v-for="transaction in filteredTransactions"
             :key="transaction.id"
-            class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-6 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative"
-          >
-            <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity"
-              :class="transaction.type === 'expense' ? 'bg-error' : transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container'"></div>
-
-            <div class="col-span-1 md:col-span-2 flex flex-col">
-              <span class="font-body text-sm text-on-surface font-mono">{{ transaction.date }}</span>
-              <span class="font-label text-[10px] text-on-surface-variant tracking-widest">{{ transaction.time }}</span>
-            </div>
-
-            <div class="col-span-1 md:col-span-4">
-              <span class="font-headline text-md text-on-surface tracking-tight">{{ transaction.description }}</span>
-            </div>
-
-            <div class="col-span-1 md:col-span-2 flex items-center">
-              <span v-if="transaction.category" class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ transaction.category }}</span>
-            </div>
-
-            <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
-              <span class="font-headline text-lg tracking-tighter"
-                :class="transaction.type === 'expense' ? 'text-error' : transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container'">
-                {{ transaction.amount }}
-              </span>
-            </div>
-
-            <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0">
-              <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1">
-                <span class="material-symbols-outlined text-[18px]">edit</span>
-              </button>
-              <button @click="requestDelete(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1">
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-              </button>
-            </div>
-          </div>
+            :transaction="transaction"
+            @select="openViewModal"
+            @edit="openEditModal"
+            @delete="requestDelete"
+          />
         </div>
       </div>
 
@@ -91,6 +63,13 @@
       </div>
     </div>
   </div>
+
+  <TransactionDetailModal
+    v-if="transactionToView"
+    :transaction="transactionToView"
+    :accounts="accounts"
+    @close="closeViewModal"
+  />
 
   <TransactionFormModal
     v-if="isEditModalVisible"
@@ -115,10 +94,12 @@ import { useAccounts } from '../composables/useAccounts';
 import { useTransactionModals } from '../composables/useTransactionModals';
 import TransactionFormModal from './TransactionFormModal.vue';
 import ConfirmDeleteModal from './ConfirmDeleteModal.vue';
+import TransactionRow from './TransactionRow.vue';
+import TransactionDetailModal from './TransactionDetailModal.vue';
 
 export default {
   name: 'SearchModal',
-  components: { TransactionFormModal, ConfirmDeleteModal },
+  components: { TransactionFormModal, ConfirmDeleteModal, TransactionRow, TransactionDetailModal },
   emits: ['close'],
   setup() {
     const { transactions, categories, fetchTransactions, fetchCategories } = useTransactions();
