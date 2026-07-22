@@ -64,7 +64,7 @@
 
           <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
-            <input type="text" v-model="manualForm.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
+            <input type="text" v-model.trim="manualForm.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
           </div>
 
           <div class="flex flex-col gap-2">

@@ -30,7 +30,7 @@
 
           <div class="flex flex-col gap-1 sm:gap-2" v-if="formData.type !== 'transfer'">
             <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
-            <input type="text" v-model="formData.description" placeholder="e.g., Lunch with team" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
+            <input type="text" v-model.trim="formData.description" placeholder="e.g., Lunch with team" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1.5 sm:py-2 text-on-surface font-body rounded-none outline-none w-full">
           </div>
 
           <div class="flex flex-col gap-1 sm:gap-2">
