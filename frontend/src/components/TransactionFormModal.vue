@@ -58,7 +58,7 @@
         </div>
 
         <div class="flex justify-end gap-4 mt-2 sm:mt-4">
-          <button type="button" class="border border-outline text-on-surface px-4 sm:px-6 py-2 sm:py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors" @click="$emit('close')">Cancel</button>
+          <button type="button" class="border border-outline text-on-surface px-4 sm:px-6 py-2 sm:py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors" @click="$emit('close')">{{ cancelLabel }}</button>
           <button type="submit" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-4 sm:px-6 py-2 sm:py-3 hover:bg-primary transition-colors">{{ submitLabel }}</button>
         </div>
       </form>
@@ -94,6 +94,10 @@ export default {
     submitLabel: {
       type: String,
       default: 'Save Changes'
+    },
+    cancelLabel: {
+      type: String,
+      default: 'Cancel'
     }
   },
   emits: ['close', 'save'],

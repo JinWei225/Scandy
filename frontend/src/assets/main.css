@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+
+html {
+  font-size: 15px;
+}
+
 /*
  * Modal backdrops are `fixed inset-0`, so they span the full viewport —
  * including the strip under the Android system navigation bar and the status
@@ -102,21 +107,21 @@ html.light {
   --c-on-error: 255 255 255; /* #ffffff */
   --c-error-container: 255 218 214; /* #ffdad6 */
   --c-on-error-container: 65 0 2; /* #410002 */
-  --c-background: 255 248 246; /* #fff8f6 */
+  --c-background: 255 246 235; /* #fff6eb */
   --c-on-background: 34 26 21; /* #221a15 */
-  --c-surface: 255 248 246; /* #fff8f6 */
+  --c-surface: 255 246 235; /* #fff6eb */
   --c-on-surface: 34 26 21; /* #221a15 */
-  --c-surface-variant: 245 222 211; /* #f5ded3 */
+  --c-surface-variant: 245 226 205; /* #f5e2cd */
   --c-on-surface-variant: 82 68 60; /* #52443c */
-  --c-surface-dim: 232 214 206; /* #e8d6ce */
-  --c-surface-bright: 255 248 246; /* #fff8f6 */
+  --c-surface-dim: 234 217 199; /* #ead9c7 */
+  --c-surface-bright: 255 246 235; /* #fff6eb */
   --c-surface-container-lowest: 255 255 255; /* #ffffff */
-  --c-surface-container-low: 255 241 234; /* #fff1ea */
-  --c-surface-container: 252 235 226; /* #fcebe2 */
-  --c-surface-container-high: 246 229 220; /* #f6e5dc */
-  --c-surface-container-highest: 240 223 215; /* #f0dfd7 */
+  --c-surface-container-low: 255 240 224; /* #fff0e0 */
+  --c-surface-container: 255 235 215; /* #ffebd7 */
+  --c-surface-container-high: 250 229 207; /* #fae5cf */
+  --c-surface-container-highest: 244 222 200; /* #f4dec8 */
   --c-outline: 133 115 107; /* #85736b */
-  --c-outline-variant: 216 194 184; /* #d8c2b8 */
+  --c-outline-variant: 220 199 176; /* #dcc7b0 */
   --c-inverse-surface: 56 46 41; /* #382e29 */
   --c-inverse-on-surface: 255 237 228; /* #ffede4 */
   --c-surface-tint: 160 65 0; /* #a04100 */

@@ -1,13 +1,13 @@
 <template>
   <div class="w-full">
     <!-- Header Section -->
-    <section class="mb-12">
-      <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Settings</h2>
+    <section class="mb-6">
+      <h2 class="font-headline text-4xl md:text-5xl font-light text-on-surface uppercase tracking-tight mb-2">Settings</h2>
       <div class="h-px w-full bg-outline-variant opacity-20 mt-4"></div>
     </section>
 
     <!-- Appearance -->
-    <section class="mb-12">
+    <section class="mb-6">
       <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Appearance</h3>
       <div class="flex items-center justify-between border border-outline-variant/20 bg-surface-container-lowest px-4 py-4">
         <div>
@@ -23,11 +23,24 @@
       <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-2">Categories</h3>
       <p class="font-body text-sm text-on-surface-variant mb-6">Renaming a category also updates existing logs and recurring charges. Deleting one keeps old logs unchanged.</p>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Collapsed by default: the two lists together run past a phone
+           screen, and they are rarely edited. -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
         <div v-for="group in groups" :key="group.type">
-          <div class="py-3 px-4 border-b border-outline-variant/20 bg-surface-container-lowest font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">{{ group.label }}</div>
+          <button
+            type="button"
+            @click="toggleGroup(group.type)"
+            :aria-expanded="isExpanded(group.type)"
+            class="w-full flex items-center justify-between gap-2 py-3 px-4 border-b border-outline-variant/20 bg-surface-container-lowest hover:bg-primary/5 transition-colors text-left">
+            <span class="font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">{{ group.label }}</span>
+            <span class="flex items-center gap-2">
+              <span class="font-label text-[10px] text-on-surface-variant/70 uppercase tracking-widest">{{ listFor(group.type).length }}</span>
+              <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition-transform" :class="{ 'rotate-180': isExpanded(group.type) }">expand_more</span>
+            </span>
+          </button>
 
-          <div v-for="name in listFor(group.type)" :key="name" class="flex items-center gap-2 py-3 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors">
+          <template v-if="isExpanded(group.type)">
+          <div v-for="name in listFor(group.type)" :key="name" class="flex items-center gap-2 py-2.5 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors">
             <template v-if="isRenaming(group.type, name)">
               <input
                 v-model="renameValue"
@@ -54,6 +67,7 @@
               class="flex-grow min-w-0 bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-1 text-on-surface font-body text-sm rounded-none outline-none">
             <button type="submit" class="text-primary-container hover:text-primary transition-colors p-1" aria-label="Add category"><span class="material-symbols-outlined text-[20px]">add</span></button>
           </form>
+          </template>
         </div>
       </div>
 
@@ -99,6 +113,15 @@ export default {
     const renameValue = ref('');
     const pendingDelete = ref(null);
     const errorMessage = ref('');
+    const expanded = ref({ expense: false, income: false });
+
+    const isExpanded = (type) => expanded.value[type];
+    const toggleGroup = (type) => {
+      expanded.value[type] = !expanded.value[type];
+      // Collapsing unmounts the row, so an in-progress rename would otherwise
+      // stay "open" invisibly and reappear on the next expand.
+      renaming.value = null;
+    };
 
     const listFor = (type) => {
       if (!categories.value || Array.isArray(categories.value)) return [];
@@ -177,6 +200,8 @@ export default {
       renameValue,
       pendingDelete,
       errorMessage,
+      isExpanded,
+      toggleGroup,
       listFor,
       submitAdd,
       isRenaming,

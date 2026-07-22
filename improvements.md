@@ -11,6 +11,35 @@ Audit date: 2026-07-17. Reference notes for future fixes. File/line refs are fro
 
 **Still open:** everything in §3 (stability/deployment), §4 (structure/duplication), §5 (efficiency), §6 (features), and bug 1.14.
 
+## Status update — 2026-07-22 (fifth pass: phone-first UI — modal flows, density, warm light theme)
+
+Driven by usage: the app is used almost exclusively on a phone, and Home was a long scroll past two idle forms to reach the ledger.
+
+**Home is now a ledger with two buttons.** The always-open Upload and Manual Log sections became two action cards launching modal flows — scan: `ScanModal` → `TransactionFormModal` ("Confirm Details") → `ResultModal`, with cancel stepping back to the *scan* modal; manual: form → result. One `flow` ref (`null|'scan'|'form'|'result'`) plus `flowSource` drives both paths.
+- **New:** `ScanModal.vue` (camera + file picker; owns selection only and emits `scan(File)`, so the Android share intent drives the same code) and `ResultModal.vue` (reusable success/error step). Both wrap `BaseModal`. `TransactionFormModal` gained one additive `cancelLabel` prop.
+- `handleSaveConfirmation` + `addManualTransaction` collapsed into one `commitTransaction`; on failure the result modal offers "Back To Form" with entered values preserved.
+- **Share intent:** opens `ScanModal` in a loading state and auto-uploads. `consumeIntent()` moved to `closeFlow()` so it fires however the flow ends; the `intentConsumed` remount guard still holds.
+
+**§6.4 revised — Home date range defaults to the last 3 days** (today − 2 → today). Both bounds show real dates under From/To captions, and ✕ became a ⟳ reset. The old "no range = 5 newest" fallback is dead and removed; the count moved beside the "Recent Logs" heading, where it no longer wraps the filter onto a third line.
+
+**Density pass (the app was showing ~1 log per screen).**
+- `html { font-size: 15px }` in `main.css` shrinks every rem-based utility ~6% from one line. Arbitrary pixel utilities (`text-[10px]`, icon sizes) deliberately don't scale — already at floor size.
+- **`TransactionRow.vue` extracted** from three near-identical copies (Home, `SearchModal`, `CategoryDetailModal`), ~90 lines of duplication removed — same fix as §4.1/4.2. **One DOM serves both layouts:** mobile is a `grid-cols-[1fr_auto]` 2×2 (two lines, not five); at `md` the meta wrapper flips to `display: contents` so date and category drop into the parent 12-column grid, with `md:order-*` restoring table order. The description `truncate`s — that's what holds the row to two lines.
+- Same two-line shape on **Accounts** and **Recurring**; their text buttons became Home's bare icon buttons (with `aria-label`s).
+- **Type contrast:** metadata down, primary values up — descriptions/amounts and account/subscription names up one step, type and category chips to `text-[9px]`, the Summary per-category count to `text-[9px]`/80% so it reads as a footnote.
+- Headers tightened uniformly (`mb-12 → mb-6`, titles and hero totals down one step, rows `py-2.5 px-3`). **Settings is the deliberate exception** at `text-4xl md:text-5xl`, so it out-weighs its section labels.
+- **Summary/Account year+month filters are side by side at every width**; stacking two short values cost a full row. **Settings category lists collapse by default** — together they ran past a phone screen and are rarely edited. Collapsing clears any in-progress rename, which would otherwise reappear on the next expand.
+
+**Native header wasted a band of screen.** `body.is-native header` had `padding-top: calc(1.5rem + env(safe-area-inset-top))` — the 1.5rem sat *on top of* the inset, pushing the title ~24px down. Now `0.25rem`, plus `main` `pt-8 → pt-4` under `md`: ~40px reclaimed on every page.
+
+**Light theme rehued.** M3's light neutrals derive from the orange seed but lean red, reading pink at those tones. The `html.light` ramp is now warm orange (`--c-background`/`--c-surface`/`--c-surface-bright` `#fff8f6 → #fff6eb`, container/variant/dim steps and `--c-outline-variant` to match). Text tokens unchanged (still AA); dark theme untouched.
+
+**Modal backdrops are now a scrim** (`bg-surface/90 → bg-on-surface/40`, all three copies). In light mode `--c-surface` equals `--c-background`, so panel, backdrop, and page behind were one flat colour separated only by a hairline.
+
+**Tapping a row opens a read-only detail view.** New `TransactionDetailModal.vue` (wraps `BaseModal`) lists the same fields as the edit form — type, amount, description, date/time, account, category, or from/to for transfers — with no inputs. `TransactionRow` emits `select` on row click; the edit/delete buttons `@click.stop` so they stay actions on the row rather than a way into the detail view. View state lives in `useTransactionModals`, so Home, Search, Summary, and Account views all get it from the same place. With the detail view available, **Home's rows dropped the category chip** (`:showCategory="false"`) — it was the least-scanned item on an already dense row. The row's description widens to `md:col-span-6` when the chip is hidden so the desktop grid still totals 12.
+
+**Verified:** `npm run build` clean (only the pre-existing font/bundle warnings), `npx cap sync` run. Functional testing was manual on-device — flows, share intent + remount guard, and a modal regression sweep passed. The camera path was checked only for "opens the camera and populates the filename"; no physical receipt was scanned through it.
+
 ## Status update — 2026-07-18 (fourth pass: 1.14 decision, 3.7, 4.5, project rename)
 
 **Done in this pass:**
@@ -53,7 +82,7 @@ Audit date: 2026-07-17. Reference notes for future fixes. File/line refs are fro
 - **§5** — `get_account_balances` uses one SQL GROUP BY; App.vue no longer double-fetches transactions on mount; hardcoded `#34d399` income green replaced by a themed `income` token.
 - **Theme system rebuilt** — palettes live as CSS variables in `src/assets/main.css` (`:root` dark default, `html.light` overrides), Tailwind colors point at the vars with alpha support. `ThemeSwitcher` restored in the header (Material Symbols sun/moon), `themeStore` defaults to dark, `index.html` applies the saved theme pre-mount. Light palette = M3 light scheme for the same orange seed, keeping #ff6b00 as accent. Screenshot comparison: https://claude.ai/code/artifact/0e222de1-24f9-4689-b742-8251155f45b4
 
-**Still open (as of 2026-07-18, after the fourth pass):** 3.8 (no automated tests), §6 remaining features (CSV export, backup/restore). Optional: subset the 3.9 MB Material Symbols variable font to only the ~22 icons used; migrate `SearchModal`/`ConfirmDeleteModal` onto `BaseModal` if it ever grows `align`/`padded`/header-slot props (deliberately skipped — see fourth pass). 1.14 is closed as won't-fix; 3.7 and 4.5 are done.
+**Still open (as of 2026-07-22, after the fifth pass):** 3.8 (no automated tests — still the biggest gap; the fifth pass was verified entirely by hand on-device), §6 remaining features (CSV export, backup/restore). Optional: subset the 3.9 MB Material Symbols variable font to only the ~22 icons used; migrate `SearchModal`/`ConfirmDeleteModal` onto `BaseModal` if it ever grows `align`/`padded`/header-slot props (deliberately skipped — see fourth pass; note the fifth pass had to hand-edit the backdrop line in all three copies, which is the cost of that decision showing up). 1.14 is closed as won't-fix; 3.7 and 4.5 are done.
 
 ---
 

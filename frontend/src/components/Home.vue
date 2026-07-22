@@ -1,185 +1,124 @@
 <template>
   <div class="w-full">
-    <!-- Header Section for Page -->
-    <section class="mb-12">
-      <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Scan & Parse</h2>
-      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
-    </section>
+    <!-- Primary actions. Scanning and manual entry are actions, not page
+         content, so they live behind these cards rather than as always-open
+         forms — the page is a ledger first. -->
+    <section class="grid grid-cols-2 gap-3 mb-5">
+      <button @click="startScanFlow" class="border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 relative flex items-center gap-3 text-left hover:bg-primary/5 transition-colors">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
+        <span class="material-symbols-outlined text-[22px] text-primary-container">photo_camera</span>
+        <span class="font-headline text-sm text-on-surface uppercase tracking-tight leading-tight">Scan<br>Receipt</span>
+      </button>
 
-    <!-- Upload Section -->
-    <section class="mb-12 border border-outline-variant/30 bg-surface-container-lowest p-6 md:p-8 relative">
-      <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container"></div>
-      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Upload Document</h3>
-
-      <div class="flex flex-col md:flex-row gap-6 items-start md:items-center w-full mt-4">
-        <input type="file" @change="handleFileUpload" ref="fileInput" id="file-upload" class="hidden">
-        <label for="file-upload" class="border border-outline text-on-surface px-6 py-3 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors cursor-pointer flex items-center gap-2 w-fit">
-          <span class="material-symbols-outlined text-[18px]">folder</span>
-          Select Source
-        </label>
-        <span class="font-body text-sm text-on-surface-variant font-mono">{{ selectedFile ? selectedFile.name : 'NO_FILE_SELECTED' }}</span>
-      </div>
-
-      <div class="mt-6 flex flex-col items-start w-full">
-        <button @click="uploadImage" :disabled="!selectedFile || isLoading" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-8 py-4 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ isLoading ? 'Processing...' : 'Execute Scan' }}
-        </button>
-        <div v-if="scanMessage" class="mt-4 flex items-center gap-3 border px-4 py-3 w-full" :class="scanMessageType === 'error' ? 'border-error/40 bg-error/5' : scanMessageType === 'success' ? 'border-primary-container/40 bg-primary-container/5' : 'border-outline-variant/40 bg-surface-container-lowest'">
-          <span class="material-symbols-outlined text-[16px]" :class="scanMessageType === 'error' ? 'text-error' : scanMessageType === 'success' ? 'text-primary-container' : 'text-on-surface-variant'">{{ scanMessageType === 'error' ? 'error' : scanMessageType === 'success' ? 'check_circle' : 'info' }}</span>
-          <p class="font-label text-xs uppercase tracking-widest" :class="scanMessageType === 'error' ? 'text-error' : scanMessageType === 'success' ? 'text-primary-container' : 'text-on-surface-variant'">{{ scanMessage }}</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Manual Entry Section -->
-    <section class="mb-12 border-t border-outline-variant/20 pt-8">
-      <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight mb-6">Manual Log</h3>
-
-      <form @submit.prevent="addManualTransaction" class="flex flex-col gap-6">
-        <!-- Type Selection -->
-        <div class="flex gap-2">
-          <button type="button" @click="manualForm.type = 'expense'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'expense' ? 'border-error text-error bg-error/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Expense</button>
-          <button type="button" @click="manualForm.type = 'income'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'income' ? 'border-primary-container text-primary-container bg-primary-container/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Income</button>
-          <button type="button" @click="manualForm.type = 'transfer'" :class="['border px-6 py-2 font-label text-xs uppercase tracking-widest transition-colors flex-1', manualForm.type === 'transfer' ? 'border-tertiary text-tertiary bg-tertiary/10' : 'border-outline-variant/50 text-on-surface-variant hover:border-outline']">Transfer</button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="flex flex-col gap-2">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Date</label>
-            <div class="relative w-full">
-              <input type="text" :value="formattedDateDisplay" readonly class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full pointer-events-none">
-              <input type="date" v-model="manualForm.date" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay">
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Time</label>
-            <input type="time" v-model="manualForm.time" step="1" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Amount (RM)</label>
-            <input type="number" v-model.number="manualForm.amount" step="0.01" @wheel="$event.target.blur()" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-          </div>
-
-          <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Description</label>
-            <input type="text" v-model.trim="manualForm.description" required class="bg-transparent border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">{{ manualForm.type === 'transfer' ? 'From Account' : 'Account' }}</label>
-            <select v-model="manualForm.account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-              <option :value="null">Unassigned</option>
-              <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
-            </select>
-          </div>
-
-          <div class="flex flex-col gap-2" v-if="manualForm.type !== 'transfer'">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">Category</label>
-            <select v-model="manualForm.category" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-              <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
-          </div>
-
-          <div class="flex flex-col gap-2" v-if="manualForm.type === 'transfer'">
-            <label class="font-label text-xs text-on-surface-variant uppercase tracking-widest">To Account</label>
-            <select v-model="manualForm.to_account_id" class="bg-surface border-0 border-b border-outline-variant focus:border-primary-container focus:ring-0 px-0 py-2 text-on-surface font-body rounded-none outline-none w-full">
-              <option :value="null">Select Account</option>
-              <option v-for="acc in accounts" :key="acc.id" :value="acc.id" :disabled="acc.id === manualForm.account_id">{{ acc.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex flex-col items-start gap-4">
-          <button type="submit" :disabled="isLoading" class="bg-outline-variant text-on-surface font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-outline transition-colors disabled:opacity-50 mt-4">
-            {{ isLoading ? 'Committing...' : 'Commit Log' }}
-          </button>
-          <div v-if="manualMessage" class="flex items-center gap-3 border px-4 py-3 w-full" :class="manualMessageType === 'error' ? 'border-error/40 bg-error/5' : 'border-primary-container/40 bg-primary-container/5'">
-            <span class="material-symbols-outlined text-[16px]" :class="manualMessageType === 'error' ? 'text-error' : 'text-primary-container'">{{ manualMessageType === 'error' ? 'error' : 'check_circle' }}</span>
-            <p class="font-label text-xs uppercase tracking-widest" :class="manualMessageType === 'error' ? 'text-error' : 'text-primary-container'">{{ manualMessage }}</p>
-          </div>
-        </div>
-      </form>
+      <button @click="startManualFlow" class="border border-outline-variant/30 bg-surface-container-lowest px-4 py-3 relative flex items-center gap-3 text-left hover:bg-primary/5 transition-colors">
+        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-outline"></div>
+        <span class="material-symbols-outlined text-[22px] text-on-surface-variant">edit_note</span>
+        <span class="font-headline text-sm text-on-surface uppercase tracking-tight leading-tight">Manual<br>Log</span>
+      </button>
     </section>
 
     <!-- Recent Transactions -->
-    <section class="flex flex-col border-t border-outline-variant/20 pt-8">
-      <div class="flex justify-between items-end mb-4">
-        <h3 class="font-headline text-xl md:text-2xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
-        <router-link to="/all" class="font-label text-xs text-primary-container uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1">
+    <section class="flex flex-col border-t border-outline-variant/20 pt-5">
+      <div class="flex justify-between items-baseline gap-3 mb-3">
+        <div class="flex items-baseline gap-2 min-w-0">
+          <h3 class="font-headline text-lg md:text-xl text-on-surface uppercase tracking-tight">Recent Logs</h3>
+        </div>
+        <router-link to="/all" class="font-label text-xs text-primary-container uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1 whitespace-nowrap">
           View Summary <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
         </router-link>
       </div>
 
-      <!-- Date range filter -->
-      <div class="flex items-center gap-2 flex-wrap mb-6">
-        <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 flex items-center gap-2 hover:border-primary/50 transition-colors">
-          <span class="material-symbols-outlined text-[16px] text-on-surface-variant">calendar_today</span>
-          <span class="font-body text-xs font-mono" :class="rangeStart ? 'text-on-surface' : 'text-on-surface-variant'">{{ rangeStartDisplay || 'FROM' }}</span>
-          <input type="date" v-model="rangeStart" :max="rangeEnd || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter from date">
+      <!-- Date range filter. Defaults to the last 3 days and always shows real
+           dates, so the range is legible without opening a picker. -->
+      <div class="flex items-end gap-2 mb-4">
+        <div class="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">From</span>
+          <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-2.5 py-1.5 flex items-center gap-1.5 hover:border-primary/50 transition-colors">
+            <span class="material-symbols-outlined text-[15px] text-on-surface-variant">calendar_today</span>
+            <span class="font-body text-xs font-mono text-on-surface whitespace-nowrap">{{ rangeStartDisplay }}</span>
+            <input type="date" v-model="rangeStart" :max="rangeEnd || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter from date">
+          </div>
         </div>
-        <span class="font-label text-xs text-on-surface-variant">&mdash;</span>
-        <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 flex items-center gap-2 hover:border-primary/50 transition-colors">
-          <span class="material-symbols-outlined text-[16px] text-on-surface-variant">event</span>
-          <span class="font-body text-xs font-mono" :class="rangeEnd ? 'text-on-surface' : 'text-on-surface-variant'">{{ rangeEndDisplay || 'TO' }}</span>
-          <input type="date" v-model="rangeEnd" :min="rangeStart || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter to date">
+
+        <span class="font-label text-xs text-on-surface-variant pb-2">&mdash;</span>
+
+        <div class="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">To</span>
+          <div class="relative border border-outline-variant/30 bg-surface-container-lowest px-2.5 py-1.5 flex items-center gap-1.5 hover:border-primary/50 transition-colors">
+            <span class="material-symbols-outlined text-[15px] text-on-surface-variant">event</span>
+            <span class="font-body text-xs font-mono text-on-surface whitespace-nowrap">{{ rangeEndDisplay }}</span>
+            <input type="date" v-model="rangeEnd" :min="rangeStart || undefined" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer date-input-overlay" aria-label="Filter to date">
+          </div>
         </div>
-        <button v-if="hasRange" @click="clearRange" class="text-on-surface-variant hover:text-error transition-colors p-1 flex items-center" aria-label="Clear date range">
-          <span class="material-symbols-outlined text-[18px]">close</span>
+
+        <button @click="resetRange" class="text-on-surface-variant hover:text-primary transition-colors p-1 flex items-center shrink-0" aria-label="Reset date range">
+          <span class="material-symbols-outlined text-[18px]">refresh</span>
         </button>
-        <span v-if="hasRange" class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest ml-auto">{{ displayedTransactions.length }} logs</span>
       </div>
 
-      <div class="hidden md:grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 bg-surface-container-lowest">
+      <div class="hidden md:grid grid-cols-12 gap-4 py-2.5 px-3 border-b border-outline-variant/20 bg-surface-container-lowest">
         <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Date</div>
-        <div class="col-span-4 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Description</div>
-        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Category</div>
+        <div class="col-span-6 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Description</div>
         <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Amount</div>
         <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
       </div>
 
-      <div v-if="displayedTransactions.length === 0" class="py-12 text-center border-b border-outline-variant/20">
-        <p class="font-body text-on-surface-variant">{{ hasRange ? 'No logs in the selected range.' : 'No logs found.' }}</p>
+      <div v-if="displayedTransactions.length === 0" class="py-10 text-center border-b border-outline-variant/20">
+        <p class="font-body text-on-surface-variant">No logs in the selected range.</p>
       </div>
 
-      <div v-else class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative" v-for="transaction in displayedTransactions" :key="transaction.id">
-        <div class="absolute left-0 top-0 bottom-0 w-[2px] opacity-0 group-hover:opacity-100 transition-opacity" :class="transaction.type === 'expense' ? 'bg-error' : (transaction.type === 'transfer' ? 'bg-tertiary' : 'bg-primary-container')"></div>
-
-        <div class="col-span-1 md:col-span-2 flex flex-col md:block">
-          <div class="font-body text-sm text-on-surface font-mono">{{ transaction.date }}</div>
-          <div class="font-label text-[10px] text-on-surface-variant tracking-widest">{{ transaction.time }}</div>
-        </div>
-
-        <div class="col-span-1 md:col-span-4">
-          <div class="font-headline text-md text-on-surface tracking-tight">{{ transaction.description }}</div>
-        </div>
-
-        <div class="col-span-1 md:col-span-2 flex items-center">
-          <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest" v-if="transaction.category">{{ transaction.category }}</span>
-        </div>
-
-        <div class="col-span-1 md:col-span-2 flex md:justify-end items-center">
-          <span class="font-headline text-base md:text-lg tracking-tighter" :class="transaction.type === 'expense' ? 'text-error' : (transaction.type === 'transfer' ? 'text-on-surface' : 'text-primary-container')">{{ transaction.amount }}</span>
-        </div>
-
-        <div class="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0 transition-opacity">
-          <button @click="openEditModal(transaction)" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
-          <button @click="requestDelete(transaction.id)" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1"><span class="material-symbols-outlined text-[18px]">delete</span></button>
-        </div>
-      </div>
+      <TransactionRow
+        v-else
+        v-for="transaction in displayedTransactions"
+        :key="transaction.id"
+        :transaction="transaction"
+        :showCategory="false"
+        @select="openViewModal"
+        @edit="openEditModal"
+        @delete="requestDelete"
+      />
     </section>
   </div>
 
+  <!-- Capture/entry flow: scan -> form -> result. Only one step is mounted at
+       a time; `flowSource` decides where cancel and "another" lead back to. -->
+  <ScanModal
+    v-if="flow === 'scan'"
+    :isLoading="isLoading"
+    :status="scanStatus"
+    @close="closeFlow"
+    @scan="uploadImage"
+  />
+
   <TransactionFormModal
-    v-if="isConfirmationModalVisible"
-    :transaction="scannedData"
+    v-if="flow === 'form'"
+    :transaction="formSeed"
     :categories="categories"
     :accounts="accounts"
-    title="Confirm Details"
+    :title="flowSource === 'scan' ? 'Confirm Details' : 'Manual Log'"
     submitLabel="Commit"
-    @close="handleCancelConfirmation"
-    @save="handleSaveConfirmation"
+    :cancelLabel="flowSource === 'scan' ? 'Cancel' : 'Back'"
+    @close="cancelForm"
+    @save="commitTransaction"
+  />
+
+  <ResultModal
+    v-if="flow === 'result'"
+    :status="result.status"
+    :title="result.title"
+    :message="result.message"
+    :primaryLabel="result.primaryLabel"
+    :secondaryLabel="result.secondaryLabel"
+    @close="closeFlow"
+    @primary="result.onPrimary"
+    @secondary="closeFlow"
+  />
+
+  <TransactionDetailModal
+    v-if="transactionToView"
+    :transaction="transactionToView"
+    :accounts="accounts"
+    @close="closeViewModal"
   />
 
   <TransactionFormModal
@@ -206,6 +145,10 @@ import { useIntent, SendIntent } from '../composables/useIntent';
 import { useTransactionModals } from '../composables/useTransactionModals';
 import TransactionFormModal from '../components/TransactionFormModal.vue';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
+import TransactionDetailModal from '../components/TransactionDetailModal.vue';
+import ScanModal from '../components/ScanModal.vue';
+import ResultModal from '../components/ResultModal.vue';
+import TransactionRow from '../components/TransactionRow.vue';
 import axios from 'axios';
 import { logger } from '../utils/logger';
 
@@ -215,6 +158,10 @@ export default {
   components: {
     TransactionFormModal,
     ConfirmDeleteModal,
+    TransactionDetailModal,
+    ScanModal,
+    ResultModal,
+    TransactionRow,
   },
   setup() {
     // --- COMPOSABLES ---
@@ -224,18 +171,20 @@ export default {
     const modals = useTransactionModals({ afterChange: fetchAccounts });
 
     // --- STATE ---
-    const selectedFile = ref(null);
     const isLoading = ref(false);
     const isProcessingIntent = ref(false);
-    const scanMessage = ref('');
-    const scanMessageType = ref('');
-    const manualMessage = ref('');
-    const manualMessageType = ref('');
+
+    // Capture/entry flow. `flow` is the visible step, `flowSource` records how
+    // it started so the same form and result components serve both paths.
+    const flow = ref(null);        // null | 'scan' | 'form' | 'result'
+    const flowSource = ref(null);  // 'scan' | 'manual'
+    const formSeed = ref(null);    // initial values handed to TransactionFormModal
+    const result = ref(null);
+    const scanStatus = ref('');
 
     // Local date (not toISOString, which is UTC and gives yesterday's date before 8 AM in MYT)
-    const localDateString = () => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const localDateString = (date = new Date()) => {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
     const makeEmptyForm = () => ({
@@ -249,39 +198,21 @@ export default {
       type: 'expense'
     });
 
-    const manualForm = ref(makeEmptyForm());
-    const scannedData = ref(null);
-    const isConfirmationModalVisible = ref(false);
-    const fileInput = ref(null); // To reference the file input element
-
-    // --- COMPUTED ---
-    const formattedDateDisplay = computed(() => {
-        if (!manualForm.value.date) return '';
-        const parts = manualForm.value.date.split('-');
-        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        return manualForm.value.date;
-    });
-
-    const availableCategories = computed(() => {
-        if (!categories.value) return [];
-        // If categories is still an array (legacy), return it
-        if (Array.isArray(categories.value)) return categories.value;
-
-        // Return based on type
-        const type = manualForm.value.type;
-        if (type === 'income') return categories.value.income || [];
-        if (type === 'transfer') return []; // Should be hidden anyway
-        return categories.value.expense || [];
-    });
-
     // --- DATE RANGE FILTER (Recent Logs) ---
     // Native date inputs hold YYYY-MM-DD; the API serves DD/MM/YYYY.
-    const rangeStart = ref('');
-    const rangeEnd = ref('');
-    const hasRange = computed(() => !!(rangeStart.value || rangeEnd.value));
-    const clearRange = () => {
-      rangeStart.value = '';
-      rangeEnd.value = '';
+    // Defaults to a 3-day window (today and the two days before it).
+    const DEFAULT_RANGE_DAYS = 3;
+    const defaultRangeStart = () => {
+      const start = new Date();
+      start.setDate(start.getDate() - (DEFAULT_RANGE_DAYS - 1));
+      return localDateString(start);
+    };
+
+    const rangeStart = ref(defaultRangeStart());
+    const rangeEnd = ref(localDateString());
+    const resetRange = () => {
+      rangeStart.value = defaultRangeStart();
+      rangeEnd.value = localDateString();
     };
 
     const isoToDisplay = (iso) => {
@@ -292,7 +223,8 @@ export default {
     const rangeEndDisplay = computed(() => isoToDisplay(rangeEnd.value));
 
     const displayedTransactions = computed(() => {
-      if (!hasRange.value) return transactions.value.slice(0, 5);
+      // Bounds are seeded on load, but the native picker lets a user clear one;
+      // an empty bound means "open-ended on that side".
       const start = rangeStart.value ? rangeStart.value.replace(/-/g, '') : '';
       const end = rangeEnd.value ? rangeEnd.value.replace(/-/g, '') : '99999999';
       return transactions.value.filter(tx => {
@@ -303,127 +235,132 @@ export default {
       });
     });
 
-    // --- METHODS ---
-    const handleFileUpload = (event) => {
-      selectedFile.value = event.target.files[0];
-      scanMessage.value = '';
-      scanMessageType.value = '';
+    // --- FLOW CONTROL ---
+    const startScanFlow = () => {
+      flowSource.value = 'scan';
+      scanStatus.value = '';
+      flow.value = 'scan';
     };
 
-    const uploadImage = async () => {
-      if (!selectedFile.value) return;
+    const startManualFlow = () => {
+      flowSource.value = 'manual';
+      formSeed.value = makeEmptyForm();
+      flow.value = 'form';
+    };
+
+    const closeFlow = () => {
+      flow.value = null;
+      flowSource.value = null;
+      formSeed.value = null;
+      result.value = null;
+      scanStatus.value = '';
+      // A shared image is finished with once the flow is dismissed, however it
+      // ended — otherwise it re-triggers when Home remounts.
+      consumeIntent();
+    };
+
+    // Scan cancel steps back to the picker; manual cancel leaves the flow.
+    const cancelForm = () => {
+      if (flowSource.value === 'scan') {
+        formSeed.value = null;
+        scanStatus.value = '';
+        flow.value = 'scan';
+      } else {
+        closeFlow();
+      }
+    };
+
+    const showResult = (payload) => {
+      result.value = payload;
+      flow.value = 'result';
+    };
+
+    // --- METHODS ---
+    const uploadImage = async (file) => {
+      if (!file) return;
       isLoading.value = true;
-      scanMessage.value = 'Scanning document...';
-      scanMessageType.value = 'info';
+      scanStatus.value = 'Scanning document...';
       const formData = new FormData();
-      formData.append('file', selectedFile.value);
+      formData.append('file', file);
       try {
         const response = await axios.post('/api/upload', formData);
         const dateParts = String(response.data.date || '').split('/');
         const formattedDate = dateParts.length === 3 ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : localDateString();
         const numericAmount = parseFloat(String(response.data.amount || '').replace('RM', '').trim());
-        scannedData.value = {
+        formSeed.value = {
           date: formattedDate,
           time: response.data.time || '00:00:00',
           amount: isNaN(numericAmount) ? 0 : numericAmount,
           category: 'Uncategorized'
         };
-        isConfirmationModalVisible.value = true;
-        scanMessage.value = '';
-        scanMessageType.value = '';
+        scanStatus.value = '';
+        flow.value = 'form';
       } catch (error) {
-        scanMessage.value = error.response?.data?.error || 'Error scanning file.';
-        scanMessageType.value = 'error';
-        selectedFile.value = null;
-        if (fileInput.value) fileInput.value.value = null;
+        showResult({
+          status: 'error',
+          title: 'Scan Failed',
+          message: error.response?.data?.error || 'Error scanning file.',
+          primaryLabel: 'Try Again',
+          secondaryLabel: 'Close',
+          onPrimary: startScanFlow
+        });
       } finally {
         isLoading.value = false;
       }
     };
 
-    const handleSaveConfirmation = async (transactionPayload) => {
+    const commitTransaction = async (payload) => {
       isLoading.value = true;
       try {
-        if (transactionPayload.type === 'transfer') {
-            const transferPayload = {
-                date: transactionPayload.date,
-                time: transactionPayload.time,
-                description: transactionPayload.description || 'Transfer',
-                amount: transactionPayload.amount,
-                from_account_id: transactionPayload.account_id,
-                to_account_id: transactionPayload.to_account_id
-            };
-            await axios.post('/api/transactions/transfer', transferPayload);
-        } else {
-            await axios.post('/api/transactions/manual', transactionPayload);
-        }
-        scanMessage.value = 'Transaction saved from scan.';
-        scanMessageType.value = 'success';
-        setTimeout(() => { scanMessage.value = ''; scanMessageType.value = ''; }, 4000);
-        await fetchTransactions();
-        await fetchAccounts();
-      } catch (error) {
-        scanMessage.value = 'Failed to save scanned transaction.';
-        scanMessageType.value = 'error';
-      } finally {
-        isLoading.value = false;
-        isConfirmationModalVisible.value = false;
-        selectedFile.value = null;
-        scannedData.value = null;
-        consumeIntent();
-        if (fileInput.value) fileInput.value.value = null;
-      }
-    };
-
-    const handleCancelConfirmation = () => {
-      isConfirmationModalVisible.value = false;
-      selectedFile.value = null;
-      scannedData.value = null;
-      scanMessage.value = '';
-      scanMessageType.value = '';
-      consumeIntent();
-      if (fileInput.value) fileInput.value.value = null;
-    };
-
-    const addManualTransaction = async () => {
-      isLoading.value = true;
-      try {
-        const payload = { ...manualForm.value };
-        // Ensure date is dd/mm/yyyy
-        const parts = payload.date.split('-');
-        payload.date = `${parts[2]}/${parts[1]}/${parts[0]}`;
-
         if (payload.type === 'transfer') {
-            if (!payload.account_id || !payload.to_account_id) {
-                alert("Please select both From and To accounts."); // Simple validation
-                isLoading.value = false;
-                return;
-            }
-            // Map fields for transfer endpoint
-            const transferPayload = {
-                date: payload.date,
-                time: payload.time,
-                description: payload.description || 'Transfer',
-                amount: payload.amount,
-                from_account_id: payload.account_id,
-                to_account_id: payload.to_account_id
-            };
-            await axios.post('/api/transactions/transfer', transferPayload);
+          // The transfer endpoint takes from/to rather than a single account.
+          await axios.post('/api/transactions/transfer', {
+            date: payload.date,
+            time: payload.time,
+            description: payload.description || 'Transfer',
+            amount: payload.amount,
+            from_account_id: payload.account_id,
+            to_account_id: payload.to_account_id
+          });
         } else {
-            await axios.post('/api/transactions/manual', payload);
+          await axios.post('/api/transactions/manual', payload);
         }
 
         await fetchTransactions();
         await fetchAccounts();
 
-        manualForm.value = makeEmptyForm();
-        manualMessage.value = 'Transaction committed successfully.';
-        manualMessageType.value = 'success';
-        setTimeout(() => { manualMessage.value = ''; manualMessageType.value = ''; }, 4000);
-      } catch (err) {
-        console.error(err);
-        manualMessage.value = 'Failed to commit transaction.';
-        manualMessageType.value = 'error';
+        const amount = Number(payload.amount);
+        const summary = [
+          `RM ${isNaN(amount) ? payload.amount : amount.toFixed(2)}`,
+          payload.type === 'transfer' ? 'Transfer' : payload.category
+        ].filter(Boolean).join(' · ');
+
+        const wasScan = flowSource.value === 'scan';
+        showResult({
+          status: 'success',
+          title: 'Log Committed',
+          message: summary,
+          primaryLabel: wasScan ? 'Scan Another' : 'Add Another',
+          secondaryLabel: 'Done',
+          onPrimary: wasScan ? startScanFlow : startManualFlow
+        });
+        consumeIntent();
+      } catch (error) {
+        logger.error('Failed to commit transaction: ' + error.message, 'Home.vue');
+        const seed = payload;
+        showResult({
+          status: 'error',
+          title: 'Commit Failed',
+          message: error.response?.data?.error || 'Failed to save transaction.',
+          primaryLabel: 'Back To Form',
+          secondaryLabel: 'Close',
+          // Hand the entered values back so nothing is retyped. The form takes
+          // DD/MM/YYYY or YYYY-MM-DD, so the payload can go straight back in.
+          onPrimary: () => {
+            formSeed.value = { ...seed };
+            flow.value = 'form';
+          }
+        });
       } finally {
         isLoading.value = false;
       }
@@ -458,8 +395,11 @@ export default {
       try {
         isProcessingIntent.value = true;
         isLoading.value = true;
-        scanMessage.value = 'Loading shared image...';
-        scanMessageType.value = 'info';
+        // Open the scan modal immediately so the shared image visibly lands
+        // in the same flow the manual path uses.
+        flowSource.value = 'scan';
+        flow.value = 'scan';
+        scanStatus.value = 'Loading shared image...';
 
         // Clear intent data early so we don't re-trigger from clearing it later
         clearIntentData();
@@ -468,15 +408,15 @@ export default {
         let blob;
         if (sharedUrl.startsWith('content://')) {
           logger.info('Detected content:// URI. Using native readContentUri.', 'Home.vue');
-          const result = await SendIntent.readContentUri({ uri: sharedUrl });
-          if (result && result.data) {
-              const byteCharacters = atob(result.data);
+          const uriResult = await SendIntent.readContentUri({ uri: sharedUrl });
+          if (uriResult && uriResult.data) {
+              const byteCharacters = atob(uriResult.data);
               const byteNumbers = new Array(byteCharacters.length);
               for (let i = 0; i < byteCharacters.length; i++) {
                   byteNumbers[i] = byteCharacters.charCodeAt(i);
               }
               const byteArray = new Uint8Array(byteNumbers);
-              blob = new Blob([byteArray], { type: result.mimeType || 'image/jpeg' });
+              blob = new Blob([byteArray], { type: uriResult.mimeType || 'image/jpeg' });
               logger.info('Blob created from Base64. Size: ' + blob.size, 'Home.vue');
           } else {
               throw new Error('Native readContentUri returned no data');
@@ -492,17 +432,22 @@ export default {
           logger.info('Blob fetched successfully via fetch(). Size: ' + blob.size, 'Home.vue');
         }
 
-        // Create a file object from the blob
-        selectedFile.value = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
+        const sharedFile = new File([blob], "shared_receipt.jpg", { type: blob.type || 'image/jpeg' });
 
         // Automatically trigger upload and scan
         logger.info('Triggering uploadImage after intent processing', 'Home.vue');
-        await uploadImage();
+        await uploadImage(sharedFile);
       } catch (error) {
         logger.error('Error handling shared image: ' + error.message, 'Home.vue');
-        scanMessage.value = 'Failed to load shared image: ' + error.message;
-        scanMessageType.value = 'error';
         isLoading.value = false;
+        showResult({
+          status: 'error',
+          title: 'Share Failed',
+          message: 'Failed to load shared image: ' + error.message,
+          primaryLabel: 'Try Again',
+          secondaryLabel: 'Close',
+          onPrimary: startScanFlow
+        });
       } finally {
         isProcessingIntent.value = false;
       }
@@ -517,34 +462,28 @@ export default {
 
     // --- RETURN ---
     return {
-      selectedFile,
       transactions,
       isLoading,
-      scanMessage,
-      scanMessageType,
-      manualMessage,
-      manualMessageType,
-      scannedData,
-      isConfirmationModalVisible,
-      fileInput,
+      flow,
+      flowSource,
+      formSeed,
+      result,
+      scanStatus,
       displayedTransactions,
       rangeStart,
       rangeEnd,
       rangeStartDisplay,
       rangeEndDisplay,
-      hasRange,
-      clearRange,
-      manualForm,
-      formattedDateDisplay,
+      resetRange,
       categories,
       accounts,
-      handleFileUpload,
+      startScanFlow,
+      startManualFlow,
+      closeFlow,
+      cancelForm,
       uploadImage,
-      handleSaveConfirmation,
-      handleCancelConfirmation,
-      addManualTransaction,
+      commitTransaction,
       fetchAccounts,
-      availableCategories,
       ...modals
     };
   }

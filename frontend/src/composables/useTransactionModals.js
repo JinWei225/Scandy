@@ -12,6 +12,15 @@ export function useTransactionModals({ afterChange } = {}) {
   const selectedCategoryData = ref({ name: '', transactions: [] });
   const isConfirmDeleteVisible = ref(false);
   const pendingDeleteId = ref(null);
+  const transactionToView = ref(null);
+
+  // Read-only view opened by tapping a row (TransactionRow's `select`).
+  const openViewModal = (transaction) => {
+    transactionToView.value = transaction;
+  };
+  const closeViewModal = () => {
+    transactionToView.value = null;
+  };
 
   const openEditModal = (transaction) => {
     transactionToEdit.value = transaction;
@@ -70,6 +79,9 @@ export function useTransactionModals({ afterChange } = {}) {
     isDetailModalVisible,
     selectedCategoryData,
     isConfirmDeleteVisible,
+    transactionToView,
+    openViewModal,
+    closeViewModal,
     openEditModal,
     handleSaveTransaction,
     requestDelete,

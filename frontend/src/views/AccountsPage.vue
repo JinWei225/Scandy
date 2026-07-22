@@ -1,13 +1,13 @@
 <template>
   <div class="w-full">
     <!-- Header Section -->
-    <section class="mb-12">
-      <h2 class="font-headline text-3xl md:text-4xl font-light text-on-surface uppercase tracking-tight mb-2">Accounts</h2>
-      <div class="h-px w-full bg-outline-variant opacity-20 mt-4 mb-8"></div>
+    <section class="mb-6">
+      <h2 class="font-headline text-2xl md:text-3xl font-light text-on-surface uppercase tracking-tight mb-2">Accounts</h2>
+      <div class="h-px w-full bg-outline-variant opacity-20 mt-3 mb-5"></div>
       <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
           <p class="font-label text-sm text-on-surface-variant uppercase tracking-[0.1em] mb-1">Total Net Balance</p>
-          <p class="font-headline text-4xl md:text-6xl text-primary-container tracking-tighter">RM {{ totalBalance.toFixed(2) }}</p>
+          <p class="font-headline text-3xl md:text-5xl text-primary-container tracking-tighter">RM {{ totalBalance.toFixed(2) }}</p>
         </div>
         <button @click="openAddModal" class="bg-primary-container text-on-primary font-headline uppercase font-bold text-sm tracking-widest px-6 py-3 hover:bg-primary transition-colors flex items-center gap-2 w-fit">
           <span class="material-symbols-outlined text-[18px]">add</span>
@@ -19,38 +19,45 @@
     <!-- Accounts Grid/List -->
     <section class="flex flex-col border-t border-outline-variant/20">
       <!-- List Header (Desktop) -->
-      <div class="hidden md:grid grid-cols-12 gap-4 py-4 px-4 border-b border-outline-variant/20 bg-surface-container-lowest">
-        <div class="col-span-4 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Institution / Alias</div>
+      <div class="hidden md:grid grid-cols-12 gap-4 py-2.5 px-3 border-b border-outline-variant/20 bg-surface-container-lowest">
+        <div class="col-span-5 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Institution / Alias</div>
         <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em]">Type</div>
         <div class="col-span-3 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Available Balance</div>
-        <div class="col-span-3 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
+        <div class="col-span-2 font-label text-xs text-on-surface-variant uppercase tracking-[0.1em] text-right">Actions</div>
       </div>
 
-      <!-- Item -->
-      <div class="group grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 py-6 md:py-4 px-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors items-center relative cursor-pointer" v-for="account in accounts" :key="account.id" @click="viewAccount(account)">
+      <!-- Item. Same two-line-on-mobile shape as TransactionRow: name and
+           balance lead, the type chip and actions sit underneath. -->
+      <div class="group grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 py-2.5 px-3 md:grid-cols-12 md:gap-4 border-b border-outline-variant/20 hover:bg-surface-container-lowest transition-colors relative cursor-pointer" v-for="account in accounts" :key="account.id" @click="viewAccount(account)">
         <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary-container opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div class="col-span-1 md:col-span-4 flex items-center gap-4">
-          <div class="w-10 h-10 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant bg-surface-container-high group-hover:border-primary/50 transition-colors">
-            <span class="material-symbols-outlined">{{ getAccountIcon(account.type) }}</span>
+
+        <div class="flex items-center gap-2.5 min-w-0 md:col-span-5 md:order-1">
+          <div class="w-8 h-8 shrink-0 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant bg-surface-container-high group-hover:border-primary/50 transition-colors">
+            <span class="material-symbols-outlined text-[18px]">{{ getAccountIcon(account.type) }}</span>
           </div>
-          <div>
-            <div class="font-headline text-base md:text-lg text-on-surface tracking-tight">{{ account.name }}</div>
-          </div>
+          <div class="font-headline text-lg md:text-xl text-on-surface tracking-tight truncate">{{ account.name }}</div>
         </div>
-        <div class="col-span-1 md:col-span-2 flex items-center md:items-start mt-2 md:mt-0">
-          <span class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 font-label text-[10px] text-on-surface uppercase tracking-widest">{{ account.type || 'Account' }}</span>
+
+        <div class="text-right md:col-span-3 md:order-3">
+          <span class="font-headline text-xl md:text-2xl tracking-tighter whitespace-nowrap" :class="{'text-error': (account.balance || 0) < 0, 'text-primary-container': (account.balance || 0) >= 0}">RM {{ (account.balance || 0).toFixed(2) }}</span>
         </div>
-        <div class="col-span-1 md:col-span-3 flex md:justify-end items-center mt-2 md:mt-0">
-          <span class="font-headline text-lg md:text-xl tracking-tighter" :class="{'text-error': (account.balance || 0) < 0, 'text-primary-container': (account.balance || 0) >= 0}">RM {{ (account.balance || 0).toFixed(2) }}</span>
+
+        <div class="flex items-center min-w-0 md:col-span-2 md:order-2">
+          <span class="px-1.5 py-0.5 bg-surface-container-high border border-outline-variant/20 font-label text-[9px] text-on-surface-variant uppercase tracking-widest truncate">{{ account.type || 'Account' }}</span>
         </div>
-        <div class="col-span-1 md:col-span-3 flex justify-end gap-2 mt-4 md:mt-0 transition-opacity">
-          <button @click.stop="editAccount(account)" class="border border-outline text-on-surface px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors">Manage</button>
-          <button @click.stop="requestDelete(account)" class="border border-error text-error px-4 py-2 font-label text-xs uppercase tracking-widest hover:bg-error/10 transition-colors">Delete</button>
+
+        <div class="flex justify-end gap-1 md:col-span-2 md:order-4">
+          <button @click.stop="editAccount(account)" aria-label="Manage account" class="text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center p-1">
+            <span class="material-symbols-outlined text-[16px] md:text-[18px]">edit</span>
+          </button>
+          <button @click.stop="requestDelete(account)" aria-label="Delete account" class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center p-1">
+            <span class="material-symbols-outlined text-[16px] md:text-[18px]">delete</span>
+          </button>
         </div>
       </div>
 
       <!-- Empty State -->
-      <div v-if="accounts.length === 0" class="py-12 text-center border-b border-outline-variant/20">
+      <div v-if="accounts.length === 0" class="py-10 text-center border-b border-outline-variant/20">
         <p class="font-body text-on-surface-variant">No entities found. Initialize one to proceed.</p>
       </div>
     </section>

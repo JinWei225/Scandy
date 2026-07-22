@@ -1,5 +1,8 @@
 <template>
-  <div class="fixed inset-0 bg-surface/90 backdrop-blur-md z-[100] flex justify-center items-center modal-inset-safe" @click.self="$emit('close')">
+  <!-- Scrim, not a surface tint: in the light theme --c-surface equals
+       --c-background, so a surface-coloured backdrop left the panel, the
+       backdrop, and the page behind it all one flat colour. -->
+  <div class="fixed inset-0 bg-on-surface/40 backdrop-blur-md z-[100] flex justify-center items-center modal-inset-safe" @click.self="$emit('close')">
     <div class="bg-surface border border-outline-variant/30 w-full p-5 sm:p-8 relative max-h-full flex flex-col" :class="maxWidthClass">
       <div class="flex justify-between items-start mb-4 sm:mb-6">
         <h2 class="font-headline text-xl sm:text-2xl text-primary-container uppercase tracking-tight">{{ title }}</h2>
