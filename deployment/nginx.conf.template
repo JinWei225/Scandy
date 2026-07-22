@@ -1,20 +1,24 @@
+# Template — deploy.sh substitutes __SCANDY_DIST__ with the real path to
+# frontend/dist and installs the result as scandy.conf. Do not edit the
+# installed copy; edit this file and re-run ./deployment/deploy.sh.
+
 server {
     listen 80;
-    server_name _;  # Accept any hostname (Tailscale IP)
-    
-    # Increase client body size for file uploads
+    server_name _;  # Accept any hostname (localhost, LAN IP, Tailscale IP)
+
+    # Receipt photos from a phone camera are easily several MB.
     client_max_body_size 10M;
 
-    # Serve frontend static files
+    # Serve the built frontend
     location / {
-        root /Users/jinwei/PyCharm Projects/Scandy/frontend/dist;
+        # Quoted so a project path containing spaces still parses.
+        root "__SCANDY_DIST__";
         try_files $uri $uri/ /index.html;
-        
-        # Add headers for better performance
+
         add_header Cache-Control "public, max-age=3600";
     }
 
-    # Proxy API requests to backend
+    # Proxy API requests to the Waitress backend
     location /api/ {
         proxy_pass http://localhost:5001/api/;
         proxy_http_version 1.1;
@@ -25,17 +29,15 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Timeouts for long-running requests (OCR processing) 
+
+        # OCR can take a while; the defaults (60s) would cut a scan short.
         proxy_read_timeout 300s;
         proxy_connect_timeout 300s;
         proxy_send_timeout 300s;
-        
+
         # Disable buffering for streaming responses
         proxy_buffering off;
     }
-    
-    # Error pages
+
     error_page 404 /index.html;
 }
-

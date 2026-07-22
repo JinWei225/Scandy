@@ -1,0 +1,98 @@
+# Scandy — self-hosted stack.
+#
+#   docker compose up -d
+#   open http://localhost:8080
+#
+# Receipt scanning runs on Ollama, so this works on Linux, Windows and Intel Macs.
+# (The native setup in the README uses MLX instead, which is faster but Apple
+# Silicon only.)
+#
+# Two ways to get Ollama, selected by the "bundled" profile:
+#
+#   docker compose --profile bundled up -d     run Ollama in this stack
+#   OLLAMA_HOST=... docker compose up -d       reuse an Ollama you already run
+#
+# With the bundled profile the model downloads in the background via ollama-pull;
+# everything except scanning is usable immediately.
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    image: scandy-frontend
+    ports:
+      - "${SCANDY_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    image: scandy-backend
+    environment:
+      OCR_BACKEND: ollama
+      # Defaults to the bundled service. Point it elsewhere to reuse your own
+      # Ollama, e.g. http://host.docker.internal:11434 for one installed on the host.
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
+      # Defaults live in ocr/ollama_backend.py; passed through so .env can override them.
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      OLLAMA_MAX_IMAGE_EDGE: ${OLLAMA_MAX_IMAGE_EDGE:-1280}
+      SCANDY_DATA_DIR: /data
+    volumes:
+      # Database, JSON files and uploads. Survives image rebuilds.
+      - scandy-data:/data
+    # Lets host.docker.internal resolve on Linux too, so pointing OLLAMA_HOST at an
+    # Ollama running on the host works the same way on every platform.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Deliberately no depends_on for ollama: the backend never talks to it at
+    # startup, and requiring it would break the external-Ollama setup where the
+    # bundled service does not exist at all.
+    restart: unless-stopped
+
+  # Only started with --profile bundled. Omit the profile to reuse your own Ollama.
+  ollama:
+    profiles: ["bundled"]
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    # Not published by default — only the backend needs it. Uncomment to inspect
+    # the model server from the host.
+    # ports:
+    #   - "11434:11434"
+    restart: unless-stopped
+
+  # One-shot: downloads the vision model, then exits. Deliberately not a
+  # dependency of backend or frontend, so a multi-gigabyte download does not
+  # block the app from starting. Until it finishes, scanning returns a clear
+  # "model not pulled yet" message and manual entry works normally.
+  ollama-pull:
+    profiles: ["bundled"]
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:0.8b}
+    entrypoint: ["/bin/sh", "-c"]
+    # $$ escapes the variable so compose passes it through and the container's
+    # shell expands it, rather than compose substituting it at parse time.
+    # List form (one element) so compose passes the script to sh -c intact
+    # instead of splitting it on whitespace.
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do
+          echo "waiting for ollama..."
+          sleep 2
+        done
+        echo "pulling $${OLLAMA_MODEL} (this can take a few minutes)..."
+        ollama pull "$${OLLAMA_MODEL}" && echo "model ready."
+    restart: "no"
+
+volumes:
+  scandy-data:
+  ollama-models:

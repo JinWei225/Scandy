@@ -1,0 +1,40 @@
+# Dependencies and build output — reinstalled/rebuilt inside the image
+node_modules
+frontend/node_modules
+frontend/dist
+.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+
+# Personal data — the container starts fresh on its own volume
+*.sqlite
+*.db
+backend/database.sqlite
+backend/accounts.json
+backend/subscriptions.json
+backend/categories.json
+backend/img
+*.log
+
+# Apple-only dependency set; the container installs docker/requirements.docker.txt
+backend/requirements.txt
+uv.lock
+
+# Compose reads .env on the host; it has no business inside an image
+.env
+
+# Repo and tooling noise
+.git
+.gitignore
+.github
+.vscode
+.idea
+.claude
+.DS_Store
+**/.DS_Store
+frontend/android
+frontend/ios
+deployment
+dev-deployment
+improvements.md

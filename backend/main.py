@@ -5,11 +5,17 @@ import sqlite3
 import threading
 import uuid
 from datetime import datetime
-from receipt_extractor import extract_receipt_data
+from ocr import extract_receipt_data
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_FILE = os.path.join(BASE_DIR, "database.sqlite")
-SUBSCRIPTIONS_FILE = os.path.join(BASE_DIR, "subscriptions.json")
+# Where user data lives. Defaults to alongside the code, which is what the native
+# setup has always used; Docker sets SCANDY_DATA_DIR to a mounted volume so the
+# database survives image rebuilds without the volume shadowing the source files.
+DATA_DIR = os.environ.get("SCANDY_DATA_DIR") or BASE_DIR
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_FILE = os.path.join(DATA_DIR, "database.sqlite")
+SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, "subscriptions.json")
 
 # Guards read-modify-write cycles on the JSON files (accounts, subscriptions).
 # Waitress serves from multiple threads in a single process, so a threading
@@ -91,8 +97,8 @@ def migrate_datetime_format():
 
 init_db()
 migrate_datetime_format()
-ACCOUNTS_FILE = os.path.join(BASE_DIR, "accounts.json")
-CATEGORIES_FILE = os.path.join(BASE_DIR, "categories.json")
+ACCOUNTS_FILE = os.path.join(DATA_DIR, "accounts.json")
+CATEGORIES_FILE = os.path.join(DATA_DIR, "categories.json")
 
 # Seed for categories.json; once that file exists it is the source of truth.
 _DEFAULT_CATEGORIES = {

@@ -3,14 +3,18 @@ import traceback
 import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from receipt_extractor import OCRBusyError
+from ocr import OCRBusyError, OCRUnavailableError
 from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, get_all_categories, add_category, rename_category, delete_category, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
 
 app = Flask(__name__)
 CORS(app)
 
-# Absolute path so uploads land next to this file regardless of the CWD the server was started from
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img')
+# Absolute path so uploads land next to this file regardless of the CWD the server was started from.
+# SCANDY_DATA_DIR redirects it (Docker points this at a mounted volume); unset keeps the original location.
+UPLOAD_FOLDER = os.path.join(
+    os.environ.get('SCANDY_DATA_DIR') or os.path.dirname(os.path.abspath(__file__)),
+    'img',
+)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -57,6 +61,10 @@ def upload_file():
             return jsonify(extracted_data), 200
         except OCRBusyError as e:
             return jsonify({'error': str(e)}), 429
+        except OCRUnavailableError as e:
+            # Setup problem (Ollama down, model not pulled) rather than a bad
+            # image — the message tells the user how to fix it.
+            return jsonify({'error': str(e)}), 503
         except Exception:
             traceback.print_exc()
             return jsonify({'error': 'Failed to process the image'}), 500

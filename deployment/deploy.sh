@@ -1,85 +1,127 @@
 #!/bin/bash
+#
+# One-time setup: build the frontend and install the nginx site config.
+#
+#   ./deployment/deploy.sh              build the frontend and configure nginx
+#   ./deployment/deploy.sh --skip-build reuse the existing frontend/dist
+#   ./deployment/deploy.sh --help
+#
+# Re-run this after pulling new code, or after changing nginx.conf.template.
 
-# Scandy Deployment Script
-# This script builds the frontend and sets up nginx configuration
+set -euo pipefail
 
-set -e  # Exit on error
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-echo "======================================"
-echo "Scandy Deployment Script"
-echo "======================================"
-echo ""
+SKIP_BUILD=0
+for arg in "$@"; do
+    case "$arg" in
+        --skip-build) SKIP_BUILD=1 ;;
+        -h|--help)
+            sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            exit 0 ;;
+        *) die "Unknown option: $arg" "Run '$0 --help' for usage." ;;
+    esac
+done
 
-# Get the project root directory
-PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+heading "Scandy deployment"
 echo "Project root: $PROJECT_ROOT"
 echo ""
 
-# Build frontend
-echo "Step 1: Building frontend..."
-cd "$PROJECT_ROOT/frontend"
-npm run build
-
-if [ ! -d "dist" ]; then
-    echo "Error: Frontend build failed - dist directory not found"
-    exit 1
-fi
-echo "✓ Frontend built successfully"
-echo ""
-
-# Check if nginx is installed
-echo "Step 2: Checking nginx installation..."
-if ! command -v nginx &> /dev/null; then
-    echo "Error: nginx is not installed"
-    echo "Install with: brew install nginx"
-    exit 1
-fi
-echo "✓ nginx is installed"
-echo ""
-
-# Copy nginx configuration
-echo "Step 3: Setting up nginx configuration..."
-if [ -d "/opt/homebrew/etc/nginx" ]; then
-    NGINX_CONF_DIR="/opt/homebrew/etc/nginx/servers"
+# --- 1. Build the frontend ---------------------------------------------------
+if [ "$SKIP_BUILD" -eq 1 ]; then
+    step "Skipping frontend build (--skip-build)"
+    [ -f "$DIST_DIR/index.html" ] || die "frontend/dist has no index.html to reuse." \
+                                         "Run without --skip-build."
+    ok "Reusing existing build"
 else
-    NGINX_CONF_DIR="/usr/local/etc/nginx/servers"
-fi
+    step "Building frontend..."
+    require_cmd npm "Install Node.js 18+ from https://nodejs.org"
+    [ -d "$FRONTEND_DIR" ] || die "frontend/ not found at $FRONTEND_DIR" \
+                                  "Run this script from inside the Scandy repository."
 
-if [ ! -d "$NGINX_CONF_DIR" ]; then
-    echo "Creating nginx servers directory at $NGINX_CONF_DIR..."
-    sudo mkdir -p "$NGINX_CONF_DIR"
-fi
+    cd "$FRONTEND_DIR"
+    if [ ! -d node_modules ]; then
+        step "Installing Node dependencies (first run, this takes a minute)..."
+        # npm ci is reproducible but demands a lockfile in sync with package.json.
+        npm ci || die "npm ci failed." "Try: cd frontend && npm install"
+    fi
 
-# Remove the pre-rename config. nginx.conf is a catch-all (server_name _), so
-# leaving it behind would create two competing server blocks on port 80.
-sudo rm -f "$NGINX_CONF_DIR/receiptocr.conf"
-sudo cp "$PROJECT_ROOT/deployment/nginx.conf" "$NGINX_CONF_DIR/scandy.conf"
-echo "✓ nginx configuration copied to $NGINX_CONF_DIR/scandy.conf"
+    npm run build || die "The frontend build failed." \
+                         "Scroll up for the compiler error; fix it and re-run."
+
+    [ -f "$DIST_DIR/index.html" ] || die "Build finished but $DIST_DIR/index.html is missing." \
+                                         "Check the vue.config.js output directory."
+    ok "Frontend built"
+fi
 echo ""
 
-# Test nginx configuration
-echo "Step 4: Testing nginx configuration..."
-sudo nginx -t
+# --- 2. Install the nginx config ---------------------------------------------
+step "Configuring nginx..."
+require_cmd nginx "Install it with: brew install nginx   (macOS)   |   sudo apt install nginx   (Linux)"
+
+TEMPLATE="$DEPLOY_DIR/nginx.conf.template"
+[ -f "$TEMPLATE" ] || die "Missing $TEMPLATE" "The repository looks incomplete."
+
+CONF_DIR="$(nginx_servers_dir)"
+if [ ! -d "$CONF_DIR" ]; then
+    step "Creating $CONF_DIR..."
+    sudo mkdir -p "$CONF_DIR" || die "Could not create $CONF_DIR"
+fi
+
+# Render the template with this machine's actual dist path. Using a temp file
+# means a substitution failure never leaves a half-written config installed.
+RENDERED="$(mktemp)"
+trap 'rm -f "$RENDERED"' EXIT
+# '|' as the delimiter: the project path contains '/' and may contain spaces.
+sed "s|__SCANDY_DIST__|$DIST_DIR|g" "$TEMPLATE" > "$RENDERED"
+
+if grep -q '__SCANDY_DIST__' "$RENDERED"; then
+    die "Path substitution failed." "Report this as a bug."
+fi
+
+sudo cp "$RENDERED" "$CONF_DIR/scandy.conf"
+ok "Installed $CONF_DIR/scandy.conf"
+
+# Dropping a file into the servers directory only works if the main nginx.conf
+# includes it. Stock installs do; a hand-edited nginx.conf often does not, and
+# without this check the deploy "succeeds" while nginx never reads the file.
+MAIN_CONF="$(nginx -V 2>&1 | sed -n 's/.*--conf-path=\([^ ]*\).*/\1/p')"
+if [ -n "$MAIN_CONF" ] && [ -r "$MAIN_CONF" ]; then
+    if ! grep -qE "^[[:space:]]*include[[:space:]].*$(basename "$CONF_DIR")/" "$MAIN_CONF"; then
+        echo ""
+        warn "$MAIN_CONF does not include $CONF_DIR/"
+        printf '  nginx will ignore the file just installed. Add this inside its http { } block:\n'
+        printf '      %sinclude %s/*.conf;%s\n' "$C_BOLD" "$CONF_DIR" "$C_RESET"
+        printf '  then re-run this script.\n'
+    else
+        ok "nginx includes $CONF_DIR/"
+    fi
+fi
 echo ""
 
-# Reload nginx
-echo "Step 5: Reloading nginx..."
-if pgrep -x nginx > /dev/null; then
-    sudo nginx -s reload
-    echo "✓ nginx reloaded"
+# --- 3. Validate and reload --------------------------------------------------
+step "Testing nginx configuration..."
+if ! sudo nginx -t; then
+    die "nginx rejected the configuration." \
+        "The offending file is $CONF_DIR/scandy.conf — the error above names the line."
+fi
+ok "Configuration is valid"
+echo ""
+
+step "Reloading nginx..."
+if nginx_running; then
+    sudo nginx -s reload && ok "nginx reloaded"
 else
-    echo "Starting nginx..."
-    sudo nginx
-    echo "✓ nginx started"
+    sudo nginx && ok "nginx started"
 fi
 echo ""
 
-echo "======================================"
-echo "Deployment Complete!"
-echo "======================================"
+heading "Deployment complete"
 echo ""
 echo "Next steps:"
-echo "1. Start the backend: cd backend && python3 run_waitress.py"
-echo "2. Get your Tailscale IP: tailscale ip -4"
-echo "3. Access the app: http://<tailscale-ip>"
+echo "  1. Start the backend:  ./deployment/start.sh"
+echo "  2. Check everything:   ./deployment/status.sh"
+echo "  3. Open the app:       http://localhost"
+echo ""
+echo "To reach it from your phone, see ./deployment/get-ip.sh"
 echo ""
