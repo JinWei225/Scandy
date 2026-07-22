@@ -281,11 +281,13 @@ def get_all_transactions():
 
 def create_manual_transaction(data):
     amount_int = int(round(float(data.get('amount', 0)) * 100))
+    raw_desc = data.get("description")
+    desc_str = str(raw_desc).strip() if raw_desc is not None else ""
     new_record = {
         "id": str(uuid.uuid4()),
         "date": _to_iso_date(data.get("date")),
         "time": _normalize_time(data.get("time")),
-        "description": data.get("description"),
+        "description": desc_str,
         "amount": str(amount_int),
         "category": data.get("category", "Uncategorized"),
         "account_id": data.get("account_id"),
@@ -314,7 +316,8 @@ def _insert_transfer_pair(conn, data):
     amount_int = int(round(float(data.get("amount", 0)) * 100))
     from_account = data.get("from_account_id")
     to_account = data.get("to_account_id")
-    description = data.get("description") or "Transfer"
+    raw_desc = data.get("description")
+    description = (str(raw_desc).strip() if raw_desc is not None and str(raw_desc).strip() else "") or "Transfer"
     uid = str(uuid.uuid4())
 
     # Outgoing (Expense) from Source
@@ -398,7 +401,7 @@ def update_transaction_by_id(transaction_id, data_to_update):
             transfer_data = {
                 "date": data_to_update.get("date", transaction_to_update["date"]),
                 "time": data_to_update.get("time", transaction_to_update.get("time", "00:00:00")),
-                "description": data_to_update.get("description") or transaction_to_update.get("description") or "Transfer",
+                "description": str(data_to_update.get("description") or transaction_to_update.get("description") or "Transfer").strip(),
                 "amount": amount_val,
                 "from_account_id": data_to_update.get("account_id"),
                 "to_account_id": data_to_update.get("to_account_id")
@@ -420,7 +423,8 @@ def update_transaction_by_id(transaction_id, data_to_update):
         # Update the fields from the provided data
         transaction_to_update["date"] = _to_iso_date(data_to_update.get("date", transaction_to_update["date"]))
         transaction_to_update["time"] = _normalize_time(data_to_update.get("time", transaction_to_update.get("time")))
-        transaction_to_update["description"] = data_to_update.get("description", transaction_to_update["description"])
+        if "description" in data_to_update:
+            transaction_to_update["description"] = str(data_to_update.get("description") or "").strip()
 
         # Handle amount update - if it's a number, format it
         if "amount" in data_to_update:
