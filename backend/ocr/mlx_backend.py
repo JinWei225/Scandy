@@ -14,7 +14,7 @@ from .common import OCR_LOCK, OCRBusyError, build_system_prompt, parse_model_jso
 _MODEL = None
 _PROCESSOR = None
 _CONFIG = None
-_MODEL_PATH = "mlx-community/Qwen3.5-0.8B-4bit"
+_MODEL_PATH = "LiquidAI/LFM2.5-VL-3B-MLX-4bit"
 
 
 def _load_model_locked():
