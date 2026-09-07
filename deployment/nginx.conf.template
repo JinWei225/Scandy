@@ -1,6 +1,6 @@
 # Template — deploy.sh substitutes __SCANDY_DIST__ with the real path to
-# frontend/dist and installs the result as scandy.conf. Do not edit the
-# installed copy; edit this file and re-run ./deployment/deploy.sh.
+# frontend_flutter/build/web and installs the result as scandy.conf. Do not edit
+# the installed copy; edit this file and re-run ./deployment/deploy.sh.
 
 server {
     listen 80;
@@ -9,13 +9,16 @@ server {
     # Receipt photos from a phone camera are easily several MB.
     client_max_body_size 10M;
 
-    # Serve the built frontend
+    # Serve the built web app
     location / {
         # Quoted so a project path containing spaces still parses.
         root "__SCANDY_DIST__";
         try_files $uri $uri/ /index.html;
 
-        add_header Cache-Control "public, max-age=3600";
+        # no-store, not a max-age: the build is one big main.dart.js under a
+        # fixed name, so a cached copy survives a redeploy and the browser goes
+        # on running the old app. Correctness beats the round trip here.
+        add_header Cache-Control "no-store";
     }
 
     # Proxy API requests to the Waitress backend

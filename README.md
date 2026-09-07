@@ -4,7 +4,7 @@ Scandy is a sleek, modern, full-stack receipt scanner and personal transaction m
 
 Want to self-host it? [**Jump to the Docker setup →**](#-docker-self-hosting)
 
-The application features a responsive Vue.js dashboard — with light and dark themes — to manage transactions, review category-wise expenses, manage recurring subscriptions, and monitor account balances.
+The interface is a Flutter app — one codebase for Android and the web, with light and dark themes — to manage transactions, review category-wise expenses, manage recurring subscriptions, and monitor account balances. On a phone it uses a bottom navigation bar; on a desktop-width window it switches to a sidebar with wider, table-based layouts.
 
 ---
 
@@ -42,11 +42,13 @@ The application features a responsive Vue.js dashboard — with light and dark t
 - **Pillow:** Image preprocessing
 
 ### Frontend
-- **Vue 3 + Vue Router:** Reactive single-page application
-- **Tailwind CSS:** Design-token-driven styling with light/dark theming
-- **Material Symbols / Fontsource:** Icons and typography
-- **Axios:** API client
-- **Capacitor:** Cross-platform native wrapper (runs on Web, Android, etc.)
+- **Flutter (Dart):** One codebase for Android and the web (`frontend_flutter/`)
+- **Material 3 + design tokens:** A `ThemeExtension` carrying the palette, radii and type scale, with light/dark theming
+- **Provider:** App state — transactions, accounts, subscriptions, categories
+- **Plus Jakarta Sans:** Bundled, not fetched, so the app renders identically offline
+- **Share intent:** Receipts shared from another app open straight in the scanner
+
+> Replaced a Vue 3 + Capacitor frontend. The API it talks to is unchanged.
 
 ---
 
@@ -240,9 +242,9 @@ The fastest option, and the one used for development. Runs MLX-VLM directly on t
 
 ### Prerequisites
 - **Python 3.13+**
-- **Node.js 18+** & **npm**
+- **[Flutter](https://docs.flutter.dev/get-started/install)** — builds the web UI (and the Android app)
 - **[uv](https://docs.astral.sh/uv/)** (recommended) — manages the Python environment
-- **nginx** (`brew install nginx`) — serves the frontend and proxies the API
+- **nginx** (`brew install nginx`) — serves the web UI and proxies the API
 - Apple Silicon Mac — receipt extraction runs locally via MLX
 
 ---
@@ -253,7 +255,7 @@ If you just want it running, these three commands do everything:
 
 ```bash
 uv sync                   # install Python dependencies
-./deployment/deploy.sh    # build the frontend and configure nginx (asks for sudo)
+./deployment/deploy.sh    # build the web UI and configure nginx (asks for sudo)
 ./deployment/start.sh     # start the backend
 ```
 
@@ -322,45 +324,63 @@ python app.py
 
 ### 2. Frontend Setup
 
-```bash
-# Navigate to frontend directory
-cd frontend
+The UI lives in `frontend_flutter/` and is a Flutter app. The same code builds
+the web UI and the Android app.
 
-# Install Node dependencies
-npm install
+```bash
+cd frontend_flutter
+flutter pub get
 ```
 
-#### Running the Frontend
+#### Running it during development
 
-##### Compiles and Hot-Reloads for Development
 ```bash
-npm run serve
-```
-The application will be accessible in your browser at `http://localhost:8080`.
-
-##### Compiles and Minifies for Production
-```bash
-npm run build
+flutter run -d chrome          # web, with hot reload
+flutter run -d <device-id>     # a connected Android phone (flutter devices)
 ```
 
-##### Lints and Fixes Files
+#### Building for production
+
 ```bash
-npm run lint
+# Web — output lands in frontend_flutter/build/web
+flutter build web --release --pwa-strategy=none
+
+# Android
+flutter build apk --release
 ```
+
+`--pwa-strategy=none` is deliberate: the generated service worker caches the
+whole app per origin and keeps serving it after a rebuild, so a redeploy looks
+like it did nothing until the browser decides to update.
+
+#### Where the API lives
+
+The app has no origin to infer the backend from, so the address is explicit and
+editable in **Settings → Server**. The first-run guess is the page's own host on
+port 5001 for the web build, and `10.0.2.2:5001` (the host machine) on the
+Android emulator. A physical phone needs the machine's Tailscale or LAN address.
+
+#### Tests
+
+```bash
+flutter test
+```
+
+Includes golden tests for Home in both themes, rendered with the bundled fonts.
 
 ---
 
 ### 3. Serving It (nginx)
 
-`npm run serve` is for development only. To actually host the app — and to reach
-it from your phone — nginx serves the built frontend on port 80 and forwards
-`/api/` to the backend on port 5001.
+`flutter run` is for development only. To actually host the app — and to reach
+it from your phone's browser — nginx serves the built web UI on port 80 and
+forwards `/api/` to the backend on port 5001.
 
 ```bash
 ./deployment/deploy.sh
 ```
 
-This builds `frontend/dist`, generates the nginx site config from
+This builds `frontend_flutter/build/web`, generates the nginx site config from
 `deployment/nginx.conf.template` with your project's real path, validates it with
 `nginx -t`, and reloads nginx.
 
@@ -370,7 +390,7 @@ This builds `frontend/dist`, generates the nginx site config from
 > does not. `deploy.sh` checks and tells you if it is missing — without that
 > line, nginx ignores the config and the site never loads.
 
-Re-run `./deployment/deploy.sh` after pulling new code to rebuild the frontend.
+Re-run `./deployment/deploy.sh` after pulling new code to rebuild the web UI.
 
 ---
 

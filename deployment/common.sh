@@ -7,8 +7,9 @@ DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"
 
 BACKEND_DIR="$PROJECT_ROOT/backend"
-FRONTEND_DIR="$PROJECT_ROOT/frontend"
-DIST_DIR="$FRONTEND_DIR/dist"
+# The web UI is the Flutter app's web build; the Vue frontend it replaced is gone.
+FRONTEND_DIR="$PROJECT_ROOT/frontend_flutter"
+DIST_DIR="$FRONTEND_DIR/build/web"
 
 BACKEND_PORT="${SCANDY_BACKEND_PORT:-5001}"
 LOG_FILE="$BACKEND_DIR/waitress.log"

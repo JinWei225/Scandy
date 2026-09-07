@@ -56,7 +56,7 @@ ok "Port $BACKEND_PORT is free"
 # The frontend is served by nginx from this directory; missing it is not fatal
 # for the API, but the browser would show a 404 and the cause is non-obvious.
 if [ ! -d "$DIST_DIR" ]; then
-    warn "frontend/dist not found — the web UI will not load."
+    warn "frontend_flutter/build/web not found — the web UI will not load."
     printf '  Build it with: %s./deployment/deploy.sh%s\n' "$C_BOLD" "$C_RESET"
 fi
 

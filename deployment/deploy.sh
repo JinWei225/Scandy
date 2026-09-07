@@ -3,7 +3,7 @@
 # One-time setup: build the frontend and install the nginx site config.
 #
 #   ./deployment/deploy.sh              build the frontend and configure nginx
-#   ./deployment/deploy.sh --skip-build reuse the existing frontend/dist
+#   ./deployment/deploy.sh --skip-build reuse the existing frontend_flutter/build/web
 #   ./deployment/deploy.sh --help
 #
 # Re-run this after pulling new code, or after changing nginx.conf.template.
@@ -30,28 +30,27 @@ echo ""
 # --- 1. Build the frontend ---------------------------------------------------
 if [ "$SKIP_BUILD" -eq 1 ]; then
     step "Skipping frontend build (--skip-build)"
-    [ -f "$DIST_DIR/index.html" ] || die "frontend/dist has no index.html to reuse." \
+    [ -f "$DIST_DIR/index.html" ] || die "$DIST_DIR has no index.html to reuse." \
                                          "Run without --skip-build."
     ok "Reusing existing build"
 else
-    step "Building frontend..."
-    require_cmd npm "Install Node.js 18+ from https://nodejs.org"
-    [ -d "$FRONTEND_DIR" ] || die "frontend/ not found at $FRONTEND_DIR" \
+    step "Building the web app..."
+    require_cmd flutter "Install Flutter from https://docs.flutter.dev/get-started/install"
+    [ -d "$FRONTEND_DIR" ] || die "frontend_flutter/ not found at $FRONTEND_DIR" \
                                   "Run this script from inside the Scandy repository."
 
     cd "$FRONTEND_DIR"
-    if [ ! -d node_modules ]; then
-        step "Installing Node dependencies (first run, this takes a minute)..."
-        # npm ci is reproducible but demands a lockfile in sync with package.json.
-        npm ci || die "npm ci failed." "Try: cd frontend && npm install"
-    fi
-
-    npm run build || die "The frontend build failed." \
-                         "Scroll up for the compiler error; fix it and re-run."
+    # --pwa-strategy=none: the service worker caches the whole app per origin and
+    # keeps serving it after a rebuild, so a redeploy would silently do nothing
+    # until the browser decided to update. nginx sends no-store for the same
+    # reason (see nginx.conf.template).
+    flutter build web --release --pwa-strategy=none \
+        || die "The web build failed." \
+               "Scroll up for the compiler error; fix it and re-run."
 
     [ -f "$DIST_DIR/index.html" ] || die "Build finished but $DIST_DIR/index.html is missing." \
-                                         "Check the vue.config.js output directory."
-    ok "Frontend built"
+                                         "Check the flutter build web output."
+    ok "Web app built"
 fi
 echo ""
 

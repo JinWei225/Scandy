@@ -16,6 +16,7 @@
 # everything except scanning is usable immediately.
 
 services:
+  # The Flutter app built for the web, served by nginx.
   frontend:
     build:
       context: .
@@ -32,6 +33,11 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     image: scandy-backend
+    ports:
+      # Published because the web UI talks to the API directly, at the same host
+      # on port 5001 — the same address the Android app uses. nginx also proxies
+      # /api/ on the frontend port, so either address works.
+      - "${SCANDY_BACKEND_PORT:-5001}:5001"
     environment:
       OCR_BACKEND: ollama
       # Defaults to the bundled service. Point it elsewhere to reuse your own

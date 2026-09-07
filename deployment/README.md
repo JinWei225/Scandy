@@ -11,7 +11,7 @@ main [README](../README.md).
 
 | File | Purpose |
 | --- | --- |
-| `deploy.sh` | One-time setup: builds the frontend and installs the nginx config |
+| `deploy.sh` | One-time setup: builds the web UI and installs the nginx config |
 | `start.sh` | Start the backend |
 | `stop.sh` | Stop the backend |
 | `status.sh` | Show what is running |
@@ -41,7 +41,7 @@ tail -f backend/waitress.log       # follow the log
 
 Every script accepts `--help`.
 
-After pulling new code, re-run `./deployment/deploy.sh` to rebuild the frontend.
+After pulling new code, re-run `./deployment/deploy.sh` to rebuild the web UI.
 
 ## What the scripts check for you
 
@@ -66,7 +66,7 @@ transactions finish cleanly, and only escalates to `SIGKILL` after 10 seconds.
 ## nginx notes
 
 `deploy.sh` generates the site config from `nginx.conf.template`, substituting
-the real path to `frontend/dist`. Do not edit the installed `scandy.conf`
+the real path to `frontend_flutter/build/web`. Do not edit the installed `scandy.conf`
 directly — edit the template and re-run `deploy.sh`.
 
 The config is installed into your nginx `servers/` (or `conf.d/`) directory.
@@ -96,7 +96,7 @@ and connected on both devices.
 | --- | --- |
 | `Port 5001 is in use ... but the API is not responding` | Something else holds the port: `lsof -i :5001`, then `./deployment/stop.sh` |
 | `Backend dependencies are missing` | `uv sync` from the project root |
-| Browser shows 404 or a blank page | The frontend is not built: `./deployment/deploy.sh` |
+| Browser shows 404 or a blank page | The web UI is not built: `./deployment/deploy.sh` |
 | Changes to the app do not appear | Rebuild: `./deployment/deploy.sh`, then hard-refresh |
 | `nginx: [emerg] invalid number of arguments in "root"` | An old hand-edited config with an unquoted path containing spaces. Re-run `./deployment/deploy.sh` |
 | nginx runs but the site 404s | Your `nginx.conf` may not include the servers directory — see nginx notes above |

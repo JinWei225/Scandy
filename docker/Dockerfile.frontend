@@ -1,22 +1,30 @@
-# Scandy frontend — builds the Vue app, then serves it with nginx and proxies
-# /api/ to the backend container. Build context is the repository root.
+# Scandy web UI — builds the Flutter app for the web, then serves it with nginx
+# and proxies /api/ to the backend container. Build context is the repository
+# root.
+#
+# This replaced a Node build of the old Vue frontend. The build stage is a full
+# Flutter SDK image and is correspondingly large, but it keeps `docker compose
+# up` self-contained: no SDK required on the host.
 
 # --- Build stage ---------------------------------------------------------
-FROM node:22-alpine AS build
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
 
-# Copy manifests first so npm ci is cached until dependencies actually change.
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+# Manifests first, so `pub get` stays cached until dependencies actually change.
+COPY frontend_flutter/pubspec.yaml frontend_flutter/pubspec.lock ./
+RUN flutter pub get
 
-COPY frontend/ ./
-RUN npm run build
+COPY frontend_flutter/ ./
+# --pwa-strategy=none: the service worker caches the app per origin and keeps
+# serving it after a rebuild, so an upgrade would appear to do nothing until the
+# browser decided to update.
+RUN flutter build web --release --pwa-strategy=none
 
 # --- Serve stage ---------------------------------------------------------
 FROM nginx:alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/build/web /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
