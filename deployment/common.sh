@@ -91,6 +91,17 @@ PY
     fi
 }
 
+# --- launchd (optional) ------------------------------------------------------
+# The backend may be owned by a LaunchAgent instead of being started by hand.
+# When it is, these scripts must go through launchd rather than around it: a
+# second copy spawned here would hold the port while launchd believed the job
+# was stopped, so a crash would never be recovered and status would lie.
+LAUNCHD_LABEL="com.scandy.backend"
+
+launchd_manages_backend() {
+    launchctl print "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1
+}
+
 # --- Extraction model --------------------------------------------------------
 # The 'vision' OCR backend runs llama.cpp as a child process and records its PID
 # here. run_waitress.py stops it on SIGTERM; this is the safety net for the

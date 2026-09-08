@@ -76,6 +76,32 @@ if [ "$FOREGROUND" -eq 1 ]; then
     exec "$PYTHON" run_waitress.py
 fi
 
+# Hand back to launchd when it owns the job, so there is exactly one backend
+# and one thing that knows about it.
+if [ "$FOREGROUND" -eq 0 ] && launchd_manages_backend; then
+    step "A LaunchAgent owns the backend — starting it through launchd..."
+    launchctl kickstart "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 \
+        || die "launchctl could not start $LAUNCHD_LABEL." \
+               "Inspect it with: launchctl print gui/$(id -u)/$LAUNCHD_LABEL"
+    for _ in $(seq 1 45); do
+        if backend_responding; then
+            echo ""
+            ok "Backend running under launchd (PID $(backend_pid))"
+            echo ""
+            echo "  Logs:   tail -f $LOG_FILE"
+            echo "  Stop:   ./deployment/stop.sh"
+            echo ""
+            exit 0
+        fi
+        sleep 1
+    done
+    err "launchd started the job but the API did not respond within 45s."
+    echo ""
+    echo "--- last 20 lines of $LOG_FILE ---"
+    tail -n 20 "$LOG_FILE" 2>/dev/null || echo "(no log output)"
+    exit 1
+fi
+
 step "Starting server..."
 # setsid/nohup so the server survives this shell exiting.
 nohup "$PYTHON" run_waitress.py >>"$LOG_FILE" 2>&1 &
