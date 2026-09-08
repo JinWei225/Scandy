@@ -123,7 +123,9 @@ void main() {
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
 
-      final api = ApiClient(client: _mockClient());
+      // Stated rather than inherited: on a device the default address is empty
+      // until the user sets one, and this test is about the screen, not that.
+      final api = ApiClient(client: _mockClient(), baseUrl: 'http://test:5001');
       final state = AppState(api);
       await state.loadAll();
       expect(state.status, LoadStatus.ready, reason: state.error);

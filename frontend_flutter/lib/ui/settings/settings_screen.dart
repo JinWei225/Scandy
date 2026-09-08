@@ -457,7 +457,9 @@ class _ServerSectionState extends State<ServerSection> {
         Text(
           'Use the Tailscale address of the machine running the backend '
           'to reach it from anywhere. On the same Wi-Fi its LAN address '
-          'works too; on the Android emulator the host is 10.0.2.2.',
+          'works too; on the Android emulator the host is 10.0.2.2. '
+          'Scanning a receipt works on the phone without this — only your '
+          'saved transactions need the server.',
           style: ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
         ),
         const SizedBox(height: 14),

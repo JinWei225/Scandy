@@ -29,37 +29,58 @@ class ApiException implements Exception {
 /// Android emulator the host machine is `10.0.2.2`, and on a physical phone it
 /// is the machine's LAN address.
 class ApiClient {
-  ApiClient({http.Client? client}) : _client = client ?? http.Client();
+  /// [baseUrl] is for tests and for callers that already know the address;
+  /// everything else takes [defaultBaseUrl] and then whatever the user saved.
+  ApiClient({http.Client? client, String? baseUrl})
+      : _client = client ?? http.Client(),
+        _baseUrl = baseUrl ?? defaultBaseUrl;
 
   final http.Client _client;
 
   static const _baseUrlKey = 'scandy.baseUrl';
 
-  /// First-run guess, overridden by whatever the user saves.
+  /// Baked in at build time, for your own builds:
   ///
-  /// `10.0.2.2` is the Android emulator's alias for the host machine, and a
-  /// physical phone needs the machine's Tailscale or LAN address — that's the
-  /// settings screen.
+  ///     flutter build apk --release \
+  ///         --dart-define=SCANDY_SERVER_URL=http://100.x.y.z:5001
   ///
-  /// On the web the page's own host is the better guess than `localhost`:
-  /// the app is served from the same machine as the backend, so opening it at
+  /// A personal server address is a network identifier, so it belongs in a build
+  /// flag rather than committed to a public repository.
+  static const _configuredBaseUrl = String.fromEnvironment('SCANDY_SERVER_URL');
+
+  /// First-run address, overridden by whatever the user saves.
+  ///
+  /// Empty on a phone unless it was configured at build time, and deliberately
+  /// so. There is no address that is right for an arbitrary device: the previous
+  /// default was `10.0.2.2`, the Android *emulator's* alias for the host
+  /// machine, which on a real phone produced "Can't reach Scandy at
+  /// http://10.0.2.2:5001" — an error implying a server that was never there.
+  /// Saying nothing is set is both true and actionable.
+  ///
+  /// On the web the page's own host is the better guess than `localhost`: the
+  /// app is served from the same machine as the backend, so opening it at
   /// `100.x.y.z:8088` should talk to `100.x.y.z:5001`, not to whatever happens
-  /// to be on the viewer's own loopback. Served from localhost this still
-  /// resolves to localhost. A saved address always wins over either.
+  /// to be on the viewer's own loopback.
   ///
   /// `defaultTargetPlatform` rather than `dart:io`'s `Platform`, so this file
   /// still compiles for web.
   static String get defaultBaseUrl {
+    if (_configuredBaseUrl.isNotEmpty) return _configuredBaseUrl;
     if (kIsWeb) {
       final host = Uri.base.host;
       return 'http://${host.isEmpty ? 'localhost' : host}:5001';
     }
-    return defaultTargetPlatform == TargetPlatform.android
-        ? 'http://10.0.2.2:5001'
+    // A desktop build is on the same machine as the backend; a phone is not.
+    return defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS
+        ? ''
         : 'http://localhost:5001';
   }
 
-  String _baseUrl = defaultBaseUrl;
+  /// Whether a server address is known at all.
+  bool get hasBaseUrl => _baseUrl.isNotEmpty;
+
+  String _baseUrl;
   String get baseUrl => _baseUrl;
 
   Future<void> loadBaseUrl() async {
@@ -73,7 +94,17 @@ class ApiClient {
     await prefs.setString(_baseUrlKey, _baseUrl);
   }
 
-  Uri _uri(String path) => Uri.parse('$_baseUrl$path');
+  Uri _uri(String path) {
+    if (_baseUrl.isEmpty) throw ApiException(_notConfigured);
+    return Uri.parse('$_baseUrl$path');
+  }
+
+  /// Distinct from "unreachable": nothing is wrong with the network, the app
+  /// simply has not been told where the server is.
+  static const _notConfigured =
+      'No server address set yet. Open Server settings and enter the address of '
+      'the machine running Scandy — its Tailscale address reaches it from '
+      'anywhere, for example http://100.x.y.z:5001.';
 
   /// Shown for both a refused connection and a timeout — from the user's side
   /// they are the same problem, and the address is the actionable part.

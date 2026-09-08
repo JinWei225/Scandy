@@ -130,15 +130,35 @@ class _AppShellState extends State<AppShell>
     if (!mounted) return;
     final api = context.read<AppState>().api;
 
-    final result = await showDialog<Map<String, dynamic>?>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: scrimColor(),
-      builder: (_) => _ScanningDialog(api: api, file: file),
-    );
+    final job = _ScanJob(api: api, file: file);
 
-    if (!mounted || result == null) return;
-    await showAddTransactionSheet(context, prefill: result);
+    // An on-device scan finishes in about 150 ms. Showing a spinner for that is
+    // worse than showing nothing: the photo picker has just displayed its own
+    // "1 of 1 ready" progress, so a second one flashing up and vanishing reads
+    // as two loading screens for a single action. Wait a moment first, and only
+    // put a dialog up for a scan that is genuinely going to take a while —
+    // which now means one that went to the server.
+    final quick = await job.result
+        .timeout(_quietScanWindow, onTimeout: () => const _ScanOutcome.pending());
+    if (!mounted) return;
+
+    _ScanOutcome outcome;
+    if (quick.isPending || quick.error != null) {
+      // Still running, or it failed fast and the message needs somewhere to go.
+      final shown = await showDialog<_ScanOutcome>(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: scrimColor(),
+        builder: (_) => _ScanningDialog(job: job),
+      );
+      if (shown == null) return;
+      outcome = shown;
+    } else {
+      outcome = quick;
+    }
+
+    if (!mounted || outcome.fields == null) return;
+    await showAddTransactionSheet(context, prefill: outcome.fields!);
   }
 
   /// The bar has no Settings slot, so nothing is highlighted when the window
@@ -282,7 +302,25 @@ class _AppShellState extends State<AppShell>
   };
 }
 
-/// Reads the receipt, on the phone when it can and on the server when it must.
+/// How long a scan may take before it is worth interrupting the user with a
+/// dialog. On-device scans land well inside this; server scans do not.
+const Duration _quietScanWindow = Duration(milliseconds: 450);
+
+/// The result of one scan: fields to prefill, a message to show, or neither
+/// yet. Modelled rather than thrown so the future can complete before anyone
+/// awaits it without becoming an unhandled error.
+class _ScanOutcome {
+  const _ScanOutcome.fields(this.fields) : error = null, isPending = false;
+  const _ScanOutcome.failed(this.error) : fields = null, isPending = false;
+  const _ScanOutcome.pending() : fields = null, error = null, isPending = true;
+
+  final Map<String, dynamic>? fields;
+  final String? error;
+  final bool isPending;
+}
+
+/// Reads the receipt once, on the phone when it can and on the server when it
+/// must, and hands the same result to whoever asks.
 ///
 /// On Android and iOS ML Kit plus the local rules answer most scans in well
 /// under a second with no network at all. The server is asked only when the
@@ -292,71 +330,53 @@ class _AppShellState extends State<AppShell>
 /// When the server is unreachable and the device read *something*, that partial
 /// answer still opens the form. Every field there is editable, so a prefilled
 /// amount with a blank date is far more useful than a failed scan.
-class _ScanningDialog extends StatefulWidget {
-  const _ScanningDialog({required this.api, required this.file});
-
-  final ApiClient api;
-  final XFile file;
-
-  @override
-  State<_ScanningDialog> createState() => _ScanningDialogState();
-}
-
-class _ScanningDialogState extends State<_ScanningDialog> {
-  String? _error;
-  final LocalScanner _scanner = createLocalScanner();
-
-  @override
-  void initState() {
-    super.initState();
-    _run();
+class _ScanJob {
+  _ScanJob({required ApiClient api, required XFile file}) {
+    result = _run(api, file);
   }
 
-  @override
-  void dispose() {
-    _scanner.dispose();
-    super.dispose();
-  }
+  late final Future<_ScanOutcome> result;
 
-  Future<void> _run() async {
-    final local = await _scanLocally();
-    if (local != null && local.fields.isComplete) {
-      if (mounted) Navigator.of(context).pop(prefillFrom(local.fields));
-      return;
-    }
-
+  static Future<_ScanOutcome> _run(ApiClient api, XFile file) async {
+    final scanner = createLocalScanner();
     try {
-      final data = await widget.api.scanReceipt(widget.file);
-      // A receipt it cannot read comes back 200 with an `error` key rather
-      // than a failed status, so it has to be checked in the success path.
-      final error = data['error'];
-      if (error is String) {
-        if (mounted) setState(() => _error = error);
-        return;
+      final local = await _scanLocally(scanner, file);
+      if (local != null && local.fields.isComplete) {
+        return _ScanOutcome.fields(prefillFrom(local.fields));
       }
-      if (mounted) Navigator.of(context).pop(data);
-    } on ApiException catch (e) {
-      // Offline, or no server configured. A partial local read is still worth
-      // opening the form with.
-      if (local != null && local.fields.missing.length < 3) {
-        if (mounted) Navigator.of(context).pop(prefillFrom(local.fields));
-        return;
+
+      try {
+        final data = await api.scanReceipt(file);
+        // A receipt it cannot read comes back 200 with an `error` key rather
+        // than a failed status, so it has to be checked in the success path.
+        final error = data['error'];
+        if (error is String) return _ScanOutcome.failed(error);
+        return _ScanOutcome.fields(data);
+      } on ApiException catch (e) {
+        // Offline, or no server address set. A partial local read is still
+        // worth opening the form with.
+        if (local != null && local.fields.missing.length < 3) {
+          return _ScanOutcome.fields(prefillFrom(local.fields));
+        }
+        return _ScanOutcome.failed(e.message);
       }
-      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      return _ScanOutcome.failed('$e');
+    } finally {
+      await scanner.dispose();
     }
   }
 
   /// Never lets an on-device failure end the scan — the server is still there.
-  Future<LocalScanResult?> _scanLocally() async {
-    if (!_scanner.isAvailable) {
+  static Future<LocalScanResult?> _scanLocally(
+      LocalScanner scanner, XFile file) async {
+    if (!scanner.isAvailable) {
       debugPrint('[scan] on-device scanning unavailable on this platform');
       return null;
     }
     try {
       final watch = Stopwatch()..start();
-      final result = await _scanner.scan(widget.file);
+      final result = await scanner.scan(file);
       watch.stop();
       // Logged in every build, not just debug: when a scan goes to the server
       // the useful question is always "what did the device read first", and
@@ -368,6 +388,38 @@ class _ScanningDialogState extends State<_ScanningDialog> {
       debugPrint('[scan] on-device failed, falling back to the server: $e\n$st');
       return null;
     }
+  }
+}
+
+/// Shown only for a scan slow enough to be worth a dialog — see
+/// [_quietScanWindow]. It waits on a job that is already running rather than
+/// starting one, so nothing is scanned twice.
+class _ScanningDialog extends StatefulWidget {
+  const _ScanningDialog({required this.job});
+
+  final _ScanJob job;
+
+  @override
+  State<_ScanningDialog> createState() => _ScanningDialogState();
+}
+
+class _ScanningDialogState extends State<_ScanningDialog> {
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _await();
+  }
+
+  Future<void> _await() async {
+    final outcome = await widget.job.result;
+    if (!mounted) return;
+    if (outcome.error != null) {
+      setState(() => _error = outcome.error);
+      return;
+    }
+    Navigator.of(context).pop(outcome);
   }
 
   @override
