@@ -12,6 +12,9 @@ Arms (pick with --arms, default runs the four below):
   ocr-vision+nuextract  candidate B (spec option B), Apple Vision OCR -> NuExtract-1.5-tiny Q4_K_M
   ocr-rapid+nuextract   candidate B, portable: RapidOCR (PP-OCR ONNX) -> same LLM
   ocr-vision+qwen08b    opt-in: Apple Vision OCR -> Qwen3.5-0.8B Q4_K_M as a text model
+  ocr-vision+rules      no model at all: Apple Vision OCR -> deterministic Python
+  ocr-mlkit+rules       phone OCR (replayed) -> deterministic Python
+  ocr-mlkit+nuextract   phone OCR (replayed) -> NuExtract-tiny
   ocr-vision+lfm12b     opt-in: Apple Vision OCR -> LFM2.5-1.2B-Instruct Q4_K_M as a text model
 
 Every arm runs in its own subprocess so nothing shares a warm allocator. The
@@ -770,6 +773,79 @@ class OCRLLMArm:
             self.server.stop()
 
 
+class OCRRulesArm:
+    """image -> OCR -> deterministic Python -> JSON. No extraction model at all."""
+
+    def __init__(self, ocr_cls):
+        self.ocr_cls = ocr_cls
+        self.ocr = None
+
+    def preimport(self) -> None:
+        if self.ocr_cls is RapidPPOCR:
+            import rapidocr_onnxruntime  # noqa: F401
+        else:
+            import Quartz  # noqa: F401
+            import Vision  # noqa: F401
+
+    def load(self) -> dict:
+        self.ocr = self.ocr_cls()
+        return {"disk_bytes": self.ocr.disk_bytes, "disk_note": f"OCR {self.ocr.disk_note}"}
+
+    def run(self, image_path: str) -> dict:
+        sys.path.insert(0, str(REPO_ROOT / "backend"))
+        from ocr.rules_extractor import extract
+
+        t0 = time.perf_counter()
+        lines, _width, height = self.ocr.read(image_path)
+        text = assemble_text(lines, height)
+        t1 = time.perf_counter()
+        pred = extract(text)
+        t2 = time.perf_counter()
+        return {
+            "pred": pred,
+            "raw": json.dumps(pred),
+            "ocr_ms": round((t1 - t0) * 1000, 1),
+            "llm_ms": round((t2 - t1) * 1000, 1),
+            "total_ms": round((t2 - t0) * 1000, 1),
+            "ocr_text": text,
+        }
+
+
+class ReplayOCR:
+    """Replays OCR detections captured elsewhere — used for the phone's ML Kit.
+
+    Test 1 of the on-device question is "OCR on the phone, extraction on the Mac".
+    The OCR half cannot run here, so its detections are imported from the JSON
+    that tools/mlkit_ocr_bench writes, and only the extraction half is timed.
+    """
+
+    name = "mlkit-replay"
+    disk_bytes = 0
+    disk_note = "0 on the server — OCR ran on the phone (ML Kit ships with Play Services)"
+
+    json_path: str | None = None
+    script: str = "latin"
+
+    def __init__(self):
+        if not self.json_path:
+            raise RuntimeError("ReplayOCR needs --mlkit-json")
+        with open(self.json_path) as handle:
+            payload = json.load(handle)
+        if self.script not in payload.get("scripts", {}):
+            raise RuntimeError(
+                f"script '{self.script}' not in {self.json_path}; "
+                f"have {list(payload.get('scripts', {}))}"
+            )
+        self._images = payload["scripts"][self.script]["images"]
+
+    def read(self, image_path: str) -> tuple[list[dict], int, int]:
+        name = os.path.basename(image_path)
+        entry = self._images.get(name)
+        if entry is None or "error" in entry:
+            return [], 0, 0
+        return entry["lines"], int(entry["width"]), int(entry["height"])
+
+
 ARMS: dict[str, dict] = {
     "vlm-lfm3b": {
         "label": "VLM  LFM2.5-VL-3B 4bit (current)",
@@ -790,6 +866,18 @@ ARMS: dict[str, dict] = {
     "ocr-vision+qwen08b": {
         "label": "OCR  Apple Vision + Qwen3.5-0.8B Q4 (text)",
         "build": lambda: OCRLLMArm(AppleVisionOCR, QWEN_GGUF_REPO, QWEN_GGUF_FILE, "chat"),
+    },
+    "ocr-vision+rules": {
+        "label": "OCR  Apple Vision + rules only (no model)",
+        "build": lambda: OCRRulesArm(AppleVisionOCR),
+    },
+    "ocr-mlkit+rules": {
+        "label": "OCR  ML Kit (phone) + rules only (no model)",
+        "build": lambda: OCRRulesArm(ReplayOCR),
+    },
+    "ocr-mlkit+nuextract": {
+        "label": "OCR  ML Kit (phone) + NuExtract-tiny Q4",
+        "build": lambda: OCRLLMArm(ReplayOCR, NUEXTRACT_REPO, NUEXTRACT_FILE, "nuextract"),
     },
     "ocr-vision+lfm12b": {
         "label": "OCR  Apple Vision + LFM2.5-1.2B Q4 (text)",
@@ -812,7 +900,10 @@ def mark(phase_file: str, phase: str) -> None:
 
 
 def run_worker(arm_name: str, images: list[str], repeats: int, result_file: str,
-               phase_file: str, amount_fallback: str = "off") -> int:
+               phase_file: str, amount_fallback: str = "off",
+               mlkit_json: str | None = None, mlkit_script: str = "latin") -> int:
+    ReplayOCR.json_path = mlkit_json
+    ReplayOCR.script = mlkit_script
     mark(phase_file, "start")
     arm = ARMS[arm_name]["build"]()
     if hasattr(arm, "amount_fallback"):
@@ -891,7 +982,13 @@ def prepare_images(images_dir: Path, max_edge: int, workdir: Path) -> list[str]:
     from PIL import Image
 
     out = []
-    for src in sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.png")):
+    # Case-insensitive, and .jpeg counts: globbing only "*.jpg" silently skipped
+    # an image and made the scored total quietly smaller than the image count.
+    candidates = sorted(
+        p for p in images_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png"}
+    )
+    for src in candidates:
         if max_edge <= 0:
             out.append(str(src))
             continue
@@ -907,7 +1004,8 @@ def prepare_images(images_dir: Path, max_edge: int, workdir: Path) -> list[str]:
 
 
 def run_arm(arm_name: str, images: list[str], repeats: int, workdir: Path,
-            amount_fallback: str = "off") -> dict:
+            amount_fallback: str = "off", mlkit_json: str | None = None,
+            mlkit_script: str = "latin") -> dict:
     result_file = workdir / f"{arm_name.replace('/', '_')}.result.json"
     phase_file = workdir / f"{arm_name.replace('/', '_')}.phases.jsonl"
     phase_file.write_text("")
@@ -919,6 +1017,8 @@ def run_arm(arm_name: str, images: list[str], repeats: int, workdir: Path,
         "--_phases", str(phase_file),
         "--repeats", str(repeats),
         "--amount-fallback", amount_fallback,
+        "--mlkit-script", mlkit_script,
+        *(["--mlkit-json", mlkit_json] if mlkit_json else []),
         "--_images", *images,
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -1157,6 +1257,11 @@ def main() -> int:
                         help="recover the amount from OCR text when the model returns none "
                              "(OCR arms only): 'naive' takes the largest money value, "
                              "'guarded' prefers total-labelled lines and skips balance-like ones")
+    parser.add_argument("--mlkit-json", default=None,
+                        help="OCR detections captured by tools/mlkit_ocr_bench, for the "
+                             "ocr-mlkit+* arms")
+    parser.add_argument("--mlkit-script", default="latin", choices=("latin", "chinese"),
+                        help="which ML Kit script model's detections to replay")
     parser.add_argument("--probe-amount-fallback", action="store_true",
                         help="run the fallback against synthetic receipts (including ones with an "
                              "account balance) and exit — no models loaded")
@@ -1172,7 +1277,8 @@ def main() -> int:
 
     if args.worker:
         return run_worker(args.worker, args.images, args.repeats, args.result_file,
-                          args.phase_file, args.amount_fallback)
+                          args.phase_file, args.amount_fallback,
+                          args.mlkit_json, args.mlkit_script)
 
     arm_names = list(ARMS) if args.arms == "all" else [a.strip() for a in args.arms.split(",") if a.strip()]
     unknown = [a for a in arm_names if a not in ARMS]
@@ -1200,7 +1306,8 @@ def main() -> int:
         for name in arm_names:
             print(f"\n=== {name} — {ARMS[name]['label']} ===", flush=True)
             started = time.time()
-            result = run_arm(name, images, args.repeats, workdir, args.amount_fallback)
+            result = run_arm(name, images, args.repeats, workdir, args.amount_fallback,
+                             args.mlkit_json, args.mlkit_script)
             results.append(result)
             if result.get("error"):
                 print(f"  FAILED: {result['error']}")

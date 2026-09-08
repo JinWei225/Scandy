@@ -31,7 +31,7 @@ The interface is a Flutter app — one codebase for Android and the web, with li
 ### Backend
 - **Python / Flask:** Web API server
 - **Pluggable local OCR engine** (no remote API keys required!), selected with `OCR_BACKEND`:
-  - `vision` *(default)* — **Apple Vision** reads the text, then **NuExtract-1.5-tiny** (0.5B, Q4, via `llama.cpp`) picks out the fields. macOS only
+  - `vision` *(default)* — **Apple Vision** reads the text and deterministic parsing picks out the fields, with **NuExtract-1.5-tiny** (0.5B, Q4, via `llama.cpp`) as a fallback for anything they miss. macOS only
   - `ollama` — a vision model on an **Ollama** server, used by the Docker stack so it runs on any platform
 - **SQLite:** Local-first relational database storage for transactions
 - **JSON files:** Accounts, subscriptions, and categories (`backend/accounts.json`, `subscriptions.json`, `categories.json`)
@@ -55,9 +55,9 @@ There are two ways to run Scandy — pick one:
 | --- | --- | --- |
 | **Platform** | Linux, Windows, macOS (any CPU) | macOS only |
 | **Setup** | One command | Python + Flutter + nginx by hand |
-| **OCR engine** | Vision model on Ollama (containerized) | Apple Vision + NuExtract-tiny |
-| **Scan speed** | 5–9 s | ~0.6 s |
-| **Memory held** | ~1 GB in the Ollama container | ~495 MB |
+| **OCR engine** | Vision model on Ollama (containerized) | Apple Vision + rules |
+| **Scan speed** | 5–9 s | ~80 ms |
+| **Memory held** | ~1 GB in the Ollama container | ~71 MB |
 | **Best for** | Self-hosting on your own machine | Self-hosting on a Mac you also use for other things |
 
 ---
@@ -220,20 +220,21 @@ or [Tailscale](https://tailscale.com/) IP — e.g. `http://192.168.1.20:8080`.
 ## 💻 Native Setup (macOS)
 
 The fastest option, and the one used for development. Apple's Vision framework reads
-the receipt and a 0.5B model extracts the fields — about **0.6 s per scan** while
-holding **~495 MB**, which is little enough to leave running on a machine you also use
-for other work. Developed and measured on Apple Silicon.
+the receipt and deterministic parsing extracts the fields — about **80 ms per scan**
+while holding **~71 MB**, light enough to forget it is running on a machine you also use
+for other work. A 0.5B model is loaded only for the fields the rules cannot read, and
+released again once idle. Developed and measured on Apple Silicon.
 
 ### Prerequisites
 - **Python 3.13+**
 - **[Flutter](https://docs.flutter.dev/get-started/install)** — builds the web UI (and the Android app)
 - **[uv](https://docs.astral.sh/uv/)** (recommended) — manages the Python environment
 - **nginx** (`brew install nginx`) — serves the web UI and proxies the API
-- **llama.cpp** (`brew install llama.cpp`) — runs the extraction model
+- **llama.cpp** (`brew install llama.cpp`) — only for the fallback extraction model
 - macOS — text recognition uses the built-in Vision framework
 
-The extraction model's weights (~491 MB) download themselves on the first scan and are
-cached in `~/.cache/huggingface`.
+The fallback model's weights (~491 MB) download themselves the first time the rules cannot
+read a field, and are cached in `~/.cache/huggingface`. Most scans never touch it.
 
 ---
 

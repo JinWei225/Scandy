@@ -25,13 +25,14 @@ Which engine produces that is chosen by the `OCR_BACKEND` environment variable:
 
 | `OCR_BACKEND` | Pipeline | Platform |
 | --- | --- | --- |
-| `vision` *(default)* | Apple Vision OCR → NuExtract-1.5-tiny (0.5B, Q4) via `llama.cpp` | macOS |
+| `vision` *(default)* | Apple Vision OCR → deterministic parsing, with NuExtract-1.5-tiny (0.5B, Q4) as a fallback | macOS |
 | `ollama` | Vision model on an Ollama server, reading the image directly | Anywhere (used by Docker) |
 
 ### How the `vision` backend works
 
 ```
-image → downscale to 1600px → Apple Vision → row-grouped text → NuExtract → parse in Python
+image → downscale to 1600px → Apple Vision → row-grouped text → rules → fields
+                                                                  └─ gaps only → NuExtract
 ```
 
 1. **`ocr/vision_backend.py`** caps the longest edge at 1600px and hands the image to
@@ -41,12 +42,23 @@ image → downscale to 1600px → Apple Vision → row-grouped text → NuExtrac
    same-row ones with a tab. Receipts are label/value pairs in columns, and flattening
    the detections in detector order destroys that pairing — nothing downstream can
    recover it.
-3. **NuExtract** is given the text and a JSON template whose empty strings define the
-   schema, with a GBNF grammar constraining the output. It only ever copies spans; it is
-   never asked to reformat, because at 0.5B it gets reformatting wrong.
+3. **`ocr/rules_extractor.py`** picks the fields out of that text with no model at all.
+   Payment screens signpost the decision — a "Date/Time" label, a date and time sharing a
+   row, a currency symbol — so the rules read signals rather than layouts. A time is only
+   believed when it shares a row with a date or sits under a time label, which is what
+   keeps the phone's status-bar clock out of the results.
 4. **`ocr/receipt_text.py:build_result`** does the parsing — 12-hour AM/PM resolution,
    day-first dates, `Decimal` for money, and range checks. A field that fails validation
    comes back as `None` rather than as a guess.
+5. **NuExtract runs only if step 3 left a field empty**, and only its answers for *those*
+   fields are taken. It is given the text and a JSON template whose empty strings define
+   the schema, with a GBNF grammar constraining the output; it only ever copies spans and
+   is never asked to reformat, because at 0.5B it gets reformatting wrong.
+
+Measured on 50 payment screenshots, the rules got all three fields right 50/50 while
+NuExtract on the same OCR text managed 0.76, so the ordering is not a compromise for
+speed — the rules are simply the more accurate of the two. The model earns its place as a
+second opinion on the fields they leave blank.
 
 A field the model missed entirely falls back to `amount_from_text`, which recovers the
 total from the OCR text. That fallback is *guarded*: it prefers lines labelled as a
@@ -62,9 +74,12 @@ reasoning for its value; change them there rather than through the environment.
 
 ### Prerequisites
 
-`llama-server` must be on `PATH` (`brew install llama.cpp`). The backend starts one
-lazily on the first scan and keeps it alive; the ~491 MB of weights download themselves
-on first use into `~/.cache/huggingface`.
+`llama-server` must be on `PATH` (`brew install llama.cpp`) **for the fallback only**.
+It is started lazily on the first scan the rules cannot finish — not on startup, and not
+at all on a run where they answer everything — and released again after
+`MODEL_IDLE_TIMEOUT`. The ~491 MB of weights download themselves on first use into
+`~/.cache/huggingface`. Set `USE_MODEL_FALLBACK = False` in `ocr/vision_backend.py` to
+drop the dependency entirely; unreadable fields then come back as `None`.
 
 The process is stopped on `SIGTERM`/`SIGINT` by `run_waitress.py`, and its PID is written
 to `backend/llama-server.pid` so `deployment/stop.sh` can reap it if the backend is ever

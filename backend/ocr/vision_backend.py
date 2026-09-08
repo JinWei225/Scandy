@@ -1,17 +1,22 @@
-"""Apple Vision OCR + a small extraction model, run locally on macOS.
+"""Apple Vision OCR, then deterministic parsing, with a 0.5B model as fallback.
 
-This replaces the MLX-VLM backend. Same job, roughly a sixth of the memory:
+This replaces the MLX-VLM backend. Same job, a fortieth of the memory:
 
-    LFM2.5-VL-3B 4bit (was)   3196 MB resident idle,  5197 MB peak,  8.5 s/scan
-    Vision + NuExtract (now)   495 MB resident idle,   592 MB peak,  0.6 s/scan
+    LFM2.5-VL-3B 4bit (was)   3196 MB resident idle, 5197 MB peak, 8.5 s/scan
+    Vision + rules (now)        71 MB resident idle,  123 MB peak,  72 ms/scan
 
-The reason the small pipeline can match a 3B VLM is the division of labour. Text
-recognition goes to Apple's Vision framework, which ships with macOS, costs no
-disk and no resident memory of its own, and reads a blurry thermal receipt
-better than either OCR model benchmarked against it. The 0.5B model then only
-has to say *which characters* are the date and the total — it is never asked to
-reformat anything, because at that size it gets reformatting wrong. Parsing
-happens in receipt_text.py.
+Text recognition goes to Apple's Vision framework, which ships with macOS and so
+costs nothing on disk and holds no memory of its own. What the extraction model
+was actually doing — deciding *which* characters are the date and the total — is
+a decision the receipt signposts, with a "Date/Time" label, a date and time
+sharing a row, a currency symbol. rules_extractor.py reads those signals, and on
+50 payment screenshots plus 4 physical receipts it got all three fields right
+every time, against 0.76 for the model on the same OCR text. So the rules run
+first and the model is a fallback, loaded only when they come up short.
+
+That ordering is the whole memory story: the 491 MB of weights are downloaded and
+resident only for scans the rules could not finish, and the process is released
+again after MODEL_IDLE_TIMEOUT.
 
 Numbers and method: backend/bench/compare_pipelines.py.
 
@@ -34,6 +39,7 @@ from PIL import Image
 
 from .common import OCR_LOCK, OCRBusyError, OCRUnavailableError
 from .receipt_text import assemble_text, build_result
+from .rules_extractor import extract as extract_by_rules
 
 # --- Configuration -----------------------------------------------------------
 # Plain constants, edited here rather than read from the environment. Everything
@@ -64,6 +70,16 @@ MAX_IMAGE_EDGE = 1600
 # measured, and it still read the Chinese-language receipt's dates and totals
 # correctly. Add "zh-Hans" if you want Chinese item names transcribed too.
 OCR_LANGUAGES = ["en-US"]
+
+# Fall back to the extraction model when the rules leave a field empty. Set to
+# False to run rules-only: nothing is ever downloaded, nothing is ever resident,
+# and an unreadable field simply comes back as None for the user to fill in.
+USE_MODEL_FALLBACK = True
+
+# Release the fallback model after this long without needing it. Keeping it
+# loaded "just in case" is what the rewrite was trying to get away from; the
+# reload costs about a second and happens on a scan the rules already failed.
+MODEL_IDLE_TIMEOUT = 300.0
 
 # How to recover an amount the model did not find. "guarded" prefers
 # total-labelled lines and skips balance-like ones (9/9 on the synthetic
@@ -318,6 +334,34 @@ def shutdown() -> None:
 
 atexit.register(shutdown)
 
+_LAST_MODEL_USE = 0.0
+_IDLE_THREAD: threading.Thread | None = None
+
+
+def _note_model_use() -> None:
+    """Record a use and make sure the idle reaper is watching."""
+    global _LAST_MODEL_USE, _IDLE_THREAD
+    _LAST_MODEL_USE = time.monotonic()
+    if MODEL_IDLE_TIMEOUT <= 0 or LLM_SERVER_URL:
+        return  # never reap a server someone else owns
+    if _IDLE_THREAD is None or not _IDLE_THREAD.is_alive():
+        _IDLE_THREAD = threading.Thread(target=_reap_idle_model, daemon=True)
+        _IDLE_THREAD.start()
+
+
+def _reap_idle_model() -> None:
+    """Stop the fallback model once it has gone unused for long enough."""
+    while True:
+        time.sleep(min(30.0, max(1.0, MODEL_IDLE_TIMEOUT / 4)))
+        with _SERVER_LOCK:
+            if _SERVER is None or _SERVER.poll() is not None:
+                return
+            if time.monotonic() - _LAST_MODEL_USE < MODEL_IDLE_TIMEOUT:
+                continue
+        print(f"Extraction model idle for {MODEL_IDLE_TIMEOUT:.0f}s — releasing it.")
+        shutdown()
+        return
+
 
 def _extract_fields(url: str, receipt_text: str) -> dict:
     """Ask the model which spans are the date, time and total."""
@@ -359,11 +403,20 @@ def _extract_fields(url: str, receipt_text: str) -> dict:
 
 # --- Public entry point ------------------------------------------------------
 
+def _missing(result: dict) -> list[str]:
+    return [field for field in ("date", "time", "amount") if not result.get(field)]
+
+
 def extract_receipt_data(image_path: str) -> dict:
     """Extract date, time and amount from a receipt image.
 
     Returns {'date': '25/10/2025', 'time': '10:23:54', 'amount': 'RM 12.50'},
     with None for any field that could not be read.
+
+    The rules run first and answer almost every scan without loading anything.
+    The model is consulted only for the fields they left empty, and only its
+    answers for *those* fields are taken: the rules were measured as the more
+    accurate of the two, so a model answer must never overwrite one of theirs.
 
     Raises OCRBusyError instead of queueing when a scan is already running —
     waiting would silently tie up a second server thread for the whole scan.
@@ -373,10 +426,6 @@ def extract_receipt_data(image_path: str) -> dict:
 
     scaled_path = None
     try:
-        # Start the model before doing OCR work: on a first run this downloads
-        # the weights, and failing then costs nothing.
-        url = _ensure_server()
-
         scaled_path = _downscale(image_path)
         detections, height = _recognise_text(scaled_path)
         receipt_text = assemble_text(detections, height)
@@ -384,13 +433,30 @@ def extract_receipt_data(image_path: str) -> dict:
         if not receipt_text.strip():
             return {"date": None, "time": None, "amount": None}
 
-        extracted = _extract_fields(url, receipt_text)
-        # Passing no text is how recovery is disabled: build_result only reaches
-        # for the fallback when the model gave it nothing usable anyway.
-        fallback_text = "" if AMOUNT_FALLBACK == "off" else receipt_text
-        return build_result(
-            extracted, fallback_text, guarded_fallback=AMOUNT_FALLBACK != "naive"
-        )
+        result = build_result(extract_by_rules(receipt_text), receipt_text,
+                              guarded_fallback=AMOUNT_FALLBACK != "naive")
+
+        gaps = _missing(result)
+        if not gaps or not USE_MODEL_FALLBACK:
+            return result
+
+        print(f"Rules left {', '.join(gaps)} empty — asking the extraction model.")
+        try:
+            url = _ensure_server()
+            _note_model_use()
+            extracted = _extract_fields(url, receipt_text)
+            from_model = build_result(extracted, receipt_text,
+                                      guarded_fallback=AMOUNT_FALLBACK != "naive")
+            _note_model_use()
+            for field in gaps:
+                if from_model.get(field):
+                    result[field] = from_model[field]
+        except OCRUnavailableError as exc:
+            # A missing fallback must not fail a scan the rules mostly answered.
+            # Whatever they did read is still worth returning.
+            print(f"Extraction model unavailable ({exc}); returning the rules' answer.")
+
+        return result
     finally:
         if scaled_path and scaled_path != image_path and os.path.exists(scaled_path):
             os.remove(scaled_path)

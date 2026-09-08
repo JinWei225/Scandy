@@ -178,8 +178,8 @@ MONEY_RE = re.compile(r"-?\d{1,3}(?:,\d{3})*\.\d{2}\b|-?\d+\.\d{2}\b")
 
 TOTAL_LABELS = (
     "grand total", "grandtotal", "total accounts receivable", "amount payable",
-    "amount paid", "total amount", "nett total", "net total", "total due",
-    "total", "jumlah", "amaun", "bayaran",
+    "amount paid", "payment amount", "total amount", "nett total", "net total",
+    "total due", "you paid", "total", "amount", "jumlah", "amaun", "bayaran",
 )
 
 # Lines whose number is emphatically not what the customer paid. This list is
@@ -188,7 +188,8 @@ EXCLUDE_LABELS = (
     "balance", "baki", "change", "kembalian", "cash", "tunai", "tendered",
     "available", "credit limit", "points", "point", "mata", "saving", "savings",
     "discount", "diskaun", "rebate", "deposit", "wallet balance", "outstanding",
-    "previous", "opening", "closing", "reward",
+    "previous", "opening", "closing", "reward", "bonus", "fee", "fees", "caj",
+    "promotion", "cashback",
 )
 
 
@@ -213,7 +214,18 @@ def amount_from_text(ocr_text: str, guarded: bool = True) -> str | None:
     labelled: list[Decimal] = []
     loose: list[Decimal] = []
 
-    for line in ocr_text.splitlines():
+    lines = ocr_text.splitlines()
+    for index, line in enumerate(lines):
+        # A row that names a total but carries no figure is a label for the row
+        # under it — "Payment Amount (MYR)" above a bare "40.00".
+        low_only = line.lower()
+        if (not _money_in(line)
+                and any(l in low_only for l in TOTAL_LABELS)
+                and not any(l in low_only for l in EXCLUDE_LABELS)
+                and index + 1 < len(lines)):
+            labelled.extend(_money_in(lines[index + 1]))
+
+
         line_has_currency = re.search(CURRENCY_RE, line, re.IGNORECASE) is not None
         low_line = line.lower()
         # assemble_text joins a row's detections with tabs, left to right, so a

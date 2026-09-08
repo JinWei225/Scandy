@@ -12,9 +12,13 @@ dev-deployment/
 # Receipt images: uploads land here at runtime, and any test receipts you add
 # are photographs of real transactions. Never commit them.
 backend/img/
+backend/test_img/
 # Labels for those receipts — merchant, date and amount of real purchases.
 # ground_truth.example.json shows the format and is tracked in its place.
 backend/bench/ground_truth.json
+backend/bench/ground_truth_screens.json
+# Captured OCR of real receipts.
+backend/bench/mlkit/
 
 backend/database.sqlite
 backend/accounts.json

@@ -1,0 +1,1051 @@
+{
+ "_comment": [
+  "Shared cases for the receipt-extraction rules. Used by the Dart port in",
+  "frontend_flutter/lib/services/receipt_rules.dart and by the Python",
+  "original in backend/ocr/rules_extractor.py, so the two cannot drift.",
+  "Regenerate with: .venv/bin/python backend/bench/make_fixture.py",
+  "Identity is scrubbed; see that script for exactly what is replaced."
+ ],
+ "cases": [
+  {
+   "id": "vision/test-img1.jpeg",
+   "engine": "vision",
+   "ocr_text": "9:05 1\nV\nPayment 3744998269\nRM 76.67\nSAMPLE PAYER\n621370644 ID\t7940658268\nDate & time\t5 Sep 2026, 9:05 PM\n16207730835 Type\tScan & Pay\nShare Receipt\nDone",
+   "expected": {
+    "date": "05/09/2026",
+    "time": "21:05:00",
+    "amount": "76.67"
+   }
+  },
+  {
+   "id": "vision/test-img10.jpg",
+   "engine": "vision",
+   "ocr_text": "7:18\n5670564922\n16207730835 Summary\nMYR 13.00\n22 Oct 2025 7:18:10 PM\nOCTО 621370644 No.\t967554898\nDuitNow 621370644 No.\t37378139\nTo\tACME BAKERY\nFrom\tSA 63216702\n3026444827\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "19:18:10",
+    "amount": "13.00"
+   }
+  },
+  {
+   "id": "vision/test-img11.jpg",
+   "engine": "vision",
+   "ocr_text": "1:06 1\nRM 16.00\nPaid\n+ 16 points\n44975100\tACME BAKERY\n16207730835 Type\t• DuitNow QR TNGD\nDate/Time\t22/10/2025 13:06:20\neWallet Ref No.\t45131829792026540269446702\n5484321010112730313\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "13:06:20",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "vision/test-img12.jpg",
+   "engine": "vision",
+   "ocr_text": "12:591\t80\nDuitNow Payment\nYou have paid RM46.00 to ACME\neWallet\nBAKERY.\nRM 46.00\nPaid\n44975100\tACME BAKERY\nPayment Details\tItem\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t22/10/2025 12:59:17\neWallet Ref No.\t150224370783455058739650\n320749211567708931815\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "12:59:17",
+    "amount": "46.00"
+   }
+  },
+  {
+   "id": "vision/test-img13.jpg",
+   "engine": "vision",
+   "ocr_text": "10:46\t• 54m\nDuitNow Payment\tnow\neWallet\tYou have paid RM90.00 to ACME BAKERY.\nRM 90.00\nPaid\n+ 90 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t21/10/2025 22:46:21\neWallet Ref No. 863203517988260689911220249741\n912468827258679\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "21/10/2025",
+    "time": "22:46:21",
+    "amount": "90.00"
+   }
+  },
+  {
+   "id": "vision/test-img14.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 390.00\nMoney Paid\n621370644 No.\t309044\nDate & Time\t20/10/2025 05:29:18 PM\nDuitNow Ref No. 181692507260349162\n631170262508\nDuitNow Status Code\tU000\nPayment Method\tD DuitNow QR\n187844983 Name\tACME BAKERY\n187844983's Bank TNG DIGITAL SDN BHD\nFrom Account\t******7822\nBANK FOR THE PEOPLE\t© PUBLIC BANK",
+   "expected": {
+    "date": "20/10/2025",
+    "time": "17:29:18",
+    "amount": "390.00"
+   }
+  },
+  {
+   "id": "vision/test-img15.jpg",
+   "engine": "vision",
+   "ocr_text": "2:181\t974\nTNG eWallet\tnow\n582103732625\nRM 49.00\nPaid\n+ 49 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t20/10/2025 14:18:33\neWallet Ref No. 44820116826817451515634165435\n9865464441265677\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "20/10/2025",
+    "time": "14:18:33",
+    "amount": "49.00"
+   }
+  },
+  {
+   "id": "vision/test-img16.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 30.00\nPaid\n+ 30 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow\tDuitNow QR TNGD\nDate/Time\t26/10/2025 16:15:44\neWallet Ref No.\t939377317543183081225697\n897431848891882125073\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "16:15:44",
+    "amount": "30.00"
+   }
+  },
+  {
+   "id": "vision/test-img17.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 30.00\nPaid\n+ 30 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow\tDuitNow QR TNGD\nDate/Time\t26/10/2025 16:15:44\neWallet Ref No.\t939377317543183081225697\n897431848891882125073\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "16:15:44",
+    "amount": "30.00"
+   }
+  },
+  {
+   "id": "vision/test-img18.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 58.00\nPaid\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nPayment Details\tchu\nDate/Time\t26/10/2025 12:09:38\neWallet Ref No.\t18108721881202062175\n535436016270241311\n6715201\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "12:09:38",
+    "amount": "58.00"
+   }
+  },
+  {
+   "id": "vision/test-img19.jpg",
+   "engine": "vision",
+   "ocr_text": "11:33 O Ryt @\nRM16.00\n26 Oct 2025, 11:33\nTerma & 003984483 Apply\nACME BAKERY\nYou Paid\tRM16.00\n94692027 Amount\tRM16.00\nRewards\n494505325\tLucky Draw Rewards\n084156053 494505325\t+ RM0.31 Bonus\nOrder Details\nLucky Draw Played",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "11:33:00",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "vision/test-img2.jpg",
+   "engine": "vision",
+   "ocr_text": "3:47\t100\nYou've just earned 8... You've 21641360 85 points from...\nRM 85.00\nPaid\n+ 85 points\n44975100\tACME BAKERY\n16207730835 Type\tP DuitNow QR TNGD\nDate/Time\t24/10/2025 15:47:39\neWallet Ref No.\t7069912481265431087756\n24374437411340727341\n587\nPayment Method\teWallet Balance\nlang Biniài\nalan\nikai\nDone\n<",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "15:47:39",
+    "amount": "85.00"
+   }
+  },
+  {
+   "id": "vision/test-img20.jpg",
+   "engine": "vision",
+   "ocr_text": "5670564922\n16207730835 Summary\nMYR 26.00\n26 Oct 2025 11:21:36 AM\nOCTO 621370644 No\t535650699\nDuitNow 621370644 No.\t88643411\nTo\tACME BAKERY\nFrom\tSA 649627039\n3278296208\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "11:21:36",
+    "amount": "26.00"
+   }
+  },
+  {
+   "id": "vision/test-img21.jpg",
+   "engine": "vision",
+   "ocr_text": "10:511\t• 5G\nDuitNow 1J\nEŁ1JT RM16.00 E ACME\nBAKERY.\nRM 16.00\n+ 16 5\nACME BAKERY\n• DuitNow QR TNGD\n26/10/2025 10:51:41\n554887212489740356349269\n1564011606535673",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "10:51:41",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "vision/test-img22.jpg",
+   "engine": "vision",
+   "ocr_text": "23:42\nRM 285.00\n+ 285\nACME BAKERY\nDuitNow QR TNGD\n25.10.25\n25/10/2025 23:42:05\n9341702256731159346\n988677539740078699\n01545441",
+   "expected": {
+    "date": "25/10/2025",
+    "time": "23:42:05",
+    "amount": "285.00"
+   }
+  },
+  {
+   "id": "vision/test-img23.jpg",
+   "engine": "vision",
+   "ocr_text": "23:41-\nRM 118.00\nACME BAKERY\n• DuitNow QR TNGD\n22.10.25\n25/10/2025 23:40:59\n9341702256731159346\n988677539740078699\n70569215",
+   "expected": {
+    "date": "25/10/2025",
+    "time": "23:40:59",
+    "amount": "118.00"
+   }
+  },
+  {
+   "id": "vision/test-img24.jpg",
+   "engine": "vision",
+   "ocr_text": "1:011\t89\nDuitNow Payment\tnow\neWallet\tYou have paid RM43.00 to ACME BAKERY.\nRM 43.00\nPaid\n+ 43 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t28/10/2025 13:01:11\neWallet Ref No. 3708163248106599268188486972279\n82002206598720\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "13:01:11",
+    "amount": "43.00"
+   }
+  },
+  {
+   "id": "vision/test-img25.jpg",
+   "engine": "vision",
+   "ocr_text": "12:581\nRM 26.00\nPaid\n+ 26 points\n44975100\tACME BAKERY\nPayment Details\tSample\n16207730835 Type\tD\tDuitNow QR TNGD\nDate/Time\t28/10/2025 12:58:24\neWallet Ref No. 21062540755964443732644008\n2686796700269489113\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "12:58:24",
+    "amount": "26.00"
+   }
+  },
+  {
+   "id": "vision/test-img26.jpg",
+   "engine": "vision",
+   "ocr_text": "12:261\nYou've just earned 29 points!\nYou've 21641360 29 points from your\neWallet\t26403699867! Use them now to redeem grea...\nRM 29.00\neft\n+ 29 f\nACME BAKERY\n• DuitNow QR TNGD\n28/10/2025 12:26:42\n21062540755964443732644008\n4415894826013921875",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "12:26:42",
+    "amount": "29.00"
+   }
+  },
+  {
+   "id": "vision/test-img27.jpg",
+   "engine": "vision",
+   "ocr_text": "20:11~\nRM 39.00\nPaid\n+ 39 points\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDate/Time\t27/10/2025 20:11:47\neWallet Ref No.\t843588982511888443924\n8159812548278725511\n26876\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "27/10/2025",
+    "time": "20:11:47",
+    "amount": "39.00"
+   }
+  },
+  {
+   "id": "vision/test-img28.jpg",
+   "engine": "vision",
+   "ocr_text": "11:45 1\nRM 83.00\nPaid\n+ 83 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t28/10/2025 11:45:12\neWallet Ref No.\t56369946700036588401089673078\n3022430791788818\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "11:45:12",
+    "amount": "83.00"
+   }
+  },
+  {
+   "id": "vision/test-img29.jpg",
+   "engine": "vision",
+   "ocr_text": "6:191\nDuitNow Payment\tnow\neWallet\tYou have paid RM58.00 to ACME BAKERY.\nRM 58.00\nPaid\n+ 58 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t27/10/2025 18:19:19\neWallet Ref No.\t20784150159775125811562413737\n8651830848937536\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "27/10/2025",
+    "time": "18:19:19",
+    "amount": "58.00"
+   }
+  },
+  {
+   "id": "vision/test-img3.jpg",
+   "engine": "vision",
+   "ocr_text": "3:5180L=0\nRM 15.00\n75034368692\n24821370\tSAMPLE PAYEE ONE\nLIN\nRemark\tFund 29436268\nDate & Time\t24/10/2025\n15:51:20\nWebull * 062924159\n( NIDA\n145.26\nRM1,000\nWelcome Rewards\n93441034 Now\t0 72946359 Fes\nT&Cs Apply\nFREE NVDA Share & More\nAd Claim your free US Share and 03015997 worth RM1,000\nDone\n•",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "15:51:20",
+    "amount": "15.00"
+   }
+  },
+  {
+   "id": "vision/test-img30.jpg",
+   "engine": "vision",
+   "ocr_text": "10:27\nRM 68.44\n77867291183\n24821370\tSAMPLE PAYEE THREE\nRemark\tPenang\nDate & Time\t23/10/2025 22:27:42\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "22:27:42",
+    "amount": "68.44"
+   }
+  },
+  {
+   "id": "vision/test-img31.jpg",
+   "engine": "vision",
+   "ocr_text": "68.44 MYR\nYour 26403699867 is 659356913l. (U000)\nTo\nSAMPLE PAYEE THREE\n120275016912\nFees\n0.00 MYR\n187844983 356759216\nDuitNow QR\n16207730835 356759216 no.\n8356503407948607\nDuitNow 356759216 no.\n564015645453077032445054324462\n23 Oct 2025, 09:52 PM",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "21:52:00",
+    "amount": "68.44"
+   }
+  },
+  {
+   "id": "vision/test-img32.jpg",
+   "engine": "vision",
+   "ocr_text": "10:48 • 0B0•\nRM 13.00\nPaid\n+ 13 points\n44975100\tACME BAKERY\n16207730835 Type\t© DuitNow QR TNGD\nDate/Time\t29/10/2025 10:48:34\neWallet Ref No.\t3777944492106978125\n1072455967772694\n3788378202\nPayment Method\teWallet Balance\nDone\n=",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "10:48:34",
+    "amount": "13.00"
+   }
+  },
+  {
+   "id": "vision/test-img33.jpg",
+   "engine": "vision",
+   "ocr_text": "2:46 1\t•I 5G\nRM 70.00\n+ 70 5\nACME BAKERY\nDuitNow QR TNGD\n29/10/2025 14:46:40\n8158843546210817921205075348\n97373029363587245",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "14:46:40",
+    "amount": "70.00"
+   }
+  },
+  {
+   "id": "vision/test-img34.jpg",
+   "engine": "vision",
+   "ocr_text": "11:46 1\t•Il 5G\nRM 54.00\n+ 54 5\nACME BAKERY\n1081\n. DuitNow QR TNGD\n29/10/2025 11:46:52\n48862278981303600882067467582\n1207775978787205",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "11:46:52",
+    "amount": "54.00"
+   }
+  },
+  {
+   "id": "vision/test-img35.jpg",
+   "engine": "vision",
+   "ocr_text": "redONE V6LTE 12:40 •\nRM 27.00\nPaid\n+ 27 points\n44975100\tACME BAKERY\n16207730835 Type\t• DuitNow QR TNGD\nDate/Time\t29/10/2025 12:40:26\neWallet Ref No.\t98946870022159263734\n378982075516303007\n6260999\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "12:40:26",
+    "amount": "27.00"
+   }
+  },
+  {
+   "id": "vision/test-img36.jpg",
+   "engine": "vision",
+   "ocr_text": "09:29@01•\t59 ..ll 92\nRM 45.00\nPaid\n44975100\tACME BAKERY\n16207730835 Type\t• DuitNow QR TNGD\nDate/Time\t29/10/2025 09:29:33\neWallet Ref No.\t944813541184605925107\n1318786822943173455\n50558\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone\n<",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "09:29:33",
+    "amount": "45.00"
+   }
+  },
+  {
+   "id": "vision/test-img37.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 53.00\n+ 53 4)\nACME BAKERY\nSample\nD DuitNow QR TNGD\n29/10/2025 06:01:35\n5106541107208779498",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "06:01:35",
+    "amount": "53.00"
+   }
+  },
+  {
+   "id": "vision/test-img38.jpg",
+   "engine": "vision",
+   "ocr_text": "10:29\nReceipt\nDuitNow\n5670564922\n29 Oct 2025 10:28AM\n5862401569\nPayment Amount (MYR)\n40.00\n621370644 No.\t9977227517463468417\n72602591745\nFrom\tHL SAVINGS - i\n*******5291\n29436268 Type\tDuitNow QR Payment\nNote:\nTo change your default account used for QR\npay please go to Menu > App 32212783 >\nManage QR Pay Setting.\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "10:28:00",
+    "amount": "40.00"
+   }
+  },
+  {
+   "id": "vision/test-img39.jpg",
+   "engine": "vision",
+   "ocr_text": "Maybank\n053981153 DuitNow 29436268\nStatus:\t5670564922\n621370644 Number:\t9679488636\n16207730835 Date:\t29 Oct 2025 18:33:24\nAmount:\tRM2,075.70\n12216987594 Name :\tEXAMPLE 49181306 АCС 4\n216784392 Bank :\tPUBLIC BANK\n12216987594 Account Number :\t6996298379\n187844983 621370644 :\tOct 2025 Pymt - 6 Inv\nOther 29436268 Details :\nNote: This receipt is 72108321 992930751 and no 637940077 is required.",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "18:33:24",
+    "amount": "2075.70"
+   }
+  },
+  {
+   "id": "vision/test-img4.jpg",
+   "engine": "vision",
+   "ocr_text": "2:29\n5670564922\n16207730835 Summary\nMYR 51.00\n24 Oct 2025 2:29:44 PM\nOCTO 621370644 No.\t497350898\nDuitNow 621370644 No.\t54124121\nTo\tACME BAKERY\nFrom\tSA 63216702\n2187839722\nDone\n<",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "14:29:44",
+    "amount": "51.00"
+   }
+  },
+  {
+   "id": "vision/test-img40.jpg",
+   "engine": "vision",
+   "ocr_text": "7:16 • 0\nRM 6.00\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t20/04/2026 19:16:30\neWallet Ref No.\t6736929644558496813\n72939892515026845\n701600779\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "20/04/2026",
+    "time": "19:16:30",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision/test-img41.jpg",
+   "engine": "vision",
+   "ocr_text": "7:10::~\nRM 5.50\nPaid\n+ 5 points\n24821370\tEXAMPLE FOODS\nDate/Time\t07/06/2026 19:08:47\neWallet Ref No.\t4892011897032035518\n72939892515026845\n889160227\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "07/06/2026",
+    "time": "19:08:47",
+    "amount": "5.50"
+   }
+  },
+  {
+   "id": "vision/test-img42.jpg",
+   "engine": "vision",
+   "ocr_text": "11:20 ::: •\nRM 6.50\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t22/06/2026 11:20:19\neWallet Ref No.\t6294175846220602063\n72939892515026845\n693081772\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "22/06/2026",
+    "time": "11:20:19",
+    "amount": "6.50"
+   }
+  },
+  {
+   "id": "vision/test-img43.jpg",
+   "engine": "vision",
+   "ocr_text": "7:29:::~M\nRM 6.00\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t08/07/2026 19:29:42\neWallet Ref No.\t2299999887539815639\n72939892515026845\n163506929\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "08/07/2026",
+    "time": "19:29:42",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision/test-img44.jpg",
+   "engine": "vision",
+   "ocr_text": "12:11 @\nRM 12.00\nPaid\n+ 12 points\n44975100\tEXAMPLE NOODLE HOUSE\nSEPANG\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t09/07/2026 12:10:57\neWallet Ref No.\t9624837964981797329\n72939892515026845\n211877897\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "09/07/2026",
+    "time": "12:10:57",
+    "amount": "12.00"
+   }
+  },
+  {
+   "id": "vision/test-img45.jpg",
+   "engine": "vision",
+   "ocr_text": "RM 6.50\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t11/07/2026 19:46:20\neWallet Ref No.\t25086393481654640822\n631002217027986269\n3433243\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "11/07/2026",
+    "time": "19:46:20",
+    "amount": "6.50"
+   }
+  },
+  {
+   "id": "vision/test-img46.jpg",
+   "engine": "vision",
+   "ocr_text": "9:47::•\nRM 6.00\nPaid\nO points: Non-TNG eWallet QR\n44975100\tEXAMPLE MART SDN BHD\n16207730835 Type\nDuitNow Ref No.\t46016456200758184\n8463006488492\nDate/Time\t13/07/2026 09:47:18\neWallet Ref No.\t1791269721512587758\n72939892515026845\n830269729\nPayment Method\teWallet Balance\nWant to earn points?\nAsk your 53646203 for a DuitNow QR\nissued by TNG eWallet next time.\nLearn more\nDone",
+   "expected": {
+    "date": "13/07/2026",
+    "time": "09:47:18",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision/test-img47.jpg",
+   "engine": "vision",
+   "ocr_text": "6:53 0 :::\n<\tDetails\n-RM10.00\t+10 points\n16207730835 Type\tDuitNow\t• DuitNow QR TNGD\n44975100\tEX TE\nPayment Details\tPayment - EX TE\nPayment Method\teWallet Balance\nDate/Time\t17/07/2026 12:36:13\n127706254039407494874377392\nWallet Ref\nЗМ2224464126554948\nStatus\t5670564922\n640056511160624002786\n16207730835 No.\n113946462\nHome\t29436268\t36015949\tProfile",
+   "expected": {
+    "date": "17/07/2026",
+    "time": "12:36:13",
+    "amount": "10.00"
+   }
+  },
+  {
+   "id": "vision/test-img48.jpg",
+   "engine": "vision",
+   "ocr_text": "7:33:::•ml\nRM 6.00\nPaid\n+ 6 points\n44975100\tEXAMPLE FOODS\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t18/07/2026 19:33:16\neWallet Ref No.\t9207255129318341115\n72939892515026845\n083692240\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "18/07/2026",
+    "time": "19:33:16",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision/test-img49.jpg",
+   "engine": "vision",
+   "ocr_text": "9:58 ::: M x\nRM 8.00\nPaid\nO points: Non-TNG eWallet QR\n44975100\tEXAMPLE MART SDN BHD\n16207730835 Type\tDuitNow\nDuitNow Ref No.\t18269926364355507\n4392936343948\nDate/Time\t19/07/2026 09:58:20\neWallet Ref No.\t2654543074977725392\n72939892515026845\n606063121\nPayment Method\teWallet Balance\nWant to earn points?\nAsk your 53646203 for a DuitNow QR\nissued by TNG eWallet next time.\nLearn more\nDone",
+   "expected": {
+    "date": "19/07/2026",
+    "time": "09:58:20",
+    "amount": "8.00"
+   }
+  },
+  {
+   "id": "vision/test-img5.jpg",
+   "engine": "vision",
+   "ocr_text": "3:04\nRM 32.00\nPaid\n+ 32 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t23/10/2025 15:04:22\neWallet Ref No.\t15943408931736537437848722\n7005187940346915001\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "15:04:22",
+    "amount": "32.00"
+   }
+  },
+  {
+   "id": "vision/test-img50.jpg",
+   "engine": "vision",
+   "ocr_text": "7:45 :\nRM 6.00\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t21/07/2026 19:45:32\neWallet Ref No.\t3605465443063132960\n72939892515026845\n831220899\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "21/07/2026",
+    "time": "19:45:32",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision/test-img6.jpg",
+   "engine": "vision",
+   "ocr_text": "4:47 1\nRM 14.00\n+ 14 5\nACME BAKERY\n• DuitNow QR TNGD\n23/10/2025 16:47:45\n83183546541567367881793973297\n4545621264034636",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "16:47:45",
+    "amount": "14.00"
+   }
+  },
+  {
+   "id": "vision/test-img7.jpg",
+   "engine": "vision",
+   "ocr_text": "3:14 1\nRM 14.00\nACME BAKERY\nDuitNow QR TNGD\n23/10/2025 15:14:29\n3246810007296318394810794\n99910121549355965637",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "15:14:29",
+    "amount": "14.00"
+   }
+  },
+  {
+   "id": "vision/test-img8.jpg",
+   "engine": "vision",
+   "ocr_text": "7:4780 L KG\nRM 41.00\n75034368692\n24821370\tSAMPLE PAYEE TWO\nRemark\tFund 29436268\nDate & Time\t23/10/2025\n19:46:57\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "19:46:57",
+    "amount": "41.00"
+   }
+  },
+  {
+   "id": "vision/test-img9.jpg",
+   "engine": "vision",
+   "ocr_text": "11:44 1\nRM 52.00\nACME BAKERY\nD DuitNow QR TNGD\n23/10/2025 11:44:12\n3246810007296318394810794\n36849708172002741203",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "11:44:12",
+    "amount": "52.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img1.jpeg",
+   "engine": "mlkit",
+   "ocr_text": "9:05\tl (72\nPayment 6963945882\nRM 76.67\nSAMPLE PAYER\n621370644 ID\t7940658268\nDate & time\t5 Sep 2026, 9:05 PM\n16207730835 Type\tScan & Pay\nShare Receipt\nDone",
+   "expected": {
+    "date": "05/09/2026",
+    "time": "21:05:00",
+    "amount": "76.67"
+   }
+  },
+  {
+   "id": "mlkit/test-img10.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:18\n5670564922\n16207730835 Summary\nMYR 13.00\n22 Oct 2025 7:18:10 PM\nOCTO 621370644 No.\t967554898\nDuitNow 621370644 No.\t37378139\nTo\tACME BAKERY\nFrom\tSA 63216702\n3026444827\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "19:18:10",
+    "amount": "13.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img11.jpg",
+   "engine": "mlkit",
+   "ocr_text": "1:06\t(75\nRM 16.00\nPaid\n+ 16 points\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDate/Time\t22/10/2025 13:06:20\neWallet Ref No. 45131829792026540269446702\n3793917393792684032\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "13:06:20",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img12.jpg",
+   "engine": "mlkit",
+   "ocr_text": "12:59\tll 80\nDuitNow Payment\nTOUch\tHGd You have paid RM46.00 to ACME\neWallet\nBAKERY.\nRM 46.00\nPaid\n44975100\tACME BAKERY\nPayment Details\tItem\n16207730835 Type\tDuitNow\tDuitNow QR TNGD\nDate/Time\t22/10/2025 12:59:17\neWallet Ref No. 150224370783455058739650\n320749211567708931815\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone",
+   "expected": {
+    "date": "22/10/2025",
+    "time": "12:59:17",
+    "amount": "46.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img13.jpg",
+   "engine": "mlkit",
+   "ocr_text": "10:46\t54m\t19\nTOuch\tDuitNow Payment\tnow\neWallet\tYou have paid RM90.00 to ACME BAKERY.\nRM 90.00\nPaid\n+ 90 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow\tD DuitNow QR TNGD\nDate/Time\t21/10/2025 22:46:21\neWallet Ref No. 863203517988260689911220249741\n912468827258679\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "21/10/2025",
+    "time": "22:46:21",
+    "amount": "90.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img14.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 390.00\nMoney Paid\n621370644 No.\t309044\nDate & Time\t20/10/2025 05:29:18 PM\nDuitNow Ref No. 177056411279159321\n062115103058\nDuitNow Status ode\tUO00\nPayment Method\tD DuitNow QR\n187844983 Name\tACME BAKERY\n187844983's Bank TNG DIGITAL SDN BHD\nFrom Account\t******7822\nBANK FOR THE PEOPLE\tPUBLIC BANK",
+   "expected": {
+    "date": "20/10/2025",
+    "time": "17:29:18",
+    "amount": "390.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img15.jpg",
+   "engine": "mlkit",
+   "ocr_text": "2:184\ttl97\nTouch TNG eWallet\tnow\neWallet\t582103732625\nRM 49.00\nPaid\n+ 49 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t20/10/2025 14:18:33\neWallet Ref No. 44820116826817451515634165435\n9865464441265677\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "20/10/2025",
+    "time": "14:18:33",
+    "amount": "49.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img16.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 30.00\nPaid\n+ 30 points\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDuitNow\nDate/Time\t26/10/2025 16:15:44\neWallet Ref No. 939377317543183081225697\n897431848891882125073\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "16:15:44",
+    "amount": "30.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img17.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 30.00\nPaid\n+ 30 points\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDuitNow\nDate/Time\t26/10/2025 16:15:44\neWallet Ref No. 939377317543183081225697\n897431848891882125073\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "16:15:44",
+    "amount": "30.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img18.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 58.00\nPaid\n44975100\tACME BAKERY\n16207730835 Type\tP DuitNow QR TNGD\nPayment Details\tchu\nDate/Time\t26/10/2025 12:09:38\neWallet Ref No.\t18108721881202062175\n778253227594454396\n6715201\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "12:09:38",
+    "amount": "58.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img19.jpg",
+   "engine": "mlkit",
+   "ocr_text": "11:33 9y v\nRM16.00\n26 Oct 2025, 11:33\nACME BAKERY\nYou Paid\tRM16.00\n94692027 Amount\tRM16.00\nRewards\n494505325\tLucky Draw Rewards\n084156053 494505325\t+ RMO.31 Bonus\nOrder Details\nLucky Draw Played",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "11:33:00",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img2.jpg",
+   "engine": "mlkit",
+   "ocr_text": "3:47\nYou've just earned 8... You've 21641360 85 points from..\nRM 85.00\nPaid\n+ 85 points\n44975100\tACME BAKERY\n16207730835 Type\tO DuitNow QR TNGD\nDate/Time\t24/10/2025 15:47:39\neWallet Ref No.\t7069912481265431087756\n24374437411340727341\n587\nPayment Method\teWallet Balance\nalan\nikai\nDone",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "15:47:39",
+    "amount": "85.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img20.jpg",
+   "engine": "mlkit",
+   "ocr_text": "5670564922\n16207730835 Summary\nMYR26.00\n26 Oct 2025 11:21:36 AM\nOCTO 621370644 No.\t535650699\nDuitNow 621370644 No.\t88643411\nTo\tACME BAKERY\nFrom\tSA 649627039\n3278296208\nDone",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "11:21:36",
+    "amount": "26.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img21.jpg",
+   "engine": "mlkit",
+   "ocr_text": "10:51\tl 5G\nDuitNow ft\nEtT RM16.00 ACME\neWallet\nBAKERY,\nRM 16.00\n+ 16\nACME BAKERY\nO DuitNow QR TNGD\n26/10/2025 10:51:41\n7sS 05591558792215588115068701170\n1564011606535673",
+   "expected": {
+    "date": "26/10/2025",
+    "time": "10:51:41",
+    "amount": "16.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img22.jpg",
+   "engine": "mlkit",
+   "ocr_text": "23:42\nRM 285.00\n+ 285\nACME BAKERY\nD DuitNow QR TNGD\n25.10.25\n25/10/2025 23:42:05\n9341702256731159346\n988677539740078699\n01545441",
+   "expected": {
+    "date": "25/10/2025",
+    "time": "23:42:05",
+    "amount": "285.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img23.jpg",
+   "engine": "mlkit",
+   "ocr_text": "23:41\nRM 118.00\n+118\nACME BAKERY\nO DuitNow QR TNGD\n22.10.25\n25/10/2025 23:40:59\n9341702256731159346\n988677539740078699\n70569215",
+   "expected": {
+    "date": "25/10/2025",
+    "time": "23:40:59",
+    "amount": "118.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img24.jpg",
+   "engine": "mlkit",
+   "ocr_text": "1:014\nDuitNow Payment\tnow\nYou have paid RM43.00 to ACME BAKERY.\nRM 43.00\nPaid\n+ 43 points\n44975100\tACME BAKERY\n16207730835 Type\tO DuitNow QR TNGD\nDate/Time\t28/10/2025 13:01:11\neWallet Ref No. 3708163248106599268188486972279\n82002206598720\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "13:01:11",
+    "amount": "43.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img25.jpg",
+   "engine": "mlkit",
+   "ocr_text": "12:580\nRM 26.00\nPaid\n+ 26 points\n44975100\tACME BAKERY\nPayment Details\tSample\n16207730835 Type\tD DuitNow QR TNGD\nDate/Time\t28/10/2025 12:58:24\neWallet Ref No. 21062540755964443732644008\n6539402064835978635\nPayment Method\teWallet Balance\nPay without the hassle\nof 101744159!\n26415400 13625075 even if\nyour eWallet balance is\n48117848754t. No more last\nminute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "12:58:24",
+    "amount": "26.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img26.jpg",
+   "engine": "mlkit",
+   "ocr_text": "12:264\t67\nYou've just earned 29 points!\nPESYou've 21641360 29 points from your\neWallet\t26403699867! Use them now to redeem grea...\nRM 29.00\n+ 29\nACME BAKERY\nouitNow\tO DuitNow QR TNGD\n28/10/2025 12:26:42\n7 21062540755964443732644008\n4415894826013921875",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "12:26:42",
+    "amount": "29.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img27.jpg",
+   "engine": "mlkit",
+   "ocr_text": "20:11 &\tl 5G .il 66%\nRM 39.00\nPaid\n+39 points\n44975100\tACME BAKERY\n16207730835 Type\tO DuitNow QR TNGD\nDate/Time\t27/10/2025 20:11:47\neWallet Ref No.\t843588982511888443924\n9243745891139344403\n26876\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "27/10/2025",
+    "time": "20:11:47",
+    "amount": "39.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img28.jpg",
+   "engine": "mlkit",
+   "ocr_text": "11:45\tl 709\nRM 83.00\nPaid\n+ 83 points\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDate/Time\t28/10/2025 11:45:12\neWallet Ref No. 56369946700036588401089673078\n3022430791788818\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "28/10/2025",
+    "time": "11:45:12",
+    "amount": "83.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img29.jpg",
+   "engine": "mlkit",
+   "ocr_text": "6:19\nTouch\tDuitNow Payment\tnow\neWallet\tYou have paid RM58.00 to ACME BAKERY.\nRM 58.00\nPaid\n+ 58 points\n44975100\tACME BAKERY\n16207730835 Type\t99940560 QR TNGD\nDate/Time\t27/10/2025 18:19:19\neWallet Ref No. 20784150159775125811562413737\n8651830848937536\nPayment Method\teWallet Balance\nPay without the hassle of 101744159!\n26415400 13625075 even if your\neWallet balance is 48117848754t. No\nmore last minute reloads!\nSet up now\nDone",
+   "expected": {
+    "date": "27/10/2025",
+    "time": "18:19:19",
+    "amount": "58.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img3.jpg",
+   "engine": "mlkit",
+   "ocr_text": "3:5180 CO\tWF4639%\nRM 15.00\n75034368692\n24821370\tSAMPLE PAYEE ONE\nLIN\nRemark\tFund 29436268\nDate & Time\t24/10/2025\n15:51:20\nWebull 83787596\nGet\t145.26\nRM1,000\nWelcome Rewards\n93441034 Now\nFREE NVDA Share & More\nAd Claim your free US Share and 03015997 worth RM1,000\nDone",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "15:51:20",
+    "amount": "15.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img30.jpg",
+   "engine": "mlkit",
+   "ocr_text": "10:27\nRM 68.44\n75034368692\n24821370\tSAMPLE PAYEE THREE\nRemark\tPenang\nDate & Time\t23/10/2025 22:27:42\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "22:27:42",
+    "amount": "68.44"
+   }
+  },
+  {
+   "id": "mlkit/test-img31.jpg",
+   "engine": "mlkit",
+   "ocr_text": "H UOB\n68.44 MYR\nYour 26403699867 is 659356913l. (UO00)\nTo\nSAMPLE PAYEE THREE\n120275016912\nFees\n0.00 MYR\n187844983 356759216\nDuitNow QR\n16207730835 356759216 no.\n8356503407948607\nDuitNow 356759216 no.\n564015645453077032445054324462\n23 Oct 2025, 09:52 PM",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "21:52:00",
+    "amount": "68.44"
+   }
+  },
+  {
+   "id": "mlkit/test-img32.jpg",
+   "engine": "mlkit",
+   "ocr_text": "10:48 0sO•\t0 4G Sill73%\nRM 13.00\nPaid\n+ 13 points\n44975100\tACME BAKERY\n16207730835 Type\tO DuitNow QR TNGD\nDate/Time\t29/10/2025 10:48:34\neWallet Ref No.\t3777944492106978125\n1072455967772694\n3788378202\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "10:48:34",
+    "amount": "13.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img33.jpg",
+   "engine": "mlkit",
+   "ocr_text": "2:46\t5G\nRM 70.00\n+ 70\nACME BAKERY\nD DuitNow QR TNGD\n29/10/2025 14:46:40\n559603939275 2210006213265960\n97373029363587245",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "14:46:40",
+    "amount": "70.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img34.jpg",
+   "engine": "mlkit",
+   "ocr_text": "11:464\ttl 5G\nRM 54.00\n+54\nACME BAKERY\n1081\nD DuitNow QR TNGD\n29/10/2025 11:46:52\n7#0 48862278981303600882067467582\n1207775978787205",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "11:46:52",
+    "amount": "54.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img35.jpg",
+   "engine": "mlkit",
+   "ocr_text": "redONE eLTE 12:409\nRM 27.00\nPaid\n+ 27 points\n44975100\tACME BAKERY\n16207730835 Type\tO DuitNow QR TNGD\nDate/Time\t29/10/2025 12:40:26\neWallet Ref No.\t98946870022159263734\n081159116308482784\n6260999\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "12:40:26",
+    "amount": "27.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img36.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 45.00\nPaid\n44975100\tACME BAKERY\n16207730835 Type\tD DuitNow QR TNGD\nDate/Time\t29/10/2025 09:29:33\neWallet Ref No.\t944813541184605925107\n1318786822943173455\n50558\nPayment Method\teWallet Balance\nCollect 1 point for every RM1 spent and\nredeem rewards in our loyalty program!\nJoin now\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "09:29:33",
+    "amount": "45.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img37.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 53.00\n+ 53\nACME BAKERY\nSample\nD DuitNow QR TNGD\nDuitNo\n29/10/2025 06:01:35\n7#0 74437824678305069750249259\n5106541107208779498",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "06:01:35",
+    "amount": "53.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img38.jpg",
+   "engine": "mlkit",
+   "ocr_text": "10:29\t4G\nReceipt\nDuitNow\n5670564922\n29 Oct 2025 10:28AM\n5862401569\nPayment Amount (MYR)\n40.00\n621370644 No.\t8412620564893454484\n72602591745\nFrom\tHL SAVINGS - i\n*******5291\n29436268 Type\tDuitNow QR Payment\nNote:\nTo change your default account used for QR\npay please go to Menu > App 32212783 >\nManage QR Pay Setting.\nDone",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "10:28:00",
+    "amount": "40.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img39.jpg",
+   "engine": "mlkit",
+   "ocr_text": "Maybank\n053981153 DuitNow 29436268\nStatus:\t5670564922\n621370644 Number:\t9679488636\n16207730835 Date:\t29 Oct 2025 18:33:24\nAmount:\tRM2,075.70\n12216987594 Name:\tEXAMPLE 49181306 ACC 4\n216784392 Bank:\tPUBLIC BANK\n12216987594 Account Number :\t6996298379\n187844983 621370644 :\tOct 2025 Pymt - 6 Inv\nOther 29436268 Details :\nNote: This receipt is 72108321 992930751 and no 637940077 is required.",
+   "expected": {
+    "date": "29/10/2025",
+    "time": "18:33:24",
+    "amount": "2075.70"
+   }
+  },
+  {
+   "id": "mlkit/test-img4.jpg",
+   "engine": "mlkit",
+   "ocr_text": "2:29\n5670564922\n16207730835 Summary\nMYR 51.00\n24 Oct 2025 2:29:44 PM\nOCTO 621370644 No.\t497350898\nDuitNow 621370644 No.\t54124121\nTo\tACME BAKERY\nFrom\tSA 63216702\n2187839722\nDone",
+   "expected": {
+    "date": "24/10/2025",
+    "time": "14:29:44",
+    "amount": "51.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img40.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:16 É\tl:95\nRM 6.00\nPaid\n+6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t20/04/2026 19:16:30\neWallet Ref No.\t6736929644558496813\n72939892515026845\n701600779\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "20/04/2026",
+    "time": "19:16:30",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img41.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:10\nRM 5.50\nPaid\n+ 5 points\n24821370\tEXAMPLE FOODS\nDate/Time\t07/06/2026 19:08:47\neWallet Ref No.\t4892011897032035518\n72939892515026845\n889160227\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "07/06/2026",
+    "time": "19:08:47",
+    "amount": "5.50"
+   }
+  },
+  {
+   "id": "mlkit/test-img42.jpg",
+   "engine": "mlkit",
+   "ocr_text": "11:20\tVPN ,ill ,l 25\nRM 6.50\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t22/06/2026 11:20:19\neWallet Ref No.\t6294175846220602063\n72939892515026845\n693081772\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "22/06/2026",
+    "time": "11:20:19",
+    "amount": "6.50"
+   }
+  },
+  {
+   "id": "mlkit/test-img43.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:29 e\tVPN ill51•\nRM 6.00\nPaid\n+6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t08/07/2026 19:29:42\neWallet Ref No.\t2299999887539815639\n72939892515026845\n163506929\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "08/07/2026",
+    "time": "19:29:42",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img44.jpg",
+   "engine": "mlkit",
+   "ocr_text": "12:11 G\nRM 12.00\nPaid\n+ 12 points\n44975100\tEXAMPLE NOODLE HOUSE\nSEPANG\n16207730835 Type\tDuitNow\tD DuitNow QR TNGD\nDate/Time\t09/07/2026 12:10:57\neWallet Ref No.\t9624837964981797329\n72939892515026845\n211877897\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "09/07/2026",
+    "time": "12:10:57",
+    "amount": "12.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img45.jpg",
+   "engine": "mlkit",
+   "ocr_text": "RM 6.50\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t11/07/2026 19:46:20\neWallet Ref No.\t25086393481654640822\n249935162002948484\n3433243\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "11/07/2026",
+    "time": "19:46:20",
+    "amount": "6.50"
+   }
+  },
+  {
+   "id": "mlkit/test-img46.jpg",
+   "engine": "mlkit",
+   "ocr_text": "9:47\nRM 6.00\nPaid\nO points: Non-TNG eWallet QR\n44975100\tEXAMPLE MART SDN BHD\n16207730835 Type\tDuitNow\tD DuitNow QR\nDuitNow Ref No.\t46016456200758184\n8463006488492\nDate/Time\t13/07/2026 09:47:18\neWallet Ref No.\t1791269721512587758\n72939892515026845\n830269729\nPayment Method\teWallet Balance\nWant to earn points?\nAsk your 53646203 for a DuitNow QR\nissued by TNG eWallet next time.\nLearn more\nDone",
+   "expected": {
+    "date": "13/07/2026",
+    "time": "09:47:18",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img47.jpg",
+   "engine": "mlkit",
+   "ocr_text": "6:53 9:\tVPN ,il66\n( Details\n-RM10.00\t+10 points\n16207730835 Type\tDuitNow\tD DuitNow QR TNGD\n44975100\tEX TE\nPayment Details\tPayment - EX TE\nPayment Method\teWallet Balance\nDate/Time\t17/07/2026 12:36:13\n127706254039407494874377392\nWallet Ref\n927405936754054555\nStatus\t5670564922\n541881329127402997913\n16207730835 No.\n113946462\nHome\t29436268\t36015949\tProfile",
+   "expected": {
+    "date": "17/07/2026",
+    "time": "12:36:13",
+    "amount": "10.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img48.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:33\tVPN l99\nRM 6.00\nPaid\n+6 points\n44975100\tEXAMPLE FOODS\n16207730835 Type\tDuitNow\to DuitNow QR TNGD\nDate/Time\t18/07/2026 19:33:16\neWallet Ref No.\t9207255129318341115\n72939892515026845\n083692240\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "18/07/2026",
+    "time": "19:33:16",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img49.jpg",
+   "engine": "mlkit",
+   "ocr_text": "9:58 : M\nRM 8.00\nPaid\nO points: Non-TNG eWallet QR\n44975100\tEXAMPLE MART SDN BHD\n16207730835 Type\tDuitNow\tD DuitNow QR\nDuitNow Ref No.\t18269926364355507\n3069686456345\nDate/Time\t19/07/2026 09:58:20\neWallet Ref No.\t2654543074977725392\n72939892515026845\n606063121\nPayment Method\teWallet Balance\nWant to earn points?\nAsk your 53646203 for a DuitNow QR\nissued by TNG eWallet next time.\nLearn more\nDone",
+   "expected": {
+    "date": "19/07/2026",
+    "time": "09:58:20",
+    "amount": "8.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img5.jpg",
+   "engine": "mlkit",
+   "ocr_text": "3:04\tl 5G 60\nRM 32.00\nPaid\n+ 32 points\n44975100\tACME BAKERY\n16207730835 Type\tDuitNow QR TNGD\nDate/Time\t23/10/2025 15:04:22\neWallet Ref No. 15943408931736537437848722\n7005187940346915001\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "15:04:22",
+    "amount": "32.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img50.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:45\tVPN),ll26\nRM 6.00\nPaid\n+6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t21/07/2026 19:45:32\neWallet Ref No.\t3605465443063132960\n72939892515026845\n831220899\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "21/07/2026",
+    "time": "19:45:32",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img6.jpg",
+   "engine": "mlkit",
+   "ocr_text": "4:474\tl 4G\nRM 14.00\n+ 14\nACME BAKERY\nD DuitNow QR TNGD\n23/10/2025 16:47:45\n7s3 83183546541567367881793973297\n4545621264034636",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "16:47:45",
+    "amount": "14.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img7.jpg",
+   "engine": "mlkit",
+   "ocr_text": "3:144\t204\nRM 14.00\n+ 14\nACME BAKERY\n22727436\tDuitNow QR TNGD\n23/10/2025 15:14:29\n7#s 3246810007296318394810794\n99910121549355965637",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "15:14:29",
+    "amount": "14.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img8.jpg",
+   "engine": "mlkit",
+   "ocr_text": "7:4780C\tWF618%\nRM 41.00\n75034368692\n24821370\tSAMPLE PAYEE TWO\nRemark\tFund 29436268\nDate & Time\t23/10/2025\n19:46:57\nDone",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "19:46:57",
+    "amount": "41.00"
+   }
+  },
+  {
+   "id": "mlkit/test-img9.jpg",
+   "engine": "mlkit",
+   "ocr_text": "11:44\t100\nRM 52.00\nACME BAKERY\nD DuitNow QR TNGD\n23/10/2025 11:44:12\n7s 3246810007296318394810794\n36849708172002741203",
+   "expected": {
+    "date": "23/10/2025",
+    "time": "11:44:12",
+    "amount": "52.00"
+   }
+  },
+  {
+   "id": "vision-receipt/test1.jpg",
+   "engine": "vision-receipt",
+   "ocr_text": "Example Bay Cafe\n46A, Jln Sultan Ahmad Shah\n10050, George Town, Pulau Pinang\nContact No : +40111010777\n36362589 BRN : 449491229755\nSST No : 455545374186348Ś\nTable : OS 10\n824882910 by ADMIN 888\nOrder by ADMIN 888\nInvoice Date : 05-09-2026 07:35 PM\nInvoice No : 124324840550074\n64072213 Name : TERMINAL-0001\nName : Walk-in 99103546\nITEM\tQTY\tPRICE\tAMT\nSEA SALT 840079122\t21.00\t21.00\nSEA SALT CARAMEL L\t19.00\t19.00\nATTE\nYuzu Coast Lemonad\t22.00\t22.00\nMANGO KERABU PAVLO\t25.00\t25.00\nVA\nNILD 94027968 AND\t1\t36.00\t36.00\nSPINACH RISOTTO\nMENTAI SEAFOOD PIZ 1\t38.00\t38.00\nZA\n99691151 (MYR)\t161,00\nTAX(SST 6%)\t9.66\nSERVICE CHARGE(MYR)(10%)\t16.10\n45564340(MYR)\t-0.01\n7493655649 (MYR)\t186.75\nCredit Card(MYR)\t186.75\nTOTAL ITEM(S)\n*×\t**\nE-Invoice\nScan QR to request E-invoice",
+   "expected": {
+    "date": "05/09/2026",
+    "time": "19:35:00",
+    "amount": "186.75"
+   }
+  },
+  {
+   "id": "vision-receipt/test2.jpg",
+   "engine": "vision-receipt",
+   "ocr_text": "7:16 • 0\nRM 6.00\nPaid\n+ 6 points\n24821370\tEXAMPLE FOODS\nDate/Time\t20/04/2026 19:16:30\neWallet Ref No.\t6736929644558496813\n72939892515026845\n701600779\nPayment Method\teWallet Balance\nDone",
+   "expected": {
+    "date": "20/04/2026",
+    "time": "19:16:30",
+    "amount": "6.00"
+   }
+  },
+  {
+   "id": "vision-receipt/test3.jpg",
+   "engine": "vision-receipt",
+   "ocr_text": "399481643\n399481643 (Icon City JE)\nSST ID:\nStore Address:On Ground Floor and 974621811\nFloor of No. 51, Jalan Icon City,Icon City,\n14000 Bukiti 06051256, Pul\nStore Phone Number:0163821899\nINVOICE\nTable Number:A9\nOrder ID:20260821121440836125510006\nSN:6\nCashier:Cashier - PGIC\nNumber Of Guests:4\n56273567 Time:2026-08-21 13:20:44\n*** Dine In ***\nKitchen Name\tQTY\tAmount\n05535656215 Laotan Suancai\t1\t48.80\nFish (Large Portion ) (Dory\nfish)\n4502162746 Passion Fruit Jasmine\t17.90\nTea(jar)\n43113036\t66.70\nService charge 10%\t6.67\nRounded\t-0.03\nTotal 35974946 0606726275\t73.40\n9926011788\t73.40\n13968269 Time:2026-08-21 13:20:45\nTHANK\tYOU, PLEASE COME AGAIN",
+   "expected": {
+    "date": "21/08/2026",
+    "time": "13:20:44",
+    "amount": "73.40"
+   }
+  },
+  {
+   "id": "vision-receipt/test4.jpg",
+   "engine": "vision-receipt",
+   "ocr_text": "9:59\nDetails\n-RM10.60\t+10 points\n16207730835 Type\tDuitNow QR TNGD\n44975100\tEXAMPLE 81275924\nPayment Details Payment - EXAMPLE 81275924\nCENDOL\nPayment Method\teWallet Balance\nDate/Time\t20/08/2026 13:08:11\nWallet Ref 756059434346831684629244158\n3М2545884410303978\nStatus\t5670564922\n187965916317300798889\n16207730835 No.\n346878393\nHome\t29436268\t36015949\tProfile",
+   "expected": {
+    "date": "20/08/2026",
+    "time": "13:08:11",
+    "amount": "10.60"
+   }
+  }
+ ]
+}
