@@ -11,11 +11,8 @@ The interface is a Flutter app — one codebase for Android and the web, with li
 ## ✨ Features
 
 - **Local AI OCR Receipt Scanning:** Upload receipt images (`.jpg`, `.png`, etc.) to automatically extract:
-  - Merchant Name
   - Transaction Date & Time
-  - Line Items & Prices
-  - Tax & Total Amount
-  - Suggested Expense Category
+  - Total Amount
 - **Manual Transaction Logging:** Quickly log expenses with custom details, accounts, and types (expense vs. income).
 - **Account Transfers:** Move money between accounts as a paired transaction.
 - **Category-Wise Summaries:** Monthly breakdowns per category, with a drill-down into the transactions behind each one.
@@ -41,22 +38,12 @@ The interface is a Flutter app — one codebase for Android and the web, with li
 - **Waitress:** Production-ready multi-threaded WSGI server
 - **Pillow:** Image preprocessing
 
-> **Why not one vision model?** A 3B VLM used to do the whole job and held ~3.2 GB
-> resident so it could answer instantly. Splitting the work — Apple's Vision framework
-> for text recognition, a 0.5B model for "which characters are the total", and plain
-> Python for parsing — reads the same receipts correctly in **495 MB and 0.6 s**.
-> Small models are reliable at copying a span and unreliable at reformatting it, so
-> dates and amounts are parsed in code, never by the model. The measurements behind
-> that split are reproducible with `backend/bench/compare_pipelines.py`.
-
 ### Frontend
 - **Flutter (Dart):** One codebase for Android and the web (`frontend_flutter/`)
 - **Material 3 + design tokens:** A `ThemeExtension` carrying the palette, radii and type scale, with light/dark theming
 - **Provider:** App state — transactions, accounts, subscriptions, categories
 - **Plus Jakarta Sans:** Bundled, not fetched, so the app renders identically offline
 - **Share intent:** Receipts shared from another app open straight in the scanner
-
-> Replaced a Vue 3 + Capacitor frontend. The API it talks to is unchanged.
 
 ---
 
@@ -104,7 +91,7 @@ docker compose up -d
 
 Then open **http://localhost:8080**.
 
-That's it. The app is usable straight away with an empty database and a default set of
+The app is usable straight away with an empty database and a default set of
 categories. In the background, the `ollama-pull` service downloads the ~1 GB model —
 until it finishes, manual transaction entry works normally and receipt scanning returns
 a "model not pulled yet" message.
@@ -197,9 +184,6 @@ If a date can't be read from a receipt, Scandy falls back to the current date an
 and you confirm or correct the values in the UI before saving — so a partial reading is
 never a failed scan.
 
-Raising `OLLAMA_MAX_IMAGE_EDGE` is generally *not* worth it: in testing, full-resolution
-images made scans several times slower with no accuracy gain.
-
 ### Your Data
 
 Everything lives in the `scandy-data` Docker volume — the SQLite database, accounts,
@@ -213,19 +197,6 @@ docker run --rm -v scandy-data:/data -v "$PWD":/backup alpine \
 # Wipe everything and start fresh
 docker compose down -v
 ```
-
-### Common Commands
-
-```bash
-docker compose logs -f          # follow logs
-docker compose restart backend  # restart just the API
-docker compose down             # stop (data is kept)
-docker compose up -d --build    # update after pulling new code
-```
-
-These all read `.env`, so they cover the bundled Ollama too. If you chose not to create
-a `.env`, add `--profile bundled` to each of them — otherwise `down` leaves the Ollama
-container running.
 
 ### Accessing From Your Phone
 
