@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/api_client.dart';
+import '../../services/local_scanner.dart';
 import '../../services/share_intent_service.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -281,8 +282,16 @@ class _AppShellState extends State<AppShell>
   };
 }
 
-/// Blocks while `/api/upload` runs OCR, which can take a while on a self-hosted
-/// backend — hence the 90s client timeout rather than the usual 15s.
+/// Reads the receipt, on the phone when it can and on the server when it must.
+///
+/// On Android and iOS ML Kit plus the local rules answer most scans in well
+/// under a second with no network at all. The server is asked only when the
+/// device cannot scan (the web build), or when the rules left a field empty —
+/// it runs the same rules plus a small extraction model for the remainder.
+///
+/// When the server is unreachable and the device read *something*, that partial
+/// answer still opens the form. Every field there is editable, so a prefilled
+/// amount with a blank date is far more useful than a failed scan.
 class _ScanningDialog extends StatefulWidget {
   const _ScanningDialog({required this.api, required this.file});
 
@@ -295,6 +304,7 @@ class _ScanningDialog extends StatefulWidget {
 
 class _ScanningDialogState extends State<_ScanningDialog> {
   String? _error;
+  final LocalScanner _scanner = createLocalScanner();
 
   @override
   void initState() {
@@ -302,7 +312,19 @@ class _ScanningDialogState extends State<_ScanningDialog> {
     _run();
   }
 
+  @override
+  void dispose() {
+    _scanner.dispose();
+    super.dispose();
+  }
+
   Future<void> _run() async {
+    final local = await _scanLocally();
+    if (local != null && local.fields.isComplete) {
+      if (mounted) Navigator.of(context).pop(prefillFrom(local.fields));
+      return;
+    }
+
     try {
       final data = await widget.api.scanReceipt(widget.file);
       // A receipt it cannot read comes back 200 with an `error` key rather
@@ -314,9 +336,37 @@ class _ScanningDialogState extends State<_ScanningDialog> {
       }
       if (mounted) Navigator.of(context).pop(data);
     } on ApiException catch (e) {
+      // Offline, or no server configured. A partial local read is still worth
+      // opening the form with.
+      if (local != null && local.fields.missing.length < 3) {
+        if (mounted) Navigator.of(context).pop(prefillFrom(local.fields));
+        return;
+      }
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// Never lets an on-device failure end the scan — the server is still there.
+  Future<LocalScanResult?> _scanLocally() async {
+    if (!_scanner.isAvailable) {
+      debugPrint('[scan] on-device scanning unavailable on this platform');
+      return null;
+    }
+    try {
+      final watch = Stopwatch()..start();
+      final result = await _scanner.scan(widget.file);
+      watch.stop();
+      // Logged in every build, not just debug: when a scan goes to the server
+      // the useful question is always "what did the device read first", and
+      // without this the answer is invisible.
+      debugPrint('[scan] on-device ${watch.elapsedMilliseconds}ms -> '
+          '${result?.fields} (${result?.text.split('\n').length ?? 0} rows)');
+      return result;
+    } catch (e, st) {
+      debugPrint('[scan] on-device failed, falling back to the server: $e\n$st');
+      return null;
     }
   }
 
