@@ -83,7 +83,7 @@ besides Docker.
 ### Quick Start
 
 ```bash
-git clone <your-repo-url> Scandy
+git clone https://github.com/JinWei225/Scandy.git
 cd Scandy
 cp .env.example .env
 docker compose up -d
