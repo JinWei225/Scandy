@@ -6,6 +6,8 @@
 .env
 
 # --- Personal deployment scripts (public copy lives in deployment/) ---
+deployment/launchagent.plist.template
+deployment/install-launchagent.sh
 dev-deployment/
 
 # --- Personal Data & Databases (DO NOT UPLOAD) ---
