@@ -53,6 +53,13 @@ if backend_running; then
 fi
 ok "Port $BACKEND_PORT is free"
 
+# The 'vision' backend shells out to llama-server for field extraction. Warn now
+# rather than letting the first scan fail with a message nobody sees until then.
+if [ "${OCR_BACKEND:-vision}" = "vision" ] && ! command -v llama-server >/dev/null 2>&1; then
+    warn "llama-server not found — receipt scanning will fail."
+    printf '  Install it with: %sbrew install llama.cpp%s\n' "$C_BOLD" "$C_RESET"
+fi
+
 # The frontend is served by nginx from this directory; missing it is not fatal
 # for the API, but the browser would show a 404 and the cause is non-obvious.
 if [ ! -d "$DIST_DIR" ]; then

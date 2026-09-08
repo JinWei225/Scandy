@@ -1,7 +1,7 @@
 # Container-only dependency set.
 #
-# Deliberately NOT backend/requirements.txt: that file pins mlx-vlm and torch,
-# which are Apple Silicon only and add multiple gigabytes. In Docker the OCR work
+# Deliberately NOT backend/requirements.txt: that file pins the pyobjc Vision
+# bindings, which are macOS only and cannot install here. In Docker the OCR work
 # is done by the Ollama service over HTTP, so the backend needs nothing more than
 # the web stack. Ollama is called with stdlib urllib, so it adds no dependency.
 

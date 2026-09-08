@@ -3,9 +3,17 @@
 Scripts for running Scandy directly on your machine (nginx + Waitress), as an
 alternative to the Docker stack in the repository root.
 
-Use these if you are on an Apple Silicon Mac and want MLX-VLM receipt scanning
-on the GPU. Everyone else is better served by `docker compose up -d` — see the
-main [README](../README.md).
+Use these if you are on a Mac and want the native scanner: Apple Vision reads
+the receipt, and a 0.5B extraction model picks out the fields. Everyone else is
+better served by `docker compose up -d` — see the main [README](../README.md).
+
+Requires `llama.cpp` for the extraction model:
+
+```bash
+brew install llama.cpp
+```
+
+The model weights (~491 MB) download themselves on the first scan.
 
 ## Files
 

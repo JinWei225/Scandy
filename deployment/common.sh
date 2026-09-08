@@ -91,6 +91,38 @@ PY
     fi
 }
 
+# --- Extraction model --------------------------------------------------------
+# The 'vision' OCR backend runs llama.cpp as a child process and records its PID
+# here. run_waitress.py stops it on SIGTERM; this is the safety net for the
+# SIGKILL path, where an orphan would hold ~490 MB until the next reboot.
+LLM_PID_FILE="$BACKEND_DIR/llama-server.pid"
+
+llm_pid() {
+    [ -f "$LLM_PID_FILE" ] || return 0
+    local pid
+    pid="$(cat "$LLM_PID_FILE" 2>/dev/null)"
+    case "$pid" in ''|*[!0-9]*) return 0 ;; esac
+    kill -0 "$pid" 2>/dev/null || return 0
+    # Confirm the PID is still llama-server: PIDs get recycled, and signalling
+    # whatever inherited this number would be worse than leaking memory.
+    ps -p "$pid" -o command= 2>/dev/null | grep -q 'llama-server' || return 0
+    echo "$pid"
+}
+
+stop_llm_orphan() {
+    local pid
+    pid="$(llm_pid)"
+    rm -f "$LLM_PID_FILE"
+    [ -n "$pid" ] || return 0
+    kill "$pid" 2>/dev/null || true
+    for _ in $(seq 1 10); do
+        kill -0 "$pid" 2>/dev/null || { ok "Extraction model stopped (PID $pid)"; return 0; }
+        sleep 1
+    done
+    kill -9 "$pid" 2>/dev/null || true
+    ok "Extraction model killed (PID $pid)"
+}
+
 # --- nginx -------------------------------------------------------------------
 nginx_servers_dir() {
     if [ -d "/opt/homebrew/etc/nginx" ]; then

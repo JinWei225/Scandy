@@ -60,6 +60,10 @@ fi
 
 rm -f "$PID_FILE"
 
+# The backend stops its own extraction model on SIGTERM; this catches the
+# case where it was killed harder than that and left one running.
+stop_llm_orphan
+
 # --- nginx -------------------------------------------------------------------
 if [ "$STOP_NGINX" -eq 1 ]; then
     echo ""

@@ -68,7 +68,7 @@ fi
 
 # --- OCR backend -------------------------------------------------------------
 echo ""
-printf 'OCR engine: %s\n' "${OCR_BACKEND:-mlx (default)}"
+printf 'OCR engine: %s\n' "${OCR_BACKEND:-vision (default)}"
 
 echo ""
 if [ -f "$LOG_FILE" ]; then

@@ -16,6 +16,9 @@ backend/subscriptions.json
 *.sqlite
 *.db
 
+# --- Benchmark output (regenerate with backend/bench/compare_pipelines.py) ---
+backend/bench/results/
+
 # --- Log Files ---
 *.log
 *.pid

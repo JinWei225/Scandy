@@ -1,6 +1,6 @@
 # 🧾 Scandy
 
-Scandy is a sleek, modern, full-stack receipt scanner and personal transaction manager. Built to be local-first, it runs a local Vision-Language Model (VLM) — via **MLX-VLM** on Apple Silicon, or **Ollama** anywhere else — to analyze receipt images, extract transaction details, and automatically categorize them. No data leaves your machine.
+Scandy is a sleek, modern, full-stack receipt scanner and personal transaction manager. Built to be local-first, it reads receipt images entirely on your own machine — **Apple Vision OCR plus a small extraction model** natively on macOS, or a **vision model on Ollama** anywhere else — to extract transaction details and categorize them. No data leaves your machine.
 
 Want to self-host it? [**Jump to the Docker setup →**](#-docker-self-hosting)
 
@@ -34,12 +34,20 @@ The interface is a Flutter app — one codebase for Android and the web, with li
 ### Backend
 - **Python / Flask:** Web API server
 - **Pluggable local OCR engine** (no remote API keys required!), selected with `OCR_BACKEND`:
-  - `mlx` *(default)* — **MLX-VLM** on Apple Silicon, `mlx-community/Qwen3.5-0.8B-4bit`
+  - `vision` *(default)* — **Apple Vision** reads the text, then **NuExtract-1.5-tiny** (0.5B, Q4, via `llama.cpp`) picks out the fields. macOS only
   - `ollama` — a vision model on an **Ollama** server, used by the Docker stack so it runs on any platform
 - **SQLite:** Local-first relational database storage for transactions
 - **JSON files:** Accounts, subscriptions, and categories (`backend/accounts.json`, `subscriptions.json`, `categories.json`)
 - **Waitress:** Production-ready multi-threaded WSGI server
 - **Pillow:** Image preprocessing
+
+> **Why not one vision model?** A 3B VLM used to do the whole job and held ~3.2 GB
+> resident so it could answer instantly. Splitting the work — Apple's Vision framework
+> for text recognition, a 0.5B model for "which characters are the total", and plain
+> Python for parsing — reads the same receipts correctly in **495 MB and 0.6 s**.
+> Small models are reliable at copying a span and unreliable at reformatting it, so
+> dates and amounts are parsed in code, never by the model. The measurements behind
+> that split are reproducible with `backend/bench/compare_pipelines.py`.
 
 ### Frontend
 - **Flutter (Dart):** One codebase for Android and the web (`frontend_flutter/`)
@@ -56,13 +64,14 @@ The interface is a Flutter app — one codebase for Android and the web, with li
 
 There are two ways to run Scandy — pick one:
 
-| | [🐳 Docker](#-docker-self-hosting) | [💻 Native](#-native-setup-apple-silicon) |
+| | [🐳 Docker](#-docker-self-hosting) | [💻 Native](#-native-setup-macos) |
 | --- | --- | --- |
-| **Platform** | Linux, Windows, macOS (any CPU) | Apple Silicon Mac only |
-| **Setup** | One command | Python + Node + nginx by hand |
-| **OCR engine** | Ollama (containerized) | MLX-VLM (Metal-accelerated) |
-| **Scan speed** | Slower | Fastest |
-| **Best for** | Self-hosting on your own machine | Getting maximum speed when self-hosting on a Mac |
+| **Platform** | Linux, Windows, macOS (any CPU) | macOS only |
+| **Setup** | One command | Python + Flutter + nginx by hand |
+| **OCR engine** | Vision model on Ollama (containerized) | Apple Vision + NuExtract-tiny |
+| **Scan speed** | 5–9 s | ~0.6 s |
+| **Memory held** | ~1 GB in the Ollama container | ~495 MB |
+| **Best for** | Self-hosting on your own machine | Self-hosting on a Mac you also use for other things |
 
 ---
 
@@ -72,11 +81,11 @@ The easiest way to run Scandy on your own machine. Everything — web app, API, 
 vision model that reads receipts — runs in containers, so there is nothing to install
 besides Docker.
 
-> **Why a different OCR engine?** The native setup uses Apple's MLX, which requires
-> Metal and therefore cannot run inside a container. The Docker stack uses
-> [Ollama](https://ollama.com/) instead, which runs anywhere. It runs
-> `qwen3.5:0.8b` — the same model family as the native setup — with the same prompt
-> and the same output format.
+> **Why a different OCR engine?** The native setup reads text with Apple's Vision
+> framework, which is part of macOS and cannot run inside a Linux container. The
+> Docker stack uses [Ollama](https://ollama.com/) instead, which runs anywhere. It
+> asks `qwen3.5:0.8b` to read the image directly, and returns the same fields in the
+> same format.
 
 ### Prerequisites
 - **[Docker](https://docs.docker.com/get-docker/)** with Compose v2 (included in Docker Desktop)
@@ -179,9 +188,10 @@ All settings live in `.env` and have working defaults.
 
 ### A Note on Scan Accuracy
 
-`qwen3.5:0.8b` is the same model family the native MLX setup uses, so results are
-comparable. On the bundled test receipt it reads the date, time and total correctly in
-**5–9 seconds** on CPU.
+`qwen3.5:0.8b` reads the image directly rather than working from OCR text. On the
+bundled test receipts it reads the date, time and total correctly in **5–9 seconds** on
+CPU — slower than the native path, and it keeps about 1 GB resident in the Ollama
+container, but it runs on any platform.
 
 If a date can't be read from a receipt, Scandy falls back to the current date and time,
 and you confirm or correct the values in the UI before saving — so a partial reading is
@@ -236,16 +246,23 @@ or [Tailscale](https://tailscale.com/) IP — e.g. `http://192.168.1.20:8080`.
 
 ---
 
-## 💻 Native Setup (Apple Silicon)
+## 💻 Native Setup (macOS)
 
-The fastest option, and the one used for development. Runs MLX-VLM directly on the GPU.
+The fastest option, and the one used for development. Apple's Vision framework reads
+the receipt and a 0.5B model extracts the fields — about **0.6 s per scan** while
+holding **~495 MB**, which is little enough to leave running on a machine you also use
+for other work. Developed and measured on Apple Silicon.
 
 ### Prerequisites
 - **Python 3.13+**
 - **[Flutter](https://docs.flutter.dev/get-started/install)** — builds the web UI (and the Android app)
 - **[uv](https://docs.astral.sh/uv/)** (recommended) — manages the Python environment
 - **nginx** (`brew install nginx`) — serves the web UI and proxies the API
-- Apple Silicon Mac — receipt extraction runs locally via MLX
+- **llama.cpp** (`brew install llama.cpp`) — runs the extraction model
+- macOS — text recognition uses the built-in Vision framework
+
+The extraction model's weights (~491 MB) download themselves on the first scan and are
+cached in `~/.cache/huggingface`.
 
 ---
 
@@ -452,7 +469,7 @@ See [deployment/README.md](deployment/README.md) for a troubleshooting table.
 - `POST /api/transactions/transfer` - Create a transfer between two accounts
 - `PUT /api/transactions/<id>` - Update an existing transaction
 - `DELETE /api/transactions/<id>` - Delete a transaction
-- `POST /api/upload` - Upload a receipt image and process it via local VLM
+- `POST /api/upload` - Upload a receipt image and extract its date, time and total locally
 
 ### Categories
 - `GET /api/categories` - Retrieve expense and income categories

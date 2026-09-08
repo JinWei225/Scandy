@@ -1,5 +1,5 @@
 # Scandy backend — Flask + Waitress.
-# OCR is delegated to the Ollama service (OCR_BACKEND=ollama); MLX is not
+# OCR is delegated to the Ollama service (OCR_BACKEND=ollama); Apple Vision is not
 # installable here, so none of the Apple-only dependencies are present.
 # Build context is the repository root.
 FROM python:3.13-slim

@@ -1,6 +1,9 @@
-"""Pieces shared by every OCR backend: the prompt, the response parsing, and the
-single-scan lock. Keeping these here means swapping the model runtime cannot
-accidentally change what we ask for or how we read the answer."""
+"""Pieces shared across OCR backends: the single-scan lock, the error types, and
+the image prompt used by any backend that sends a picture to a vision model.
+
+The 'vision' backend does not use build_system_prompt: it sends OCR text to an
+extraction model with a JSON template instead, and parses the fields itself in
+receipt_text.py. Only the Ollama backend prompts a vision model directly."""
 import datetime
 import json
 import threading
