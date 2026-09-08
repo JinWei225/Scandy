@@ -78,12 +78,17 @@ the optional `bench` dependency group:
 
 ```bash
 uv sync --group bench
+cp backend/bench/ground_truth.example.json backend/bench/ground_truth.json
 .venv/bin/python backend/bench/compare_pipelines.py --arms all
 .venv/bin/python backend/bench/compare_pipelines.py --probe-amount-fallback
 ```
 
-Add receipts to `backend/img/` and label them in `bench/ground_truth.json` to widen the
-accuracy sample.
+Put your own receipts in `backend/img/` and label them in `bench/ground_truth.json` —
+filenames there are the keys. Both are gitignored, and deliberately so: receipt images
+are photographs of real transactions, and the labels name the merchant, date and amount.
+`ground_truth.example.json` is tracked in their place to document the format.
+
+`--probe-amount-fallback` needs neither, so it runs on a fresh clone.
 
 ## Running the Server
 

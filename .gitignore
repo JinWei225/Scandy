@@ -9,6 +9,13 @@
 dev-deployment/
 
 # --- Personal Data & Databases (DO NOT UPLOAD) ---
+# Receipt images: uploads land here at runtime, and any test receipts you add
+# are photographs of real transactions. Never commit them.
+backend/img/
+# Labels for those receipts — merchant, date and amount of real purchases.
+# ground_truth.example.json shows the format and is tracked in its place.
+backend/bench/ground_truth.json
+
 backend/database.sqlite
 backend/accounts.json
 backend/budgets.json

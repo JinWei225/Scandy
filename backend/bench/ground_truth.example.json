@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Copy this to ground_truth.json and replace the entries with your own receipts.",
+    "ground_truth.json is gitignored on purpose: it describes real receipts, and the",
+    "images it labels live in backend/img/, which is also untracked.",
+    "Keys are filenames in the images directory. date is DD/MM/YYYY, time is HH:MM:SS,",
+    "amount is a bare decimal with no currency. note is free text for your own reference."
+  ],
+  "receipt-01.jpg": {
+    "date": "05/09/2026",
+    "time": "19:35:00",
+    "amount": "186.75",
+    "note": "Thermal receipt. Time is printed 12-hour, so the model has to resolve PM."
+  },
+  "receipt-02.jpg": {
+    "date": "20/04/2026",
+    "time": "19:16:30",
+    "amount": "6.00",
+    "note": "E-wallet payment screen. The amount is a headline figure with no total label."
+  }
+}
