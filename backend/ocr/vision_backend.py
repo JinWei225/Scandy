@@ -37,8 +37,8 @@ import urllib.request
 
 from PIL import Image
 
-from .common import OCR_LOCK, OCRBusyError, OCRUnavailableError
-from .receipt_text import assemble_text, build_result
+from .common import OCR_LOCK, OCRBusyError, OCRImageError, OCRUnavailableError
+from .receipt_text import AMOUNT_FALLBACK_MODES, assemble_text, build_result
 from .rules_extractor import extract as extract_by_rules
 
 # --- Configuration -----------------------------------------------------------
@@ -87,6 +87,15 @@ MODEL_IDLE_TIMEOUT = 300.0
 # balance); "off" disables recovery. See receipt_text.amount_from_text.
 AMOUNT_FALLBACK = "guarded"
 
+# Checked here rather than ignored later. This constant spent a while being
+# passed as `AMOUNT_FALLBACK != "naive"`, which quietly turned "off" — and any
+# typo — into "guarded", so the setting read as honoured while doing nothing.
+if AMOUNT_FALLBACK not in AMOUNT_FALLBACK_MODES:
+    raise ValueError(
+        f"Unknown AMOUNT_FALLBACK {AMOUNT_FALLBACK!r}. "
+        f"Expected one of {', '.join(AMOUNT_FALLBACK_MODES)}."
+    )
+
 _STARTUP_TIMEOUT = 180
 _REQUEST_TIMEOUT = 120
 
@@ -123,10 +132,10 @@ def _recognise_text(image_path: str) -> tuple[list[dict], int]:
     url = NSURL.fileURLWithPath_(image_path)
     source = Quartz.CGImageSourceCreateWithURL(url, None)
     if source is None:
-        raise OCRUnavailableError(f"Could not read the image at {image_path}")
+        raise OCRImageError("That file could not be opened as an image.")
     cg_image = Quartz.CGImageSourceCreateImageAtIndex(source, 0, None)
     if cg_image is None:
-        raise OCRUnavailableError("The uploaded file is not a readable image.")
+        raise OCRImageError("That file could not be read as an image.")
 
     width = Quartz.CGImageGetWidth(cg_image)
     height = Quartz.CGImageGetHeight(cg_image)
@@ -142,7 +151,8 @@ def _recognise_text(image_path: str) -> tuple[list[dict], int]:
 
     ok, error = handler.performRequests_error_([request], None)
     if not ok:
-        raise OCRUnavailableError(f"Apple Vision failed to read the image: {error}")
+        # The recogniser refused this picture; the framework itself is fine.
+        raise OCRImageError(f"That image could not be read: {error}")
 
     detections = []
     for observation in request.results() or []:
@@ -245,6 +255,11 @@ def _ensure_server() -> str:
 
     with _SERVER_LOCK:
         if _SERVER is not None and _SERVER.poll() is None and _SERVER_URL:
+            # Marked here, under the lock, rather than by the caller afterwards:
+            # in the gap between releasing the lock and the caller's own
+            # _note_model_use() the reaper could still read a stale timestamp
+            # and reap the server this call just handed out.
+            _note_model_use()
             return _SERVER_URL
 
         binary = shutil.which("llama-server")
@@ -282,6 +297,7 @@ def _ensure_server() -> str:
             if _healthy(url):
                 _SERVER, _SERVER_URL = process, url
                 _write_pid_file(process.pid)
+                _note_model_use()
                 print("Extraction model ready.")
                 return url
             time.sleep(0.25)
@@ -307,13 +323,8 @@ def _write_pid_file(pid: int) -> None:
         print(f"Warning: could not write {PID_FILE}: {exc}")
 
 
-def shutdown() -> None:
-    """Stop the extraction model. Safe to call more than once.
-
-    Called from atexit and from run_waitress.py's signal handlers — atexit alone
-    is not enough, because Python's default SIGTERM handling exits without
-    running it, and SIGTERM is exactly how stop.sh stops the server.
-    """
+def _stop_server() -> None:
+    """Terminate the model process. Caller must hold _SERVER_LOCK."""
     global _SERVER, _SERVER_URL
 
     if _SERVER is not None and _SERVER.poll() is None:
@@ -330,6 +341,28 @@ def shutdown() -> None:
         pass
     except OSError:
         pass
+
+
+def shutdown() -> None:
+    """Stop the extraction model. Safe to call more than once.
+
+    Called from atexit and from run_waitress.py's signal handlers — atexit alone
+    is not enough, because Python's default SIGTERM handling exits without
+    running it, and SIGTERM is exactly how stop.sh stops the server.
+
+    Takes the lock so a scan cannot be handed the URL of a process this is about
+    to terminate, but does not wait forever for it: _ensure_server can hold the
+    lock for a whole model startup, and stop.sh allows seconds, not minutes. If
+    the lock cannot be had in time, stop the process anyway — leaving 490 MB
+    resident is the worse outcome, and stop.sh's orphan reaper is the net below
+    that.
+    """
+    acquired = _SERVER_LOCK.acquire(timeout=5.0)
+    try:
+        _stop_server()
+    finally:
+        if acquired:
+            _SERVER_LOCK.release()
 
 
 atexit.register(shutdown)
@@ -358,9 +391,13 @@ def _reap_idle_model() -> None:
                 return
             if time.monotonic() - _LAST_MODEL_USE < MODEL_IDLE_TIMEOUT:
                 continue
-        print(f"Extraction model idle for {MODEL_IDLE_TIMEOUT:.0f}s — releasing it.")
-        shutdown()
-        return
+            # Stop it while still holding the lock. Releasing first would let a
+            # scan take the lock, be handed the URL of this very process, and
+            # then have it terminated underneath — a scan that fails for no
+            # reason the user can see.
+            print(f"Extraction model idle for {MODEL_IDLE_TIMEOUT:.0f}s — releasing it.")
+            _stop_server()
+            return
 
 
 def _extract_fields(url: str, receipt_text: str) -> dict:
@@ -434,7 +471,7 @@ def extract_receipt_data(image_path: str) -> dict:
             return {"date": None, "time": None, "amount": None}
 
         result = build_result(extract_by_rules(receipt_text), receipt_text,
-                              guarded_fallback=AMOUNT_FALLBACK != "naive")
+                              amount_fallback=AMOUNT_FALLBACK)
 
         gaps = _missing(result)
         if not gaps or not USE_MODEL_FALLBACK:
@@ -442,11 +479,13 @@ def extract_receipt_data(image_path: str) -> dict:
 
         print(f"Rules left {', '.join(gaps)} empty — asking the extraction model.")
         try:
+            # _ensure_server marks the use itself, under its own lock.
             url = _ensure_server()
-            _note_model_use()
             extracted = _extract_fields(url, receipt_text)
             from_model = build_result(extracted, receipt_text,
-                                      guarded_fallback=AMOUNT_FALLBACK != "naive")
+                                      amount_fallback=AMOUNT_FALLBACK)
+            # Again on the way out: extraction can take a while, and the idle
+            # clock should run from when the model was last finished with.
             _note_model_use()
             for field in gaps:
                 if from_model.get(field):

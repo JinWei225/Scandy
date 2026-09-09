@@ -28,6 +28,16 @@ else
     printf '  Check the log: %stail -n 30 %s%s\n' "$C_BOLD" "$LOG_FILE" "$C_RESET"
 fi
 
+# Who owns the process decides how to start and stop it, and start.sh/stop.sh
+# both branch on this — so say it here rather than leaving it to be guessed.
+if launchd_manages_backend; then
+    ok "Owner:    launchd ($LAUNCHD_LABEL) — restarts it at login and after a crash"
+else
+    printf 'Owner:    started by hand (./deployment/start.sh)\n'
+    printf '  Install the LaunchAgent to start it at login: %s./deployment/install-launchagent.sh%s\n' \
+        "$C_BOLD" "$C_RESET"
+fi
+
 # --- Frontend build ----------------------------------------------------------
 if [ -d "$DIST_DIR" ] && [ -f "$DIST_DIR/index.html" ]; then
     ok "Frontend: built ($DIST_DIR)"

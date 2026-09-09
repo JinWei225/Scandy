@@ -40,12 +40,33 @@ class Subscription {
             DateTime.tryParse(json['last_recorded_date'] as String? ?? ''),
       );
 
-  /// True when this month's charge has not been recorded yet, i.e. it still
-  /// counts toward "recurring due" in the safe-to-spend figure.
-  bool isDueLaterThisMonth(DateTime now) {
-    final recorded = lastRecordedDate;
-    final alreadyRecordedThisMonth =
-        recorded != null && recorded.year == now.year && recorded.month == now.month;
-    return !alreadyRecordedThisMonth && dayOfMonth >= now.day;
+  /// The day the charge lands in [month], clamped to that month's length.
+  ///
+  /// The backend clamps the same way (`calendar.monthrange` in
+  /// check_and_record_subscriptions), so a day-31 charge lands on the 30th in a
+  /// 30-day month instead of never coming due at all.
+  int dueDayIn(DateTime month) {
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    if (dayOfMonth < 1) return 1;
+    return dayOfMonth > lastDay ? lastDay : dayOfMonth;
   }
+
+  /// True when this month's charge has not been recorded yet, so it still
+  /// counts toward "recurring due" in the safe-to-spend figure.
+  ///
+  /// Deliberately independent of whether the day has passed. A charge whose day
+  /// has gone by without being recorded is still owed, not settled — and since
+  /// the real renewal day drifts with when the bill actually gets paid, "the
+  /// 15th has been and gone" says nothing about whether it was paid.
+  bool isDueThisMonth(DateTime now) {
+    final recorded = lastRecordedDate;
+    return !(recorded != null &&
+        recorded.year == now.year &&
+        recorded.month == now.month);
+  }
+
+  /// Still unrecorded, and its expected day has already passed. Prompts you to
+  /// log what you actually paid rather than asserting anything went wrong.
+  bool isOverdue(DateTime now) =>
+      isDueThisMonth(now) && now.day > dueDayIn(now);
 }

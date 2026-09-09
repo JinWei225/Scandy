@@ -61,7 +61,7 @@ class RecurringScreen extends StatelessWidget {
             subscriptions: stats.stillToCome,
             now: now,
             charged: false,
-            emptyMessage: 'Everything for this month has been charged.',
+            emptyMessage: 'Everything for this month has been recorded.',
           ),
           const SizedBox(height: 15),
           SectionHeader(
@@ -229,11 +229,16 @@ class _SubscriptionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
-    final daysAway = subscription.dayOfMonth - now.day;
+    // The clamped day, so a day-31 charge reads "Day 30" in a 30-day month
+    // rather than counting down to a date that never arrives.
+    final dueDay = subscription.dueDayIn(now);
+    final daysAway = dueDay - now.day;
 
     // The design highlights the nearest upcoming charge in the accent tint and
-    // leaves the rest neutral; charged rows read green.
-    final imminent = !charged && daysAway <= 7;
+    // leaves the rest neutral; charged rows read green. Overdue rows are their
+    // own case: unrecorded with the day already gone by.
+    final overdue = !charged && daysAway < 0;
+    final imminent = !charged && !overdue && daysAway <= 7;
     final tile = imminent ? c.accentSoft : c.surfaceMuted;
     final glyph = imminent ? c.onAccentSoft : c.textTertiary;
 
@@ -245,9 +250,14 @@ class _SubscriptionRow extends StatelessWidget {
       meta = recorded == null
           ? 'Charged this month'
           : 'Charged ${DateFormat('d MMM').format(recorded)}';
+    } else if (overdue) {
+      // Not an alarm: the renewal day moves with when the bill is actually
+      // paid, so a passed day means "log what you paid", not "you are late".
+      metaColor = c.negative;
+      meta = 'Day $dueDay · not recorded yet';
     } else {
       metaColor = imminent ? c.onAccentSoft : c.textSecondary;
-      meta = 'Day ${subscription.dayOfMonth} · ${_relative(daysAway)}';
+      meta = 'Day $dueDay · ${_relative(daysAway)}';
     }
 
     return Material(

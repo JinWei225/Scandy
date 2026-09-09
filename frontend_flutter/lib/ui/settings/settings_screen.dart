@@ -323,12 +323,17 @@ Future<void> editCategory(
   final controller = TextEditingController(text: existingName ?? '');
   final state = context.read<AppState>();
 
+  // Outside the builder: a StatefulBuilder re-runs it on every setState, so a
+  // message declared inside would be cleared by the very rebuild that was
+  // meant to show it — which silently swallowed every backend rejection
+  // ("already exists", "too long", "'Transfer' is reserved").
+  String? error;
+
   await showScandySheet<void>(
     context: context,
     title: existingName == null ? 'Add category' : 'Rename category',
     child: StatefulBuilder(
       builder: (sheetContext, setSheetState) {
-        String? error;
         Future<void> submit() async {
           final value = controller.text.trim();
           if (value.isEmpty) {

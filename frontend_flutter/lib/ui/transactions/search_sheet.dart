@@ -16,13 +16,19 @@ import 'transaction_detail_sheet.dart';
 /// Undesigned, so it borrows the sheet shell and reuses [TransactionTile] —
 /// results look exactly like the rows on Home, which is the point: you should
 /// recognise what you found.
-Future<void> showSearchSheet(BuildContext context) {
-  return showScandySheet<void>(
+Future<void> showSearchSheet(BuildContext context) async {
+  // The sheet pops the row that was tapped and this caller opens it, rather
+  // than the row popping itself and then opening a route from the context it
+  // just dismissed.
+  final picked = await showScandySheet<Transaction>(
     context: context,
     title: 'Search transactions',
     fullHeight: true,
     child: const _SearchBody(),
   );
+  if (picked != null && context.mounted) {
+    await showTransactionDetailSheet(context, picked);
+  }
 }
 
 class _SearchBody extends StatefulWidget {
@@ -159,10 +165,7 @@ class _SearchBodyState extends State<_SearchBody> {
                       now: now,
                       showDivider:
                           i != results.length - 1 && i != 49,
-                      onTap: () async {
-                        Navigator.of(context).pop();
-                        await showTransactionDetailSheet(context, results[i]);
-                      },
+                      onTap: () => Navigator.of(context).pop(results[i]),
                     ),
                 ],
               ),

@@ -216,7 +216,8 @@ def format_amount(raw):
         return "RM 0.00"
 
 def extract_data_from_image(image_path):
-    # OCRBusyError intentionally propagates so the API can answer 429.
+    # OCRBusyError and OCRImageError intentionally propagate, so the API can
+    # answer 429 and 400 rather than flattening both into a 500.
     data = extract_receipt_data(image_path)
     data = _clean_extracted_data(data)
     if data.get("amount"):
@@ -248,7 +249,7 @@ def get_all_transactions():
         rows = conn.execute("SELECT * FROM transactions ORDER BY date DESC, time DESC").fetchall()
         conn.close()
         data = []
-        account_by_id = {}
+        account_of_transaction = {}
         for row in rows:
             d = dict(row)
             try:
@@ -258,15 +259,15 @@ def get_all_transactions():
             d["amount_cents"] = cents
             d["amount"] = format_amount(cents)
             d["date"] = _to_display_date(d.get("date"))
-            account_by_id[d["id"]] = d.get("account_id")
+            account_of_transaction[d["id"]] = d.get("account_id")
             data.append(d)
 
         # Expose both sides of a transfer so the frontend can pre-fill
         # From/To when editing either leg. Outgoing leg is type 'expense'.
         for d in data:
             related_id = d.get("transfer_related_id")
-            if related_id and related_id in account_by_id:
-                counterpart_account = account_by_id[related_id]
+            if related_id and related_id in account_of_transaction:
+                counterpart_account = account_of_transaction[related_id]
                 if d.get("type") == "income":
                     d["from_account_id"] = counterpart_account
                     d["to_account_id"] = d.get("account_id")
@@ -527,49 +528,96 @@ def delete_subscription(sub_id):
             return True
     return False
 
+# Cap on how far back a single catch-up run will reach. An ancient or corrupt
+# last_recorded_date should not dump years of guessed charges into the ledger.
+MAX_CATCHUP_MONTHS = 24
+
+
+def _unrecorded_months(last_recorded, today):
+    """The (year, month) pairs a subscription still owes, oldest first.
+
+    Starts at the month after the last recorded one, so a gap of several months
+    is filled in month by month rather than collapsed into a single charge —
+    previously anyone who did not open the app for a month simply lost it.
+
+    A subscription that has never been recorded starts at the current month:
+    back-filling one that was only just added would invent charges that never
+    happened.
+    """
+    start_year, start_month = today.year, today.month
+
+    if last_recorded:
+        try:
+            parsed = datetime.strptime(str(last_recorded)[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            parsed = None
+        if parsed:
+            if (parsed.year, parsed.month) >= (today.year, today.month):
+                return []  # already recorded this month
+            start_year, start_month = parsed.year, parsed.month + 1
+            if start_month > 12:
+                start_year, start_month = start_year + 1, 1
+
+    span = (today.year - start_year) * 12 + (today.month - start_month) + 1
+    if span > MAX_CATCHUP_MONTHS:
+        # Keep the most recent months rather than the oldest: those are the ones
+        # the user is most likely to still care about.
+        skip = span - MAX_CATCHUP_MONTHS
+        index = (start_month - 1) + skip
+        start_year, start_month = start_year + index // 12, index % 12 + 1
+
+    months = []
+    year, month = start_year, start_month
+    while (year, month) <= (today.year, today.month):
+        months.append((year, month))
+        month += 1
+        if month > 12:
+            year, month = year + 1, 1
+    return months
+
+
 def check_and_record_subscriptions():
     # The lock is held across the whole check-and-record pass so two clients
     # hitting /api/subscriptions/check at once cannot double-charge.
     with _JSON_LOCK:
         subscriptions = get_all_subscriptions()
         today = datetime.now()
-        current_month_str = today.strftime("%Y-%m")
         created_transactions = []
 
         updated = False
 
         for sub in subscriptions:
             try:
-                # Check if already recorded for this month
-                last_recorded = sub.get("last_recorded_date")
-                if last_recorded and last_recorded.startswith(current_month_str):
-                    continue
-
-                # Check if due date has passed or is today
                 try:
                     day_of_month = int(sub.get("day_of_month", 1))
                 except (ValueError, TypeError):
                     day_of_month = 1
-                # Clamp to the month's length so a day-31 subscription still
-                # charges in shorter months (and the date is always valid).
-                due_day = min(day_of_month, calendar.monthrange(today.year, today.month)[1])
 
-                if today.day >= due_day:
-                    transaction_date = f"{due_day:02d}/{today.month:02d}/{today.year}"
+                for year, month in _unrecorded_months(sub.get("last_recorded_date"), today):
+                    # Clamp to the month's length so a day-31 subscription still
+                    # charges in shorter months (and the date is always valid).
+                    due_day = min(day_of_month, calendar.monthrange(year, month)[1])
+
+                    # A month that has fully elapsed is owed outright; the
+                    # current one only once its day has arrived.
+                    if (year, month) == (today.year, today.month) and today.day < due_day:
+                        continue
 
                     tx_data = {
-                        "date": transaction_date,
+                        "date": f"{due_day:02d}/{month:02d}/{year}",
                         "description": f"Subscription: {sub.get('name')}",
                         "amount": sub.get("amount"),
                         "category": sub.get("category", "Bills & Utilities"),
                         "account_id": sub.get("account_id")
                     }
 
-                    create_manual_transaction(tx_data)
-                    created_transactions.append(tx_data)
+                    created_transactions.append(create_manual_transaction(tx_data))
 
-                    # Update subscription
-                    sub["last_recorded_date"] = today.strftime("%Y-%m-%d")
+                    # The due date of the month just recorded, not "today": the
+                    # field means "the last month this was auto-recorded", and
+                    # storing the real date is what lets the next run work out
+                    # where it left off.
+                    sub["last_recorded_date"] = f"{year:04d}-{month:02d}-{due_day:02d}"
                     updated = True
             except Exception as e:
                 # One bad subscription record must not break the whole check
@@ -591,6 +639,12 @@ def get_all_accounts():
 def save_all_accounts(accounts):
     with _JSON_LOCK:
         _write_json_atomic(ACCOUNTS_FILE, accounts)
+
+def get_account(account_id):
+    """The stored account with this id, or None. Lets PUT/DELETE answer 404
+    instead of save_account quietly appending an account nobody asked for."""
+    return next((a for a in get_all_accounts() if a.get("id") == account_id), None)
+
 
 def save_account(data):
     with _JSON_LOCK:

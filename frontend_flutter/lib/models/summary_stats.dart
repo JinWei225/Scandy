@@ -120,7 +120,7 @@ class MonthStats {
   }
 }
 
-/// Recurring charges split by whether this month's instance has landed.
+/// Recurring charges split by whether this month's instance has been recorded.
 class RecurringStats {
   const RecurringStats({
     required this.stillToCome,
@@ -147,13 +147,16 @@ class RecurringStats {
     final charged = <Subscription>[];
 
     for (final s in subscriptions) {
-      // Same rule as the safe-to-spend "recurring due" figure, so the two
-      // screens can never disagree about what is still owed this month.
-      (s.isDueLaterThisMonth(now) ? toCome : charged).add(s);
+      // Split on whether the charge was actually recorded this month, not on
+      // whether its day has passed. Anything unrecorded is still owed and
+      // belongs under "still to come", late or not — filing it as "already
+      // charged" because the 15th went by was simply untrue, and hid exactly
+      // the charges worth chasing.
+      (s.isDueThisMonth(now) ? toCome : charged).add(s);
     }
 
-    toCome.sort((a, b) => a.dayOfMonth.compareTo(b.dayOfMonth));
-    charged.sort((a, b) => b.dayOfMonth.compareTo(a.dayOfMonth));
+    toCome.sort((a, b) => a.dueDayIn(now).compareTo(b.dueDayIn(now)));
+    charged.sort((a, b) => b.dueDayIn(now).compareTo(a.dueDayIn(now)));
 
     return RecurringStats(stillToCome: toCome, alreadyCharged: charged);
   }

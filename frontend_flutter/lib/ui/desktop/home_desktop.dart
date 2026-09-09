@@ -177,8 +177,15 @@ class _HeroCard extends StatelessWidget {
                 ],
               ),
             )
-          else
+          else if (summary.daysLeft <= 0)
             Text('The month is done — this is what it came to.',
+                style: ScandyDesktopText.heroCaption
+                    .copyWith(color: c.textSecondary))
+          else
+            // No daily allowance to state. Says what happened and stops there:
+            // a month with no income is not the same story as overspending,
+            // and the card cannot tell the two apart.
+            Text('More has gone out than came in this month.',
                 style: ScandyDesktopText.heroCaption
                     .copyWith(color: c.textSecondary)),
           const SizedBox(height: 20),

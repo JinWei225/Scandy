@@ -10,7 +10,7 @@ Linux, so a top-level import would make the app unstartable inside a container.
 """
 import os
 
-from .common import OCRBusyError, OCRUnavailableError
+from .common import OCRBusyError, OCRImageError, OCRUnavailableError
 
 OCR_BACKEND = os.environ.get("OCR_BACKEND", "vision").strip().lower()
 
@@ -36,6 +36,7 @@ __all__ = [
     "extract_receipt_data",
     "shutdown_ocr",
     "OCRBusyError",
+    "OCRImageError",
     "OCRUnavailableError",
     "OCR_BACKEND",
 ]

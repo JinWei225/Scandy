@@ -22,6 +22,7 @@ from .common import (
     build_system_prompt,
     parse_model_json,
 )
+from .receipt_text import build_result
 
 _OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 _OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:0.8b")
@@ -148,4 +149,16 @@ def extract_receipt_data(image_path: str) -> dict:
     finally:
         OCR_LOCK.release()
 
-    return _normalize_fields(parse_model_json(body.get("response", "")))
+    extracted = _normalize_fields(parse_model_json(body.get("response", "")))
+    if "error" in extracted:
+        # A parse failure keeps its own shape so the caller can log the reason.
+        return extracted
+
+    # Through the same normalisation the vision backend uses. Without it this
+    # backend returned whatever the model wrote: main._to_iso_date passes an
+    # unparseable date straight through to the database, so a creative model
+    # could store a date the app could never read back. There is no OCR text
+    # here to recover an amount from — this backend sends the image itself —
+    # so the text fallback is off rather than fed an empty string it could
+    # only fail on.
+    return build_result(extracted, "", amount_fallback="off")

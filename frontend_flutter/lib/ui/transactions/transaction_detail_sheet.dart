@@ -17,15 +17,25 @@ import 'add_transaction_sheet.dart';
 /// Undesigned, so it reuses the sheet shell and the same tile/label vocabulary
 /// as the lists it is opened from — the amount leads, exactly as it does in a
 /// row, and the rest is a labelled table.
+/// What the sheet asked its caller to do once it has closed.
+enum _DetailRequest { edit }
+
 Future<void> showTransactionDetailSheet(
   BuildContext context,
   Transaction transaction,
-) {
-  return showScandySheet<void>(
+) async {
+  // The sheet asks, and this caller acts once the sheet is gone. Opening the
+  // edit sheet from inside it meant passing a context whose own route was
+  // being popped — a widget on its way out, which happens to work only while
+  // the dismissal is still animating.
+  final request = await showScandySheet<_DetailRequest>(
     context: context,
     title: 'Transaction',
     child: _TransactionDetail(transaction: transaction),
   );
+  if (request == _DetailRequest.edit && context.mounted) {
+    await showAddTransactionSheet(context, transaction: transaction);
+  }
 }
 
 class _TransactionDetail extends StatelessWidget {
@@ -131,10 +141,7 @@ class _TransactionDetail extends StatelessWidget {
         const SizedBox(height: 20),
         PrimaryButton(
           label: 'Edit',
-          onPressed: () async {
-            Navigator.of(context).pop();
-            await showAddTransactionSheet(context, transaction: transaction);
-          },
+          onPressed: () => Navigator.of(context).pop(_DetailRequest.edit),
         ),
         const SizedBox(height: 8),
         TextButton(

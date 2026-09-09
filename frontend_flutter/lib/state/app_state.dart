@@ -25,6 +25,11 @@ class AppState extends ChangeNotifier {
   LoadStatus _status = LoadStatus.idle;
   String? _error;
 
+  /// Recurring charges are caught up once per session, not on every refresh:
+  /// the backend's own month arithmetic is idempotent, so repeating it just
+  /// costs a round trip.
+  bool _subscriptionsChecked = false;
+
   List<Transaction> get transactions => _transactions;
   List<Account> get accounts => _accounts;
   List<Subscription> get subscriptions => _subscriptions;
@@ -78,6 +83,19 @@ class AppState extends ChangeNotifier {
       _status = LoadStatus.loading;
       _error = null;
       notifyListeners();
+    }
+
+    // Before the reads, so anything it records shows up in this same load.
+    // Failure is not fatal — offline, or no server address yet — and the flag
+    // stays down so the next load tries again.
+    if (!_subscriptionsChecked) {
+      try {
+        await _api.checkSubscriptions();
+        _subscriptionsChecked = true;
+      } catch (_) {
+        // Nothing is lost by skipping it: the backend works out what it owes
+        // from last_recorded_date whenever it is next asked.
+      }
     }
 
     try {

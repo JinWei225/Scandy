@@ -34,6 +34,27 @@ TARGET_PID="$(backend_pid)"
 
 if [ -z "$TARGET_PID" ]; then
     ok "Backend is not running"
+elif launchd_manages_backend; then
+    # Hand back to launchd when it owns the job, the mirror of what start.sh
+    # does. Signalling the PID from here happens to work today only because the
+    # backend exits 0 and the agent uses KeepAlive(SuccessfulExit=false) — an
+    # undocumented coupling between three files, and one that breaks silently
+    # the moment either end changes. launchctl is what actually says "stop",
+    # and it leaves the job bootstrapped so start.sh can kickstart it again.
+    step "A LaunchAgent owns the backend — stopping it through launchd..."
+    launchctl kill SIGTERM "gui/$(id -u)/$LAUNCHD_LABEL" 2>/dev/null || true
+
+    STOPPED=0
+    for _ in $(seq 1 15); do
+        if ! backend_running; then STOPPED=1; break; fi
+        sleep 1
+    done
+
+    if [ "$STOPPED" -eq 0 ]; then
+        die "launchd did not stop $LAUNCHD_LABEL within 15s (PID $TARGET_PID still holds port $BACKEND_PORT)." \
+            "Inspect it with: launchctl print gui/$(id -u)/$LAUNCHD_LABEL"
+    fi
+    ok "Backend stopped via launchd (PID $TARGET_PID)"
 else
     # SIGTERM first so Waitress can close its listener and finish in-flight
     # requests; SIGKILL would abandon an open SQLite transaction.

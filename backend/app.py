@@ -3,8 +3,8 @@ import traceback
 import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from ocr import OCRBusyError, OCRUnavailableError
-from main import (get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, get_all_categories, add_category, rename_category, delete_category, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
+from ocr import OCRBusyError, OCRImageError, OCRUnavailableError
+from main import (get_account, get_all_transactions, delete_transaction_by_id, create_manual_transaction, create_transfer_transactions, update_transaction_by_id, extract_data_from_image, get_all_categories, add_category, rename_category, delete_category, get_all_subscriptions, save_subscription, delete_subscription, check_and_record_subscriptions, get_all_accounts, save_account, delete_account, get_account_balances)
 
 app = Flask(__name__)
 CORS(app)
@@ -18,6 +18,19 @@ UPLOAD_FOLDER = os.path.join(
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Matches client_max_body_size in the nginx configs. nginx only covers the web
+# UI, though: the phone talks to this port directly (see ApiClient.baseUrl), so
+# without this an upload of any size at all would be read into memory.
+MAX_UPLOAD_MB = 10
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_MB * 1024 * 1024
+
+
+@app.errorhandler(413)
+def payload_too_large(_error):
+    # JSON, not Flask's HTML default: the client parses the body for an
+    # 'error' key and a stray HTML page would blow up its jsonDecode.
+    return jsonify({'error': f'That image is over the {MAX_UPLOAD_MB} MB limit.'}), 413
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -54,13 +67,22 @@ def upload_file():
             print("OCR Success")
 
             if 'error' in extracted_data:
+                # 422, not 500: the request was fine and was processed to the
+                # end — the picture simply had no total in it that could be
+                # read. Reporting that as a server fault sent people to check a
+                # backend that had just done its job. 400 is kept for requests
+                # that never got this far (no file, wrong type, too large).
                 print("OCR returned error:", extracted_data['error'])
-                return jsonify(extracted_data), 500
+                return jsonify(extracted_data), 422
 
             # Send the raw extracted data back to the frontend for confirmation.
             return jsonify(extracted_data), 200
         except OCRBusyError as e:
             return jsonify({'error': str(e)}), 429
+        except OCRImageError as e:
+            # The file, not the server. A 503 here sent people off to check a
+            # backend that was working fine, when the fix is another photo.
+            return jsonify({'error': str(e)}), 400
         except OCRUnavailableError as e:
             # Setup problem (Ollama down, model not pulled) rather than a bad
             # image — the message tells the user how to fix it.
@@ -183,7 +205,9 @@ def _validate_subscription(data):
     if not data or not data.get('name') or 'amount' not in data:
         return "Missing required fields"
     try:
-        float(data['amount'])
+        if float(data['amount']) <= 0:
+            # The transaction form already refuses these; the two should agree.
+            return "Amount must be more than zero"
     except (ValueError, TypeError):
         return "Amount must be a number"
     try:
@@ -236,18 +260,40 @@ def list_accounts():
         acc['balance'] = balances.get(acc['id'], 0)
     return jsonify(accounts)
 
+def _validate_account(data):
+    """Returns an error message, or None if the payload is valid. A
+    non-numeric initial_balance would silently count as zero in every balance
+    on the Accounts screen."""
+    if not data or not str(data.get('name') or '').strip():
+        return "Missing required fields"
+    if 'initial_balance' in data:
+        try:
+            float(data['initial_balance'])
+        except (ValueError, TypeError):
+            return "Starting balance must be a number"
+    return None
+
 @app.route('/api/accounts', methods=['POST'])
 def add_account():
-    data = request.get_json()
-    if not data or 'name' not in data:
-        return jsonify({"error": "Missing required fields"}), 400
-    
+    data = request.get_json(silent=True) or {}
+    error = _validate_account(data)
+    if error:
+        return jsonify({"error": error}), 400
+
     saved = save_account(data)
     return jsonify(saved), 201
 
 @app.route('/api/accounts/<acc_id>', methods=['PUT'])
 def update_account(acc_id):
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    error = _validate_account(data)
+    if error:
+        return jsonify({"error": error}), 400
+    # save_account appends when it does not recognise the id, so without this
+    # a PUT to a deleted or mistyped account quietly created a new one.
+    if get_account(acc_id) is None:
+        return jsonify({"error": "Account not found"}), 404
+
     data['id'] = acc_id
     saved = save_account(data)
     return jsonify(saved), 200

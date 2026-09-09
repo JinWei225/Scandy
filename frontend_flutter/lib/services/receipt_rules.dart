@@ -226,11 +226,15 @@ String? normaliseAmount(String? value) {
   if (!RegExp(r'^\d+$').hasMatch(whole)) return null;
   if (fraction.isNotEmpty && !RegExp(r'^\d+$').hasMatch(fraction)) return null;
 
-  final cents = int.tryParse(whole) == null
-      ? null
-      : int.parse(whole) * 100 +
-          int.parse(fraction.padRight(2, '0').substring(0, 2).padLeft(2, '0'));
-  if (cents == null || cents <= 0 || cents > _maxAmountCents) return null;
+  final wholeValue = int.tryParse(whole);
+  if (wholeValue == null) return null;
+  var cents =
+      wholeValue * 100 + int.parse(fraction.padRight(2, '0').substring(0, 2));
+  // Round half-up on the third decimal rather than truncating, matching the
+  // Decimal quantize in receipt_text.normalise_amount — otherwise "12.999" is
+  // 12.99 here and 13.00 there. 0x35 is '5'; the digits were validated above.
+  if (fraction.length > 2 && fraction.codeUnitAt(2) >= 0x35) cents += 1;
+  if (cents <= 0 || cents > _maxAmountCents) return null;
 
   return '${cents ~/ 100}.${_two(cents % 100)}';
 }
@@ -293,11 +297,15 @@ String? amountFromText(String ocrText, {bool guarded = true}) {
     final lowRow = row.toLowerCase();
 
     // A row that names a total but carries no figure is the label for the row
-    // under it — "Payment Amount (MYR)" above a bare "40.00".
+    // under it — "Payment Amount (MYR)" above a bare "40.00". The row that
+    // supplies the figure has to clear the exclusion list too, or a
+    // "Wallet Balance  RM 250.00" sitting between the label and the real total
+    // is adopted as the total.
     if (_moneyIn(row).isEmpty &&
         _containsAny(lowRow, _totalLabels) &&
         !_containsAny(lowRow, _excludeLabels) &&
-        index + 1 < rows.length) {
+        index + 1 < rows.length &&
+        !_containsAny(rows[index + 1].toLowerCase(), _excludeLabels)) {
       labelled.addAll(_moneyIn(rows[index + 1]));
     }
 

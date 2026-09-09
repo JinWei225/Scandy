@@ -240,6 +240,12 @@ class ApiClient {
   Future<void> deleteSubscription(String id) =>
       _send('DELETE', '/api/subscriptions/$id');
 
+  /// Records any recurring charges that have come due, including for months
+  /// nothing was open to notice. The Vue app posted this on mount; the Flutter
+  /// port never did, so nothing was triggering it at all.
+  Future<void> checkSubscriptions() =>
+      _send('POST', '/api/subscriptions/check');
+
   // ---- Categories ----
   //
   // All three share the /api/categories path and are distinguished by verb;

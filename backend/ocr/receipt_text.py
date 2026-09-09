@@ -11,7 +11,7 @@ See backend/bench/compare_pipelines.py for the measurements behind that split.
 """
 import datetime
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 # Detections below this confidence are dropped before the text is assembled.
 MIN_OCR_CONF = 0.5
@@ -153,6 +153,12 @@ def normalise_amount(value) -> str | None:
 
     try:
         amount = Decimal(raw)
+        # Round to cents before the bounds check, and half-up rather than the
+        # banker's rounding f"{...:.2f}" would apply. Two reasons: Dart mirrors
+        # this rule in receipt_rules.normaliseAmount and the two must agree, and
+        # rounding afterwards let "0.005" pass the "> 0" test and then come back
+        # as the zero amount "0.00".
+        amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     except InvalidOperation:
         return None
     if not (0 < amount <= MAX_AMOUNT):
@@ -194,12 +200,20 @@ EXCLUDE_LABELS = (
 
 
 def _money_in(text: str) -> list[Decimal]:
+    """The money values on a line, as positive Decimals.
+
+    Every candidate goes through normalise_amount, so anything it rejects — a
+    zero, or a figure above MAX_AMOUNT that is really a reference number — is
+    dropped here instead of poisoning the max() below: a single implausible
+    token used to make amount_from_text return nothing at all, even when the
+    real total was sitting in the same pool. Dart's receipt_rules._moneyIn
+    filters the same way, which is why it did not have that bug.
+    """
     values = []
     for match in MONEY_RE.findall(text):
-        try:
-            values.append(abs(Decimal(match.replace(",", ""))))
-        except InvalidOperation:
-            continue
+        normalised = normalise_amount(match)
+        if normalised is not None:
+            values.append(Decimal(normalised))
     return values
 
 
@@ -217,12 +231,16 @@ def amount_from_text(ocr_text: str, guarded: bool = True) -> str | None:
     lines = ocr_text.splitlines()
     for index, line in enumerate(lines):
         # A row that names a total but carries no figure is a label for the row
-        # under it — "Payment Amount (MYR)" above a bare "40.00".
+        # under it — "Payment Amount (MYR)" above a bare "40.00". The row that
+        # supplies the figure has to clear the exclusion list too, or a
+        # "Wallet Balance  RM 250.00" sitting between the label and the real
+        # total is adopted as the total.
         low_only = line.lower()
         if (not _money_in(line)
                 and any(l in low_only for l in TOTAL_LABELS)
                 and not any(l in low_only for l in EXCLUDE_LABELS)
-                and index + 1 < len(lines)):
+                and index + 1 < len(lines)
+                and not any(l in lines[index + 1].lower() for l in EXCLUDE_LABELS)):
             labelled.extend(_money_in(lines[index + 1]))
 
 
@@ -280,7 +298,11 @@ def _currency_label(value) -> str:
     return DEFAULT_CURRENCY
 
 
-def build_result(extracted: dict, ocr_text: str, guarded_fallback: bool = True) -> dict:
+AMOUNT_FALLBACK_MODES = ("guarded", "naive", "off")
+
+
+def build_result(extracted: dict, ocr_text: str,
+                 amount_fallback: str = "guarded") -> dict:
     """Map a model's raw extraction onto {'date', 'time', 'amount'}.
 
     Returns the shape the rest of the app already consumes: DD/MM/YYYY,
@@ -288,6 +310,12 @@ def build_result(extracted: dict, ocr_text: str, guarded_fallback: bool = True) 
     parsed comes back as None rather than as a guess — main.extract_data_from_image
     fills a missing date/time with 'now', and the user confirms everything in the
     UI regardless, so a visible gap is strictly better than a wrong number.
+
+    [amount_fallback] is one of AMOUNT_FALLBACK_MODES and decides how to recover
+    an amount the extraction did not produce: "guarded" and "naive" are the two
+    rules in amount_from_text, and "off" leaves the field empty instead. It is
+    the mode string rather than a boolean so that "off" is expressible at all —
+    as a boolean it collapsed into "guarded" and did nothing.
     """
     if not isinstance(extracted, dict):
         extracted = {}
@@ -302,11 +330,11 @@ def build_result(extracted: dict, ocr_text: str, guarded_fallback: bool = True) 
     time_value = normalise_time(time_span) or normalise_time(date_span)
 
     amount = normalise_amount(extracted.get("amount") or extracted.get("total_amount"))
-    if amount is None:
+    if amount is None and amount_fallback != "off":
         # Only when the model found nothing usable. A recovered amount must never
         # overwrite one the model actually read, or this would override correct
         # answers as readily as missing ones.
-        amount = amount_from_text(ocr_text, guarded=guarded_fallback)
+        amount = amount_from_text(ocr_text, guarded=amount_fallback != "naive")
 
     result = {"date": date, "time": time_value, "amount": None}
     if amount is not None:

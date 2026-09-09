@@ -260,11 +260,22 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
   }
 
   Future<void> _pickDate() async {
+    // 2000 rather than 2015: that is the scanner's own floor (_minYear in
+    // receipt_rules.dart), and a date it was willing to read off a receipt has
+    // to be openable here. showDatePicker asserts when initialDate falls
+    // outside the range, so anything still out of bounds is clamped in.
+    final first = DateTime(2000);
+    final last = DateTime.now().add(const Duration(days: 365));
+    final initial = _date.isBefore(first)
+        ? first
+        : _date.isAfter(last)
+            ? last
+            : _date;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime(2015),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
     );
     if (picked != null) setState(() => _date = picked);
   }

@@ -47,10 +47,20 @@ class MonthSummary {
 
   int get safeToSpendCents => moneyInCents - spentCents - recurringDueCents;
 
-  /// Null when the month is over — the design has nothing to divide by then,
-  /// and the caller drops the "a day for the rest of the month" line.
+  /// True when spending plus what is still due has outrun what came in.
+  ///
+  /// Not necessarily overspending: a month with no income at all — a semester
+  /// break — lands here the moment anything is spent. So the card states the
+  /// fact and leaves the judgement out of it.
+  bool get isOverspent => safeToSpendCents < 0;
+
+  /// Null when there is no daily allowance to state: the month is over, or
+  /// there is nothing left to spread. A negative daily figure is not a smaller
+  /// allowance, it is a meaningless one — "RM −5.05 a day for the rest of the
+  /// month" describes nothing a person can do. The card shows [isOverspent]
+  /// wording instead.
   double? get perDay {
-    if (daysLeft <= 0) return null;
+    if (daysLeft <= 0 || isOverspent) return null;
     return safeToSpendCents / 100 / daysLeft;
   }
 
@@ -97,7 +107,7 @@ class MonthSummary {
 
     var due = 0;
     for (final s in subscriptions) {
-      if (s.isDueLaterThisMonth(now)) {
+      if (s.isDueThisMonth(now)) {
         due += (s.amount * 100).round();
       }
     }

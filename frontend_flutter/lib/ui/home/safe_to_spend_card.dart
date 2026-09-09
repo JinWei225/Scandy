@@ -42,11 +42,18 @@ class SafeToSpendCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             formatRinggit(summary.safeToSpendCents / 100),
-            style: ScandyText.heroAmount.copyWith(color: c.accent),
+            // Red once it goes negative, matching the desktop hero. In the
+            // accent colour a "RM −5.05" reads at a glance like any other
+            // figure on the card, minus sign and all.
+            style: ScandyText.heroAmount
+                .copyWith(color: summary.isOverspent ? c.negative : c.accent),
           ),
           if (perDay != null) ...[
             const SizedBox(height: 8),
             _perDayCaption(context, perDay),
+          ] else if (summary.isOverspent) ...[
+            const SizedBox(height: 8),
+            _overspentCaption(context),
           ],
           const SizedBox(height: 16),
           _bar(context),
@@ -107,6 +114,19 @@ class SafeToSpendCard extends StatelessWidget {
           const TextSpan(text: ' a day for the rest of the month'),
         ],
       ),
+    );
+  }
+
+  /// Replaces the daily line when there is no allowance left to divide up.
+  ///
+  /// States what happened and leaves the judgement out: a month with no income
+  /// at all — a semester break — reads the same to this card as overspending,
+  /// and it has no way to tell which one it is looking at.
+  Widget _overspentCaption(BuildContext context) {
+    final c = context.scandy;
+    return Text(
+      'More has gone out than came in this month',
+      style: ScandyText.heroCaption.copyWith(color: c.textSecondary),
     );
   }
 

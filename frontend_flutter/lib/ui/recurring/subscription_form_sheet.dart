@@ -62,7 +62,15 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     final day = int.tryParse(_day.text.trim());
     setState(() {
       _nameError = _name.text.trim().isEmpty ? 'Give it a name' : null;
-      _amountError = amount == null ? 'Must be a number' : null;
+      // Same ladder as the transaction form, and as the backend's
+      // _validate_subscription — all three should agree on what an amount is.
+      _amountError = _amount.text.trim().isEmpty
+          ? 'Enter an amount'
+          : amount == null
+              ? 'Must be a number'
+              : amount <= 0
+                  ? 'Must be more than zero'
+                  : null;
       // Matches the backend's own check in _validate_subscription.
       _dayError = day == null || day < 1 || day > 31
           ? 'Pick a day between 1 and 31'

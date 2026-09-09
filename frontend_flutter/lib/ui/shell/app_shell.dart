@@ -481,10 +481,13 @@ class _ScanningDialogState extends State<_ScanningDialog> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    // Dismissing with an empty map opens the form with nothing
+                    // Dismissing with empty fields opens the form with nothing
                     // pre-filled, so a failed scan still ends somewhere useful.
-                    onPressed: () =>
-                        Navigator.of(context).pop(<String, dynamic>{}),
+                    // It has to be an outcome, not a bare map: the route is
+                    // typed, and popping anything else throws instead of
+                    // closing the dialog.
+                    onPressed: () => Navigator.of(context)
+                        .pop(const _ScanOutcome.fields(<String, dynamic>{})),
                     style: FilledButton.styleFrom(
                       backgroundColor: c.accent,
                       foregroundColor: c.onAccent,

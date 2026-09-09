@@ -21,6 +21,16 @@ class OCRUnavailableError(Exception):
     """The configured OCR backend is not reachable or not set up yet."""
 
 
+class OCRImageError(Exception):
+    """The uploaded file could not be read as an image.
+
+    A client error, unlike OCRUnavailableError: nothing is wrong with the
+    server, the picture is simply not usable. Separate so the API can answer
+    400 and say "try another photo", rather than 503 sending someone off to
+    debug a backend that is working perfectly.
+    """
+
+
 def build_system_prompt(now: datetime.datetime | None = None) -> str:
     """The extraction prompt. Identical across backends so results stay comparable."""
     now = now or datetime.datetime.now()

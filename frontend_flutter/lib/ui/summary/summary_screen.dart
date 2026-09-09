@@ -43,7 +43,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // The chevrons hop between months that actually have data rather than
     // walking the calendar, so a gap year of no transactions is one tap away
     // instead of twelve. availableMonths is newest-first.
-    final months = state.availableMonths(now: now);
+    //
+    // The selected month is folded in because it can drop out of that list —
+    // delete the last transaction in it and it stops being a month with data,
+    // which left both chevrons disabled and no way off the page but the picker.
+    final months = <DateTime>{...state.availableMonths(now: now), month}.toList()
+      ..sort((a, b) => b.compareTo(a));
     final index = months.indexWhere(
         (m) => m.year == month.year && m.month == month.month);
     final older = index >= 0 && index + 1 < months.length
