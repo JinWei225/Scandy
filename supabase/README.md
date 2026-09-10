@@ -14,6 +14,9 @@ is why `tests/` exists and why it should stay green.
       20260910130300_new_user.sql            what happens at signup
       20260910130400_lock_down_...            revoke EXECUTE on trigger functions
       20260910130500_allow_user_deletion.sql  let an account actually be deleted
+      20260910140000_receipt_scans.sql       the cloud-scan log, for capping
+    functions/
+      scan-receipt/index.ts                  Gemini fallback for reading receipts
     tests/
       rls_isolation_test.sql                 two users cannot reach each other
       subscriptions_test.sql                 the month arithmetic, pinned dates
@@ -45,6 +48,25 @@ propagates it -- so this works unchanged as a CI gate.
 After changing a migration, `supabase db reset` rebuilds from the migration
 files and re-runs them in order. That is the only way to be sure the migrations
 are the real schema, rather than something you clicked into the dashboard.
+
+## The scan-receipt function
+
+    supabase secrets set GEMINI_API_KEY=...     # once, per project
+    supabase functions deploy scan-receipt
+
+Locally it reads the key from `supabase/functions/.env`, which is gitignored:
+
+    supabase functions serve scan-receipt --env-file supabase/functions/.env
+
+It exists server-side only because of that key. Shipped inside the app it would
+be readable by anyone who opens the web bundle or decompiles the APK, and it
+bills to whoever shipped it.
+
+Two details worth keeping if the file is rewritten. The scan is logged *after*
+the model answers, so a failed scan is not charged against anybody's daily cap.
+And `receipt_scans` has RLS on with no policies at all: a signed-in user can
+neither read it nor delete from it, so the cap cannot be reset by the person
+being capped.
 
 ## Things that will bite you if you change them
 

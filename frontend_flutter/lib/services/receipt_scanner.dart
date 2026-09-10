@@ -6,19 +6,14 @@
 /// the web, where there is no ML Kit, and on a phone whose local read came back
 /// incomplete.
 ///
-/// Until Phase 05 that half does not exist. The Flask backend used to provide
-/// it, running Apple Vision and a small extraction model on the Mac mini, and
-/// removing that server is the point of the migration. Its replacement is a
-/// Supabase Edge Function calling a hosted vision model -- which needs an API
-/// key that must never ship inside this app, hence a server-side function
-/// rather than a direct call from here.
-///
-/// Failing loudly with an accurate sentence is the honest state in between. The
-/// alternative -- a silent no-op -- would look like a scanner that reads every
-/// receipt as blank.
+/// That half is the `scan-receipt` Edge Function, which calls Gemini. It runs
+/// server-side for one reason: the API key. A key shipped inside this app is
+/// readable by anyone who opens the web bundle or decompiles the APK, and it
+/// bills to whoever shipped it.
 library;
 
 import 'package:cross_file/cross_file.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReceiptScanException implements Exception {
   ReceiptScanException(this.message);
@@ -33,15 +28,57 @@ abstract class CloudReceiptScanner {
   Future<Map<String, dynamic>> scan(XFile file);
 }
 
-/// The stand-in that ships until the Edge Function exists.
-class UnavailableCloudScanner implements CloudReceiptScanner {
-  const UnavailableCloudScanner();
+/// Posts the image to the `scan-receipt` Edge Function.
+class SupabaseCloudScanner implements CloudReceiptScanner {
+  const SupabaseCloudScanner();
 
   @override
   Future<Map<String, dynamic>> scan(XFile file) async {
-    throw ReceiptScanException(
-      'Scanning on this device is not available yet — type the amount in and '
-      'it will be saved the same way.',
-    );
+    final bytes = await file.readAsBytes();
+    try {
+      final res = await Supabase.instance.client.functions.invoke(
+        'scan-receipt',
+        // Raw bytes, not base64 and not multipart: invoke() sends a Uint8List
+        // as application/octet-stream, and the function encodes once on its
+        // side for Gemini. Base64 here would put a third more over the wire
+        // from a phone.
+        body: bytes,
+        headers: {'x-image-mime': _mimeOf(file.name)},
+      );
+      final data = res.data;
+      if (data is Map<String, dynamic>) return data;
+      throw ReceiptScanException('The scanner sent back something unreadable.');
+    } on FunctionException catch (e) {
+      // The function answers every failure with {"error": "..."} written for a
+      // person -- the daily cap, an unreadable photo, a signed-out session.
+      final detail = e.details;
+      final message = detail is Map && detail['error'] is String
+          ? detail['error'] as String
+          : 'Could not scan that receipt.';
+      throw ReceiptScanException(message);
+    } catch (e) {
+      final text = '$e';
+      if (text.contains('SocketException') ||
+          text.contains('ClientException') ||
+          text.contains('TimeoutException') ||
+          text.contains('Failed host lookup')) {
+        throw ReceiptScanException(
+            'Cannot reach the scanner right now. Check your connection.');
+      }
+      throw ReceiptScanException('Could not scan that receipt.');
+    }
+  }
+
+  /// Gemini needs the real type; a wrong one is rejected outright.
+  static String _mimeOf(String filename) {
+    final ext =
+        filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
+    return switch (ext) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'heic' => 'image/heic',
+      'heif' => 'image/heif',
+      _ => 'image/jpeg',
+    };
   }
 }

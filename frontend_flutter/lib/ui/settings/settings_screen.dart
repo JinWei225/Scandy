@@ -414,18 +414,81 @@ Future<void> deleteCategory(
   }
 }
 
-/// Where the backend lives. Public so the desktop page can show the same
-/// card — it is the one setting a Flutter build cannot infer for itself.
 /// Who is signed in, and the way out.
 ///
 /// Sits at the bottom of Settings deliberately: signing out is rare and
 /// destructive-feeling, and it should not share an edge with the controls
 /// people actually come here for.
-class AccountSection extends StatelessWidget {
+class AccountSection extends StatefulWidget {
   const AccountSection({super.key, this.bare = false});
 
   /// True on desktop, where the panel supplies the card and heading.
   final bool bare;
+
+  @override
+  State<AccountSection> createState() => _AccountSectionState();
+}
+
+class _AccountSectionState extends State<AccountSection> {
+  /// Written on both the auth user and the profile row.
+  ///
+  /// They are two records and both are read: the greeting comes from the
+  /// session's metadata, which is what is available before any query returns,
+  /// while profiles.display_name is what anything server-side would join on.
+  /// Updating one and not the other leaves the app disagreeing with itself.
+  Future<void> _rename(BuildContext context, String current) async {
+    final controller = TextEditingController(text: current);
+    // Declared outside the builder, like editCategory's: a StatefulBuilder
+    // re-runs the builder on every setState, so a message declared inside is
+    // cleared by the rebuild meant to show it.
+    String? error;
+
+    await showScandySheet<void>(
+      context: context,
+      title: 'Your name',
+      child: StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> submit() async {
+            final value = controller.text.trim();
+            if (value.isEmpty) {
+              setSheetState(() => error = 'Give yourself a name');
+              return;
+            }
+            final client = Supabase.instance.client;
+            try {
+              await client.auth
+                  .updateUser(UserAttributes(data: {'display_name': value}));
+              await client
+                  .from('profiles')
+                  .update({'display_name': value})
+                  .eq('id', client.auth.currentUser!.id);
+              if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+              if (mounted) setState(() {});
+            } catch (_) {
+              setSheetState(() => error = 'Could not save that name.');
+            }
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ScandyField(
+                label: 'Name',
+                controller: controller,
+                hint: 'What should we call you?',
+                autofocus: true,
+                errorText: error,
+              ),
+              const SizedBox(height: 20),
+              PrimaryButton(label: 'Save', onPressed: submit),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+  }
 
   Future<void> _signOut(BuildContext context) async {
     final confirmed = await confirmDestructive(
@@ -446,7 +509,7 @@ class AccountSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.scandy;
     final user = Supabase.instance.client.auth.currentUser;
-    final name = (user?.userMetadata?['display_name'] as String?)?.trim();
+    final name = (user?.userMetadata?['display_name'] as String?)?.trim() ?? '';
     final email = user?.email ?? '';
 
     final body = Column(
@@ -470,10 +533,11 @@ class AccountSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (name != null && name.isNotEmpty)
-                    Text(name,
-                        style: ScandyText.rowTitle
-                            .copyWith(color: c.textPrimary)),
+                  Text(
+                    name.isEmpty ? 'Add your name' : name,
+                    style: ScandyText.rowTitle.copyWith(
+                        color: name.isEmpty ? c.textSecondary : c.textPrimary),
+                  ),
                   Text(
                     email,
                     style: ScandyText.sheetItemSubtitle
@@ -482,6 +546,12 @@ class AccountSection extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            IconButton(
+              onPressed: () => _rename(context, name),
+              icon: Icon(Icons.edit_outlined, size: 18, color: c.iconMuted),
+              tooltip: 'Change your name',
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
           ],
         ),
@@ -504,7 +574,7 @@ class AccountSection extends StatelessWidget {
       ],
     );
 
-    if (bare) return body;
+    if (widget.bare) return body;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

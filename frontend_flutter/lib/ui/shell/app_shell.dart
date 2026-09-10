@@ -128,7 +128,7 @@ class _AppShellState extends State<AppShell>
   /// there. A failed read still surfaces, inside the scanning dialog.
   Future<void> _scanFile(XFile file) async {
     if (!mounted) return;
-    final job = _ScanJob(cloud: const UnavailableCloudScanner(), file: file);
+    final job = _ScanJob(cloud: const SupabaseCloudScanner(), file: file);
 
     // An on-device scan finishes in about 150 ms. Showing a spinner for that is
     // worse than showing nothing: the photo picker has just displayed its own
