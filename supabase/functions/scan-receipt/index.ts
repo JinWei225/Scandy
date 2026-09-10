@@ -19,10 +19,12 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-// One constant, so changing model is a one-line edit. Flash-Lite is the
-// cheapest vision-capable tier and reads a receipt perfectly well; the job is
-// finding three fields on a page, not reasoning.
-const MODEL = "gemini-2.5-flash-lite";
+// One constant, so changing model is a one-line edit -- which it already had
+// to be: 2.5-flash-lite answered 404 with "no longer available to new users,
+// use models/gemini-3.5-flash-lite". Flash-Lite is the cheapest vision-capable
+// tier and reads a receipt perfectly well; the job is finding three fields on
+// a page, not reasoning.
+const MODEL = "gemini-3.5-flash-lite";
 
 // Per user, over a rolling 24 hours rather than a calendar day, which avoids
 // the question of whose midnight. Generous enough that a day of shopping never
