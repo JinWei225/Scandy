@@ -113,6 +113,30 @@ constraints now, and "you cannot delete your last category" is a trigger. Only
 renaming needs a function, because it has to reach the category, the
 transaction history and any subscription in one go.
 
+## Email is the weak link
+
+Supabase's built-in mail service is rate limited to a handful of messages per
+hour across the whole project, and its own documentation says not to use it for
+production. Both limits land exactly where they hurt: confirmation on sign-up,
+and password resets.
+
+    For security purposes, you can only request this after N seconds
+
+Two consequences worth planning around.
+
+**Onboarding somebody does not have to involve email at all.** Creating the
+account from the dashboard with a password you set, and handing it over
+directly, skips confirmation entirely -- one fewer thing to go wrong while
+you are standing next to them. They change it afterwards from Settings.
+
+**Before anyone relies on password reset, configure custom SMTP.** Resend,
+Brevo and SendGrid all have free tiers large enough for this, and any of them
+removes the rate limit and stops the mail being filed as spam. Authentication >
+Emails > SMTP Settings in the dashboard.
+
+Until then, resets work but are rationed, and a second attempt within the hour
+is refused rather than delivered.
+
 ## Adding someone
 
 Sign-up is closed. The app is on a public URL and this repository is public, so
