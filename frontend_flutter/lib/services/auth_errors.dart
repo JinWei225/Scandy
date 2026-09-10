@@ -28,6 +28,27 @@ String friendlyAuthError(Object error) {
       return 'Scandy is invite only at the moment. Ask for your email address '
           'to be added, then try again.';
     }
+
+    // The same refusal, as the hosted service reports it. Supabase's own
+    // GoTrue does not pass a trigger's message through -- it answers
+    // {"code":"unexpected_failure","message":"Database error saving new user"}
+    // whatever the database actually said, which is how a person ended up
+    // being shown a JSON body.
+    //
+    // The wording stays honest about the uncertainty: this is *almost* always
+    // the allowlist, but a genuine fault in the signup trigger would look
+    // identical from here, so it says the account could not be created and
+    // then gives the likely reason.
+    if (message.contains('database error saving new user')) {
+      return 'That account could not be created. Scandy is invite only — ask '
+          'for your email address to be added, then try again.';
+    }
+
+    // GoTrue rejects addresses whose domain it does not believe in, which
+    // includes the reserved test TLDs.
+    if (message.contains('email address') && message.contains('invalid')) {
+      return 'That email address was not accepted. Check it and try again.';
+    }
     if (message.contains('already registered') ||
         message.contains('already been registered')) {
       return 'That email already has an account. Try signing in instead.';
@@ -53,7 +74,13 @@ String friendlyAuthError(Object error) {
     if (message.contains('expired') || message.contains('invalid token')) {
       return 'That link has expired. Ask for a new one.';
     }
-    return error.message;
+    // Last resort. Never the raw message if it is a response body -- an
+    // unmapped failure showed a person
+    // {"code":"unexpected_failure","message":"Database error saving new user"}
+    // in a red box, which is worse than saying nothing useful.
+    return _looksLikeAPayload(error.message)
+        ? 'Something went wrong. Try again.'
+        : error.message;
   }
 
   // Offline, DNS failure, a project that is paused: all the same to the user.
@@ -65,6 +92,15 @@ String friendlyAuthError(Object error) {
     return 'Cannot reach Scandy right now. Check your connection.';
   }
   return 'Something went wrong. Try again.';
+}
+
+/// True for anything that reads as a response body rather than a sentence.
+bool _looksLikeAPayload(String message) {
+  final text = message.trim();
+  return text.startsWith('{') ||
+      text.startsWith('[') ||
+      text.contains('"code"') ||
+      text.contains('"message"');
 }
 
 /// Client-side password rule, matching what Supabase is configured to enforce.
