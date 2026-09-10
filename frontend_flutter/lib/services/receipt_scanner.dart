@@ -12,6 +12,8 @@
 /// bills to whoever shipped it.
 library;
 
+import 'dart:async';
+
 import 'package:cross_file/cross_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -36,15 +38,25 @@ class SupabaseCloudScanner implements CloudReceiptScanner {
   Future<Map<String, dynamic>> scan(XFile file) async {
     final bytes = await file.readAsBytes();
     try {
-      final res = await Supabase.instance.client.functions.invoke(
-        'scan-receipt',
-        // Raw bytes, not base64 and not multipart: invoke() sends a Uint8List
-        // as application/octet-stream, and the function encodes once on its
-        // side for Gemini. Base64 here would put a third more over the wire
-        // from a phone.
-        body: bytes,
-        headers: {'x-image-mime': _mimeOf(file.name)},
-      );
+      final res = await Supabase.instance.client.functions
+          .invoke(
+            'scan-receipt',
+            // Raw bytes, not base64 and not multipart: invoke() sends a
+            // Uint8List as application/octet-stream, and the function encodes
+            // once on its side for Gemini. Base64 here would put a third more
+            // over the wire from a phone.
+            body: bytes,
+            headers: {'x-image-mime': _mimeOf(file.name)},
+          )
+          // invoke() has no timeout of its own, so without this a request that
+          // never comes back leaves the scanning dialog spinning with no way
+          // out but force-quitting.
+          //
+          // Longer than the function's own 75s abort, deliberately: when the
+          // model is slow the function should be the one to give up, because
+          // it can say why. This is only the backstop for a reply that never
+          // arrives at all.
+          .timeout(const Duration(seconds: 90));
       final data = res.data;
       if (data is Map<String, dynamic>) return data;
       throw ReceiptScanException('The scanner sent back something unreadable.');
@@ -56,6 +68,9 @@ class SupabaseCloudScanner implements CloudReceiptScanner {
           ? detail['error'] as String
           : 'Could not scan that receipt.';
       throw ReceiptScanException(message);
+    } on TimeoutException {
+      throw ReceiptScanException(
+          'The scan took too long. Add the amount by hand, or try again.');
     } catch (e) {
       final text = '$e';
       if (text.contains('SocketException') ||

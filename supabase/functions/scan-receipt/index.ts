@@ -184,15 +184,30 @@ Deno.serve(async (req) => {
             temperature: 0,
           },
         }),
-        signal: AbortSignal.timeout(45_000),
+        // Measured on the free tier: the same four receipts came back in
+        // 3.2s, 36.1s, 4.5s and 8.9s. The slow one is not an outlier to
+        // design around, it is the tier. The client waits longer than this,
+        // so the timeout that fires is this one, with a message.
+        signal: AbortSignal.timeout(75_000),
       },
     );
 
     if (!res.ok) {
       const detail = await res.text();
       console.error(`gemini ${res.status}: ${detail.slice(0, 500)}`);
-      // The upstream status is deliberately not passed through: a 400 from
-      // Google is not a 400 from this endpoint's caller.
+
+      // Worth separating, because on the free tier this is the failure people
+      // will actually meet, and "could not read that" sends them to retake a
+      // photo that was never the problem.
+      if (res.status === 429) {
+        return json({
+          error: "The scanner has hit its quota for now. Add the amount by " +
+            "hand, or try again later.",
+        }, 429);
+      }
+
+      // Otherwise the upstream status is deliberately not passed through: a
+      // 400 from Google is not a 400 from this endpoint's caller.
       return json({ error: "The scanner could not read that just now." }, 502);
     }
 
