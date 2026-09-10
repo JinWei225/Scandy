@@ -112,3 +112,26 @@ validations that used to live in `_validate_category_name()` are table
 constraints now, and "you cannot delete your last category" is a trigger. Only
 renaming needs a function, because it has to reach the category, the
 transaction history and any subscription in one go.
+
+## Adding someone
+
+Sign-up is closed. The app is on a public URL and this repository is public, so
+an open form means strangers can create accounts -- not to see anything, since
+RLS stops that, but because every account shares one Gemini quota. On the free
+tier an unknown person's scan is a scan somebody else does not get.
+
+To let a person in, add a row. No migration, no deploy:
+
+    insert into public.signup_allowlist (email, note)
+    values ('them@example.com', 'demo, 10 Sep');
+
+The dashboard's Table Editor does the same thing in about fifteen seconds,
+which is the point -- it has to be quick enough to do while somebody is
+standing next to you.
+
+It applies to administrative inserts too, including the dashboard's own "Add
+user". That is deliberate: an allowlist with an admin bypass is a list of
+suggestions.
+
+Removing a row does not remove an account that already exists. To take access
+away, delete the user.

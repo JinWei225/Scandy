@@ -15,6 +15,11 @@ begin;
 
 \set uid '33333333-3333-3333-3333-333333333333'
 
+-- The allowlist covers administrative inserts too, so the fixture declares
+-- itself. See 20260910150000_signup_allowlist.sql.
+insert into public.signup_allowlist (email, note)
+values ('subs-test@scandy.invalid', 'test fixture');
+
 insert into auth.users (id, instance_id, aud, role, email)
 values (:'uid', '00000000-0000-0000-0000-000000000000',
         'authenticated', 'authenticated', 'subs-test@scandy.invalid');

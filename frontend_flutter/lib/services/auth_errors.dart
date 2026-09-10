@@ -22,6 +22,12 @@ String friendlyAuthError(Object error) {
     if (message.contains('email not confirmed')) {
       return 'Check your email and tap the confirmation link first.';
     }
+    // Raised by the signup allowlist trigger, and already written for a
+    // person -- but it says what happened without saying what to do.
+    if (message.contains('invite only')) {
+      return 'Scandy is invite only at the moment. Ask for your email address '
+          'to be added, then try again.';
+    }
     if (message.contains('already registered') ||
         message.contains('already been registered')) {
       return 'That email already has an account. Try signing in instead.';

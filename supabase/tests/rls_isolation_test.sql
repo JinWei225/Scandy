@@ -22,6 +22,13 @@ begin;
 \set uid_b '22222222-2222-2222-2222-222222222222'
 
 -- --- Setup, as the migration role ------------------------------------------
+-- The allowlist applies to every insert into auth.users, administrative ones
+-- included -- which is the point of it, and why the fixtures have to declare
+-- themselves here rather than being waved through.
+insert into public.signup_allowlist (email, note)
+values ('rls-test-a@scandy.invalid', 'test fixture'),
+       ('rls-test-b@scandy.invalid', 'test fixture');
+
 -- Inserting into auth.users also exercises the on_auth_user_created trigger.
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
 values
@@ -253,6 +260,19 @@ begin
     end if;
 
     raise notice 'PASS  a user can be deleted, and everything of theirs goes with them';
+end $$;
+
+-- --- the allowlist refuses an address that is not on it ---------------------
+do $$
+begin
+    insert into auth.users (id, instance_id, aud, role, email)
+    values ('44444444-4444-4444-4444-444444444444',
+            '00000000-0000-0000-0000-000000000000',
+            'authenticated', 'authenticated', 'stranger@example.invalid');
+    raise exception 'FAIL: an address not on the allowlist created an account';
+exception
+    when check_violation then
+        raise notice 'PASS  an address that is not on the allowlist cannot sign up';
 end $$;
 
 do $$ begin raise notice ''; raise notice 'ALL CHECKS PASSED'; end $$;
