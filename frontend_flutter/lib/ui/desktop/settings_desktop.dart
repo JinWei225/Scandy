@@ -21,14 +21,12 @@ class SettingsDesktop extends StatelessWidget {
       children: [
         DesktopHeader(
           title: 'Settings',
-          subtitle: 'Appearance, categories and your data',
+          subtitle: 'Appearance, categories and your account',
         ),
         SizedBox(height: desktopGap),
         _AppearancePanel(),
         SizedBox(height: desktopGap),
         _CategoriesPanel(),
-        SizedBox(height: desktopGap),
-        _ServerPanel(),
         SizedBox(height: desktopGap),
         _AccountPanel(),
       ],
@@ -223,26 +221,6 @@ class _CategoryColumn extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ServerPanel extends StatelessWidget {
-  const _ServerPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DesktopPanel(
-      title: 'Server',
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(22, 18, 22, 20),
-        // The address form itself is shared with the phone — it is a form,
-        // and a form does not change shape with the window.
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(width: 520, child: ServerSection(bare: true)),
-        ),
-      ),
     );
   }
 }

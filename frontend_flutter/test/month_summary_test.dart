@@ -7,7 +7,7 @@ Transaction _tx({
   required int cents,
   required TransactionType type,
   required DateTime date,
-  String? transferRelatedId,
+  String? transferGroupId,
 }) {
   return Transaction(
     id: '${date.toIso8601String()}-$cents',
@@ -18,7 +18,7 @@ Transaction _tx({
     category: 'Other',
     accountId: 'acc',
     type: type,
-    transferRelatedId: transferRelatedId,
+    transferGroupId: transferGroupId,
   );
 }
 
@@ -82,13 +82,13 @@ void main() {
           cents: 50000,
           type: TransactionType.expense,
           date: DateTime(2026, 9, 3),
-          transferRelatedId: 'leg-b',
+          transferGroupId: 'leg-b',
         ),
         _tx(
           cents: 50000,
           type: TransactionType.income,
           date: DateTime(2026, 9, 3),
-          transferRelatedId: 'leg-a',
+          transferGroupId: 'leg-a',
         ),
       ],
       subscriptions: const [],

@@ -50,7 +50,7 @@ Future<void> deleteAccountFromRow(BuildContext context, Account account) async {
   if (!confirmed || !context.mounted) return;
 
   try {
-    await state.api.deleteAccount(account.id);
+    await state.repo.deleteAccount(account.id);
     await state.refresh();
   } catch (e) {
     if (context.mounted) showErrorToast(context, '$e');
@@ -71,7 +71,7 @@ Future<void> deleteSubscriptionFromRow(
   if (!confirmed || !context.mounted) return;
 
   try {
-    await state.api.deleteSubscription(subscription.id);
+    await state.repo.deleteSubscription(subscription.id);
     await state.refresh();
   } catch (e) {
     if (context.mounted) showErrorToast(context, '$e');

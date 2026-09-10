@@ -1,7 +1,7 @@
-/// Mirrors an entry from `GET /api/subscriptions`.
+/// A row of `public.subscriptions`.
 ///
-/// Unlike transactions, the amount here is ringgit as a JSON number, not
-/// cents-in-a-string (see `subscriptions.json`).
+/// Stored in cents like everything else and converted once, here, so the rest
+/// of the app keeps working in ringgit.
 class Subscription {
   const Subscription({
     required this.id,
@@ -29,22 +29,21 @@ class Subscription {
   /// ISO date of the last month this was auto-recorded, or null if never.
   final DateTime? lastRecordedDate;
 
-  factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
-        id: json['id'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        amount: (json['amount'] as num?)?.toDouble() ?? 0,
-        category: json['category'] as String? ?? '',
-        dayOfMonth: (json['day_of_month'] as num?)?.toInt() ?? 1,
-        accountId: json['account_id'] as String?,
+  factory Subscription.fromRow(Map<String, dynamic> row) => Subscription(
+        id: row['id'] as String? ?? '',
+        name: row['name'] as String? ?? '',
+        amount: ((row['amount_cents'] as num?)?.toInt() ?? 0) / 100,
+        category: row['category'] as String? ?? '',
+        dayOfMonth: (row['day_of_month'] as num?)?.toInt() ?? 1,
+        accountId: row['account_id'] as String?,
         lastRecordedDate:
-            DateTime.tryParse(json['last_recorded_date'] as String? ?? ''),
+            DateTime.tryParse(row['last_recorded_date'] as String? ?? ''),
       );
 
   /// The day the charge lands in [month], clamped to that month's length.
   ///
-  /// The backend clamps the same way (`calendar.monthrange` in
-  /// check_and_record_subscriptions), so a day-31 charge lands on the 30th in a
-  /// 30-day month instead of never coming due at all.
+  /// record_due_subscriptions() clamps the same way, so a day-31 charge lands
+  /// on the 30th in a 30-day month instead of never coming due at all.
   int dueDayIn(DateTime month) {
     final lastDay = DateTime(month.year, month.month + 1, 0).day;
     if (dayOfMonth < 1) return 1;

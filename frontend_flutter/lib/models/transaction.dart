@@ -1,10 +1,8 @@
-/// Mirrors a row from `GET /api/transactions`.
+/// A row of `public.transactions`.
 ///
-/// Two amount fields come back and they are not interchangeable: the backend
-/// stores cents in a TEXT column and serialises both `amount_cents` (int, for
-/// arithmetic) and `amount` (a pre-formatted "RM 12.34" string, for display).
-/// Summing the display string would be lossy, so all maths here goes through
-/// [amountCents].
+/// All arithmetic goes through [amountCents]; there is no formatted amount on
+/// the wire any more, because formatting belongs to the screen and a display
+/// string cannot be summed without losing money.
 class Transaction {
   const Transaction({
     required this.id,
@@ -15,7 +13,7 @@ class Transaction {
     required this.category,
     required this.accountId,
     required this.type,
-    this.transferRelatedId,
+    this.transferGroupId,
     this.fromAccountId,
     this.toAccountId,
   });
@@ -38,41 +36,39 @@ class Transaction {
   final String category;
   final String? accountId;
   final TransactionType type;
-  final String? transferRelatedId;
+  /// Shared by both legs of a transfer; null for everything else.
+  final String? transferGroupId;
 
-  /// Only set on transfer rows. The backend resolves the counterpart leg's
-  /// account so either half can pre-fill From/To when edited.
+  /// Only set on transfer rows. Resolved by the repository from the other leg
+  /// in the same group, so either half can pre-fill From/To when edited.
   final String? fromAccountId;
   final String? toAccountId;
 
-  static DateTime? _parseDisplayDate(Object? raw) {
-    if (raw is! String) return null;
-    // The API serves DD/MM/YYYY (see `_to_display_date` in backend/main.py).
-    final parts = raw.split('/');
-    if (parts.length != 3) return DateTime.tryParse(raw);
-    final day = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    final year = int.tryParse(parts[2]);
-    if (day == null || month == null || year == null) return null;
-    return DateTime(year, month, day);
-  }
-
-  factory Transaction.fromJson(Map<String, dynamic> json) {
-    final type = TransactionType.parse(json['type'] as String?);
-    // `amount_cents` is always positive on the wire; direction lives in `type`.
-    final magnitude = (json['amount_cents'] as num?)?.toInt().abs() ?? 0;
+  /// Builds one from a Supabase row.
+  ///
+  /// [fromAccountId] and [toAccountId] are not columns -- the repository
+  /// resolves them from the other leg sharing this row's transfer group.
+  factory Transaction.fromRow(
+    Map<String, dynamic> row, {
+    String? fromAccountId,
+    String? toAccountId,
+  }) {
+    final type = TransactionType.parse(row['type'] as String?);
+    // amount_cents is always positive in the database; direction lives in
+    // `type`, and the check constraint there enforces it.
+    final magnitude = (row['amount_cents'] as num?)?.toInt().abs() ?? 0;
     return Transaction(
-      id: json['id'] as String? ?? '',
-      date: _parseDisplayDate(json['date']),
-      time: json['time'] as String? ?? '',
-      description: (json['description'] as String? ?? '').trim(),
+      id: row['id'] as String? ?? '',
+      date: DateTime.tryParse(row['occurred_on'] as String? ?? ''),
+      time: row['occurred_at'] as String? ?? '00:00:00',
+      description: (row['description'] as String? ?? '').trim(),
       amountCents: type == TransactionType.income ? magnitude : -magnitude,
-      category: json['category'] as String? ?? '',
-      accountId: json['account_id'] as String?,
+      category: row['category'] as String? ?? '',
+      accountId: row['account_id'] as String?,
       type: type,
-      transferRelatedId: json['transfer_related_id'] as String?,
-      fromAccountId: json['from_account_id'] as String?,
-      toAccountId: json['to_account_id'] as String?,
+      transferGroupId: row['transfer_group_id'] as String?,
+      fromAccountId: fromAccountId,
+      toAccountId: toAccountId,
     );
   }
 
@@ -80,7 +76,7 @@ class Transaction {
   String get shortTime => time.length >= 5 ? time.substring(0, 5) : time;
 
   bool get isIncome => type == TransactionType.income;
-  bool get isTransfer => transferRelatedId != null;
+  bool get isTransfer => transferGroupId != null;
 }
 
 enum TransactionType {

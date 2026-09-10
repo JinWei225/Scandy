@@ -1,7 +1,8 @@
-/// Mirrors an entry from `GET /api/accounts`.
+/// A row of `public.accounts`.
 ///
-/// [balance] is not stored — the route merges in `get_account_balances()`,
-/// which folds every transaction into the account's `initial_balance`.
+/// [balance] is not stored on the row: it comes from the `account_balances`
+/// view, which folds every transaction into the opening balance. A view cannot
+/// drift from the rows the way a cached column would.
 class Account {
   const Account({
     required this.id,
@@ -22,11 +23,16 @@ class Account {
   /// Ringgit, already net of all transactions.
   final double balance;
 
-  factory Account.fromJson(Map<String, dynamic> json) => Account(
-        id: json['id'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        type: json['type'] as String? ?? '',
-        initialBalance: (json['initial_balance'] as num?)?.toDouble() ?? 0,
-        balance: (json['balance'] as num?)?.toDouble() ?? 0,
-      );
+  /// [balanceCents] comes from the joined view; without it the balance falls
+  /// back to the opening figure rather than silently reading zero.
+  factory Account.fromRow(Map<String, dynamic> row, {int? balanceCents}) {
+    final initialCents = (row['initial_balance_cents'] as num?)?.toInt() ?? 0;
+    return Account(
+      id: row['id'] as String? ?? '',
+      name: row['name'] as String? ?? '',
+      type: row['type'] as String? ?? '',
+      initialBalance: initialCents / 100,
+      balance: (balanceCents ?? initialCents) / 100,
+    );
+  }
 }

@@ -10,11 +10,11 @@ import '../common/sheets.dart';
 import '../common/widgets.dart';
 import '../shell/bottom_nav.dart';
 
-/// "Settings" — appearance, categories, and where the backend lives.
+/// "Settings" — appearance, categories, and the account.
 ///
-/// The design covers Appearance and Categories. The server card is an addition:
-/// a Flutter binary has no origin to infer the API from, unlike the Vue build
-/// which was served alongside it.
+/// The design covers Appearance and Categories. The Account card is an
+/// addition: with more than one person using Scandy there has to be somewhere
+/// that says who you are and lets you leave.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, this.embedded = true});
 
@@ -37,8 +37,6 @@ class SettingsScreen extends StatelessWidget {
         const _AppearanceSection(),
         const SizedBox(height: 16),
         const _CategoriesSection(),
-        const SizedBox(height: 16),
-        const ServerSection(),
         const SizedBox(height: 16),
         const AccountSection(),
       ],
@@ -345,9 +343,9 @@ Future<void> editCategory(
           }
           try {
             if (existingName == null) {
-              await state.api.addCategory(type: type, name: value);
+              await state.repo.addCategory(type: type, name: value);
             } else {
-              await state.api.renameCategory(
+              await state.repo.renameCategory(
                   type: type, oldName: existingName, newName: value);
             }
             await state.refresh();
@@ -397,7 +395,7 @@ Future<void> deleteCategory(
   if (!confirmed || !context.mounted) return;
 
   try {
-    await state.api.deleteCategory(type: type, name: name);
+    await state.repo.deleteCategory(type: type, name: name);
     await state.refresh();
   } catch (e) {
     if (!context.mounted) return;
@@ -418,85 +416,6 @@ Future<void> deleteCategory(
 
 /// Where the backend lives. Public so the desktop page can show the same
 /// card — it is the one setting a Flutter build cannot infer for itself.
-class ServerSection extends StatefulWidget {
-  const ServerSection({super.key, this.bare = false});
-
-  /// True on desktop, where the surrounding panel already supplies the card
-  /// and the heading, so this renders the form alone.
-  final bool bare;
-
-  @override
-  State<ServerSection> createState() => _ServerSectionState();
-}
-
-class _ServerSectionState extends State<ServerSection> {
-  late final TextEditingController _controller =
-      TextEditingController(text: context.read<AppState>().api.baseUrl);
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final state = context.read<AppState>();
-    await state.api.setBaseUrl(_controller.text);
-    await state.loadAll();
-    if (mounted) setState(() => _saving = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.scandy;
-    final form = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ScandyField(
-          label: 'Address',
-          controller: _controller,
-          hint: 'http://100.x.y.z:5001',
-          keyboardType: TextInputType.url,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Use the Tailscale address of the machine running the backend '
-          'to reach it from anywhere. On the same Wi-Fi its LAN address '
-          'works too; on the Android emulator the host is 10.0.2.2. '
-          'Scanning a receipt works on the phone without this — only your '
-          'saved transactions need the server.',
-          style: ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
-        ),
-        const SizedBox(height: 14),
-        PrimaryButton(
-          label: 'Save and reload',
-          busy: _saving,
-          onPressed: _save,
-        ),
-      ],
-    );
-
-    if (widget.bare) return form;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const GroupLabel('Server'),
-        const SizedBox(height: 9),
-        ScandyCard(
-          radius: ScandyRadius.list,
-          padding: const EdgeInsets.all(16),
-          child: form,
-        ),
-      ],
-    );
-  }
-}
-
-
 /// Who is signed in, and the way out.
 ///
 /// Sits at the bottom of Settings deliberately: signing out is rare and

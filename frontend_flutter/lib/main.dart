@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'services/api_client.dart';
+import 'services/scandy_repository.dart';
 import 'services/share_intent_service.dart';
 import 'services/supabase_config.dart';
 import 'state/app_state.dart';
@@ -28,27 +28,22 @@ Future<void> main() async {
     );
   }
 
-  final api = ApiClient();
-  await api.loadBaseUrl();
-
   final theme = ThemeController();
   await theme.load();
 
   final shareIntent = ShareIntentService();
   await shareIntent.start();
 
-  runApp(ScandyApp(api: api, theme: theme, shareIntent: shareIntent));
+  runApp(ScandyApp(theme: theme, shareIntent: shareIntent));
 }
 
 class ScandyApp extends StatelessWidget {
   const ScandyApp({
     super.key,
-    required this.api,
     required this.theme,
     required this.shareIntent,
   });
 
-  final ApiClient api;
   final ThemeController theme;
   final ShareIntentService shareIntent;
 
@@ -57,7 +52,7 @@ class ScandyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: theme),
-        ChangeNotifierProvider(create: (_) => AppState(api)),
+        ChangeNotifierProvider(create: (_) => AppState(SupabaseRepository())),
       ],
       child: Consumer<ThemeController>(
         builder: (context, theme, _) => MaterialApp(

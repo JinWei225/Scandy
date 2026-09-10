@@ -100,9 +100,9 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
 
     try {
       if (existing == null) {
-        await state.api.createSubscription(body);
+        await state.repo.createSubscription(body);
       } else {
-        await state.api.updateSubscription(existing.id, body);
+        await state.repo.updateSubscription(existing.id, body);
       }
       await state.refresh();
       if (mounted) Navigator.of(context).pop();
@@ -128,7 +128,7 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     setState(() => _busy = true);
     final state = context.read<AppState>();
     try {
-      await state.api.deleteSubscription(existing.id);
+      await state.repo.deleteSubscription(existing.id);
       await state.refresh();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
