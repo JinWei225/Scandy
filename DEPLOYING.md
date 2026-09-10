@@ -26,24 +26,40 @@ revalidates on every load, but an unchanged file comes back as a 304 rather than
 re-downloading 3 MB. Correctness with the round trip made cheap, instead of
 correctness paid for in bandwidth.
 
-## Why the golden tests run on their own machine
+## Why the golden tests are not in CI
 
-`matchesGoldenFile` compares actual pixels. The same font at the same size
-rasterises differently on macOS and Linux -- sub-pixel differences, invisible
-to a person, fatal to a byte comparison. A golden recorded on one platform will
-never match the other, which is why Flutter's own repository pins its goldens to
-a single platform.
+`matchesGoldenFile` compares actual pixels, and the pixels depend on the whole
+environment, not just the code:
 
-These were recorded on a Mac, so they are checked on `macos-latest`, which is
-free on a public repository. The `deploy` job deliberately does not wait for
-them: a golden diff means "the UI changed, go and look", which is worth a red
-check but is not a reason to block a release that passed every behavioural test.
+  - the same font at the same size rasterises differently on macOS and Linux
+  - and differently again across macOS releases, because CoreText changes
+  - and differently again across Flutter versions, because Skia and the text
+    layout engine change with them
 
-When a golden does fail, the run uploads a `golden-failures` artifact with the
-expected, actual and difference images. If the change was intended, re-record
-locally and commit the new PNGs:
+That last one was measured here rather than assumed: the runner installed
+Flutter 3.47.3, released a day earlier, while this project is on 3.47.2. A
+patch release was enough. Flutter's own repository pins its goldens to one
+controlled environment for exactly this reason, and matching a GitHub runner to
+a developer's laptop is not a fight worth having for two users.
+
+So the goldens stay a local check, where they are also the most useful -- a
+golden failure is a "look at the difference and decide", and nobody opens a CI
+artifact to do that. Before pushing a change to the UI:
+
+    cd frontend_flutter && flutter test          # everything, goldens included
+
+CI runs `flutter test --exclude-tags golden`, which is the other 141.
+
+If a change to the design was intended, re-record and commit the new PNGs:
 
     cd frontend_flutter && flutter test --tags golden --update-goldens
+
+## The Flutter version is pinned
+
+`flutter-version: 3.47.2` in the workflow, not `channel: stable`. Unpinned, the
+toolchain moves under the build -- which is how the goldens broke in the first
+place. Bump it deliberately, in a commit, having run the tests locally on the
+same version.
 
 ## First-time setup
 
