@@ -14,6 +14,10 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 ///
 /// Emits [XFile] rather than a `dart:io` File so this compiles for web, where
 /// the plugin has no implementation and [start] is a no-op.
+/// Exposed for tests; the rule itself is [ShareIntentService._isAFile].
+@visibleForTesting
+bool debugIsShareableFile(String path) => ShareIntentService._isAFile(path);
+
 class ShareIntentService {
   ShareIntentService();
 
@@ -66,6 +70,10 @@ class ShareIntentService {
   void _emit(List<SharedMediaFile> files) {
     for (final f in files) {
       if (f.path.isEmpty) continue;
+      if (!_isAFile(f.path)) {
+        debugPrint('ShareIntentService: ignoring non-file payload ${f.path}');
+        continue;
+      }
       final file = XFile(f.path);
       if (_controller.hasListener) {
         _controller.add(file);
@@ -73,6 +81,24 @@ class ShareIntentService {
         _pending.add(file);
       }
     }
+  }
+
+  /// Whether this payload is something that can actually be opened.
+  ///
+  /// The plugin listens for ACTION_VIEW as well as ACTION_SEND, so the
+  /// password-reset deep link arrives here looking like a shared file --
+  /// `com.jinwei.scandy://login-callback?code=...`. Handing that to the
+  /// scanner produced, at the end of an otherwise successful password reset:
+  ///
+  ///     Couldn't read that one
+  ///     PathNotFoundException: Cannot open file, path =
+  ///     'com.jinwei.scandy://login-callback?code=...'
+  ///
+  /// A real share is a filesystem path or a content:// URI. Anything carrying
+  /// another scheme is somebody else's intent passing through.
+  static bool _isAFile(String path) {
+    final scheme = Uri.tryParse(path)?.scheme.toLowerCase() ?? '';
+    return scheme.isEmpty || scheme == 'file' || scheme == 'content';
   }
 
   void _flushPending() {

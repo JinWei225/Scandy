@@ -49,6 +49,11 @@ class _AuthGateState extends State<AuthGate> {
 
       switch (data.event) {
         case AuthChangeEvent.passwordRecovery:
+          // A reset link arriving while "Check your email" is still on screen
+          // leaves that screen on top of the one asking for the new password.
+          // It looked like the reset had failed and offered "Back to sign in",
+          // which then popped through to the real screen underneath.
+          _clearPushedRoutes();
           setState(() {
             _session = data.session;
             _recovering = true;
@@ -56,6 +61,10 @@ class _AuthGateState extends State<AuthGate> {
           return;
 
         case AuthChangeEvent.signedOut:
+          // Settings is pushed as a route, so signing out from it swapped this
+          // widget for the sign-in screen *underneath* a Settings page that
+          // stayed put. It read as a sign-out button that did nothing.
+          _clearPushedRoutes();
           // Drop the previous person's transactions from memory. Without this
           // the next sign-in shows the last user's ledger until the first load
           // finishes -- brief, but it is exactly the thing separate ledgers
@@ -68,11 +77,7 @@ class _AuthGateState extends State<AuthGate> {
           return;
 
         case AuthChangeEvent.signedIn:
-          // The auth screens push Sign up and Forgot password onto this same
-          // navigator; if one of them is on top when the session arrives, the
-          // app would appear underneath it.
-          final navigator = Navigator.of(context);
-          if (navigator.canPop()) navigator.popUntil((r) => r.isFirst);
+          _clearPushedRoutes();
           setState(() => _session = data.session);
           return;
 
@@ -86,6 +91,17 @@ class _AuthGateState extends State<AuthGate> {
   void dispose() {
     _sub.cancel();
     super.dispose();
+  }
+
+  /// Drop anything pushed on top of this gate.
+  ///
+  /// Screens above it -- Settings, Sign up, Forgot password -- live in the same
+  /// Navigator, so swapping this widget's child does not remove them. Whatever
+  /// was on top simply stays there, hiding the screen the person should now be
+  /// looking at. Every auth transition needs this, not just signing in.
+  void _clearPushedRoutes() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.popUntil((r) => r.isFirst);
   }
 
   void _finishRecovery() {
