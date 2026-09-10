@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../common/widgets.dart';
@@ -20,6 +21,7 @@ class AddSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -41,7 +43,7 @@ class AddSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             child: Text(
-              'Add a transaction'.toUpperCase(),
+              l.addATransaction.toUpperCase(),
               style: ScandyText.sheetEyebrow.copyWith(color: c.textSecondary),
             ),
           ),
@@ -49,8 +51,8 @@ class AddSheet extends StatelessWidget {
             icon: Icons.photo_camera,
             iconColor: c.onAccent,
             tileColor: c.accent,
-            title: 'Scan a receipt',
-            subtitle: "Snap it and we'll fill in the details",
+            title: l.scanAReceipt,
+            subtitle: l.scanAReceiptSubtitle,
             onTap: () => onSelected(AddAction.scanReceipt),
           ),
           const SizedBox(height: 4),
@@ -58,8 +60,8 @@ class AddSheet extends StatelessWidget {
             icon: Icons.edit_note,
             iconColor: c.textTertiary,
             tileColor: c.surfaceMuted,
-            title: 'Log it by hand',
-            subtitle: 'Cash, transfers, anything without a receipt',
+            title: l.logItByHand,
+            subtitle: l.logItByHandSubtitle,
             onTap: () => onSelected(AddAction.logByHand),
           ),
         ],

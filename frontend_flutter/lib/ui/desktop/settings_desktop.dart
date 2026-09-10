@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
+import '../../state/locale_controller.dart';
 import '../../state/theme_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -17,18 +19,19 @@ class SettingsDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DesktopPage(
+    final l = context.l;
+    return DesktopPage(
       children: [
         DesktopHeader(
-          title: 'Settings',
-          subtitle: 'Appearance, categories and your account',
+          title: l.settings,
+          subtitle: l.settingsSubtitleDesktop,
         ),
-        SizedBox(height: desktopGap),
-        _AppearancePanel(),
-        SizedBox(height: desktopGap),
-        _CategoriesPanel(),
-        SizedBox(height: desktopGap),
-        _AccountPanel(),
+        const SizedBox(height: desktopGap),
+        const _AppearancePanel(),
+        const SizedBox(height: desktopGap),
+        const _CategoriesPanel(),
+        const SizedBox(height: desktopGap),
+        const _AccountPanel(),
       ],
     );
   }
@@ -40,53 +43,96 @@ class _AppearancePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final theme = context.watch<ThemeController>();
+    final locale = context.watch<LocaleController>();
 
     return DesktopPanel(
-      title: 'Appearance',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Theme',
-                      style: ScandyDesktopText.cellTitle
-                          .copyWith(color: c.textPrimary)),
-                  const SizedBox(height: 3),
-                  Text('Follows your system setting unless you pick one',
-                      style: ScandyDesktopText.actionSubtitle
-                          .copyWith(color: c.textSecondary)),
-                ],
-              ),
+      title: l.appearance,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SettingRow(
+            title: l.theme,
+            subtitle: l.themeFollowsSystem,
+            control: ScandySegmented<ThemeMode>(
+              value: theme.mode,
+              onChanged: theme.set,
+              options: [
+                SegmentOption(
+                    value: ThemeMode.light,
+                    label: l.themeLight,
+                    icon: Icons.light_mode),
+                SegmentOption(
+                    value: ThemeMode.dark,
+                    label: l.themeDark,
+                    icon: Icons.dark_mode),
+                SegmentOption(
+                    value: ThemeMode.system,
+                    label: l.themeSystem,
+                    icon: Icons.contrast),
+              ],
             ),
-            const SizedBox(width: 20),
-            SizedBox(
-              width: 330,
-              child: ScandySegmented<ThemeMode>(
-                value: theme.mode,
-                onChanged: theme.set,
-                options: const [
-                  SegmentOption(
-                      value: ThemeMode.light,
-                      label: 'Light',
-                      icon: Icons.light_mode),
-                  SegmentOption(
-                      value: ThemeMode.dark,
-                      label: 'Dark',
-                      icon: Icons.dark_mode),
-                  SegmentOption(
-                      value: ThemeMode.system,
-                      label: 'System',
-                      icon: Icons.contrast),
-                ],
-              ),
+          ),
+          Container(height: 1, color: c.divider),
+          _SettingRow(
+            title: l.language,
+            subtitle: l.languageFollowsSystem,
+            // Each language names itself — see the note on the phone's copy of
+            // this control.
+            control: ScandySegmented<Locale?>(
+              value: locale.locale,
+              onChanged: locale.set,
+              options: [
+                const SegmentOption(value: Locale('en'), label: 'English'),
+                const SegmentOption(value: Locale('zh'), label: '中文'),
+                SegmentOption(value: null, label: l.languageSystem),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A label and its explanation on the left, the control itself on the right.
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.title,
+    required this.subtitle,
+    required this.control,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget control;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.scandy;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title,
+                    style: ScandyDesktopText.cellTitle
+                        .copyWith(color: c.textPrimary)),
+                const SizedBox(height: 3),
+                Text(subtitle,
+                    style: ScandyDesktopText.actionSubtitle
+                        .copyWith(color: c.textSecondary)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          SizedBox(width: 330, child: control),
+        ],
       ),
     );
   }
@@ -98,12 +144,12 @@ class _CategoriesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final categories = context.watch<AppState>().categories;
 
     return DesktopPanel(
-      title: 'Categories',
-      subtitle: 'Renaming a category updates it everywhere. Deleting one '
-          'leaves old transactions labelled — it just stops being selectable.',
+      title: l.categories,
+      subtitle: l.categoriesNoteDesktop,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -111,7 +157,7 @@ class _CategoriesPanel extends StatelessWidget {
             Expanded(
               child: _CategoryColumn(
                 type: 'expense',
-                label: 'Expense categories',
+                label: l.expenseCategories,
                 names: categories['expense'] ?? const [],
               ),
             ),
@@ -119,7 +165,7 @@ class _CategoriesPanel extends StatelessWidget {
             Expanded(
               child: _CategoryColumn(
                 type: 'income',
-                label: 'Income categories',
+                label: l.incomeCategories,
                 names: categories['income'] ?? const [],
               ),
             ),
@@ -213,7 +259,7 @@ class _CategoryColumn extends StatelessWidget {
               children: [
                 Icon(Icons.add, size: 20, color: c.accent),
                 const SizedBox(width: 10),
-                Text('Add category',
+                Text(context.l.addCategory,
                     style:
                         ScandyDesktopText.cellTitle.copyWith(color: c.accent)),
               ],
@@ -233,9 +279,9 @@ class _AccountPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DesktopPanel(
-      title: 'Account',
-      child: Padding(
+    return DesktopPanel(
+      title: context.l.accountSection,
+      child: const Padding(
         padding: EdgeInsets.fromLTRB(22, 18, 22, 20),
         child: Align(
           alignment: Alignment.centerLeft,

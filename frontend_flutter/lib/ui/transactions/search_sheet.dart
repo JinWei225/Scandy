@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/transaction.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -22,7 +23,7 @@ Future<void> showSearchSheet(BuildContext context) async {
   // just dismissed.
   final picked = await showScandySheet<Transaction>(
     context: context,
-    title: 'Search transactions',
+    title: context.l.searchTransactions,
     fullHeight: true,
     child: const _SearchBody(),
   );
@@ -51,7 +52,7 @@ class _SearchBodyState extends State<_SearchBody> {
   /// Matches description, category and account name, plus the amount typed
   /// either as "12.34" or "1234". Every term must match somewhere, so
   /// "grab may" narrows rather than widens.
-  List<Transaction> _results(AppState state) {
+  List<Transaction> _results(AppState state, ScandyDates dates) {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return const [];
 
@@ -68,7 +69,7 @@ class _SearchBodyState extends State<_SearchBody> {
         ..write(' ')
         ..write((t.amountCents.abs() / 100).toStringAsFixed(2))
         ..write(' ')
-        ..write(t.date == null ? '' : formatGreetingDate(t.date!).toLowerCase());
+        ..write(t.date == null ? '' : dates.greeting(t.date!).toLowerCase());
       final text = haystack.toString();
       return terms.every(text.contains);
     }).toList(growable: false);
@@ -77,8 +78,9 @@ class _SearchBodyState extends State<_SearchBody> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
-    final results = _results(state);
+    final results = _results(state, context.dates);
     final now = DateTime.now();
 
     return Column(
@@ -93,7 +95,7 @@ class _SearchBodyState extends State<_SearchBody> {
           onChanged: (v) => setState(() => _query = v),
           style: ScandyText.rowTitleLarge.copyWith(color: c.textPrimary),
           decoration: InputDecoration(
-            hintText: 'Description, category, account or amount',
+            hintText: l.searchHint,
             hintStyle: ScandyText.rowTitle.copyWith(color: c.iconMuted),
             prefixIcon: Icon(Icons.search, size: 20, color: c.iconMuted),
             suffixIcon: _query.isEmpty
@@ -127,8 +129,7 @@ class _SearchBodyState extends State<_SearchBody> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 28),
             child: Text(
-              'Start typing to search all ${state.transactions.length} '
-              'transactions.',
+              l.startTypingToSearch(state.transactions.length),
               textAlign: TextAlign.center,
               style: ScandyText.rowMeta.copyWith(color: c.textSecondary),
             ),
@@ -138,18 +139,16 @@ class _SearchBodyState extends State<_SearchBody> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               results.isEmpty
-                  ? 'No matches'
-                  : '${results.length} '
-                      '${results.length == 1 ? 'match' : 'matches'}'
-                      '${_totalLine(results)}',
+                  ? l.noMatches
+                  : '${l.nMatches(results.length)}${_totalLine(l, results)}',
               style: ScandyText.statLabel.copyWith(color: c.textSecondary),
             ),
           ),
           if (results.isEmpty)
-            const EmptyState(
+            EmptyState(
               icon: Icons.search_off,
-              title: 'Nothing found',
-              message: 'Try a shorter word, or part of the amount.',
+              title: l.nothingFound,
+              message: l.nothingFoundBody,
             )
           else
             ScandyCard(
@@ -174,7 +173,7 @@ class _SearchBodyState extends State<_SearchBody> {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                'Showing the first 50. Narrow the search to see the rest.',
+                l.showingFirst50,
                 style: ScandyText.sheetItemSubtitle
                     .copyWith(color: c.textSecondary),
               ),
@@ -185,7 +184,7 @@ class _SearchBodyState extends State<_SearchBody> {
   }
 
   /// " · RM 412.30 out, RM 90.00 in" — a quick sense of what the query covers.
-  String _totalLine(List<Transaction> results) {
+  String _totalLine(L l, List<Transaction> results) {
     var out = 0;
     var income = 0;
     for (final t in results) {
@@ -196,8 +195,8 @@ class _SearchBodyState extends State<_SearchBody> {
       }
     }
     final parts = <String>[
-      if (out > 0) '${formatRinggit(out / 100)} out',
-      if (income > 0) '${formatRinggit(income / 100)} in',
+      if (out > 0) l.totalOut(formatRinggit(out / 100)),
+      if (income > 0) l.totalIn(formatRinggit(income / 100)),
     ];
     return parts.isEmpty ? '' : ' · ${parts.join(', ')}';
   }

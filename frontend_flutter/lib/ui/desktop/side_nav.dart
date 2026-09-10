@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/month_summary.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -11,15 +12,23 @@ import '../../util/formatting.dart';
 /// destination here, where the mobile frames have no slot for it and push it
 /// from the header instead.
 enum DesktopTab {
-  home('Home', Icons.cottage),
-  summary('Monthly summary', Icons.bar_chart),
-  accounts('Accounts', Icons.account_balance_wallet),
-  recurring('Recurring', Icons.event_repeat),
-  settings('Settings', Icons.settings);
+  home(Icons.cottage),
+  summary(Icons.bar_chart),
+  accounts(Icons.account_balance_wallet),
+  recurring(Icons.event_repeat),
+  settings(Icons.settings);
 
-  const DesktopTab(this.label, this.icon);
-  final String label;
+  const DesktopTab(this.icon);
   final IconData icon;
+
+  /// See [NavTab.label] — the same reason it is a method and not a field.
+  String label(L l) => switch (this) {
+        DesktopTab.home => l.navHome,
+        DesktopTab.summary => l.navMonthlySummary,
+        DesktopTab.accounts => l.navAccounts,
+        DesktopTab.recurring => l.navRecurring,
+        DesktopTab.settings => l.settings,
+      };
 }
 
 /// The 236px sidebar: brand, destinations, and the total-balance card pinned
@@ -143,7 +152,7 @@ class _NavItem extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    tab.label,
+                    tab.label(context.l),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: (selected
@@ -181,7 +190,7 @@ class _BalanceCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Total balance'.toUpperCase(),
+          Text(context.l.totalBalance.toUpperCase(),
               style: ScandyDesktopText.tableHeader
                   .copyWith(color: c.textSecondary)),
           const SizedBox(height: 4),
@@ -194,7 +203,7 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            count == 1 ? 'across 1 account' : 'across $count accounts',
+            context.l.acrossNAccounts(count),
             style: ScandyDesktopText.statMeta.copyWith(color: c.textSecondary),
           ),
         ],

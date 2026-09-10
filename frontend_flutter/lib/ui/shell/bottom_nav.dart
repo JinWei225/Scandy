@@ -2,20 +2,30 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 
 /// Destinations in the redesigned nav. The centre slot is the ADD button, not
 /// a destination, so it is absent here and injected by [ScandyBottomNav].
 enum NavTab {
-  home('Home', Icons.cottage),
-  summary('Summary', Icons.bar_chart),
-  accounts('Accounts', Icons.account_balance_wallet),
-  recurring('Recurring', Icons.event_repeat);
+  home(Icons.cottage),
+  summary(Icons.bar_chart),
+  accounts(Icons.account_balance_wallet),
+  recurring(Icons.event_repeat);
 
-  const NavTab(this.label, this.icon);
-  final String label;
+  const NavTab(this.icon);
   final IconData icon;
+
+  /// Resolved at build time rather than stored on the enum: an enum constant
+  /// is created once at startup, long before there is a Localizations to read,
+  /// and it would keep whichever language was current then.
+  String label(L l) => switch (this) {
+        NavTab.home => l.navHome,
+        NavTab.summary => l.navSummary,
+        NavTab.accounts => l.navAccounts,
+        NavTab.recurring => l.navRecurring,
+      };
 }
 
 /// Five equal columns with the ADD button in the middle, per the design:
@@ -102,7 +112,7 @@ class _Item extends StatelessWidget {
               Icon(tab.icon, size: 24, color: color),
               const SizedBox(height: 3),
               Text(
-                tab.label,
+                tab.label(context.l),
                 style: (selected ? ScandyText.navLabelActive : ScandyText.navLabel)
                     .copyWith(color: color),
               ),
@@ -133,7 +143,7 @@ class _AddButton extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 6),
           child: Semantics(
             button: true,
-            label: 'Add a transaction',
+            label: context.l.addATransaction,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(ScandyRadius.sheet),
@@ -162,7 +172,7 @@ class _AddButton extends StatelessWidget {
                         Icon(Icons.add, size: 27, color: c.onAccent),
                         const SizedBox(height: 1),
                         Text(
-                          'ADD',
+                          context.l.navAddShort,
                           style: ScandyText.fabLabel.copyWith(color: c.onAccent),
                         ),
                       ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/subscription.dart';
 import '../../models/summary_stats.dart';
 import '../../state/app_state.dart';
@@ -28,6 +28,7 @@ class RecurringDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
     final now = clock ?? DateTime.now();
     final stats = RecurringStats.from(state.subscriptions, now: now);
@@ -39,17 +40,17 @@ class RecurringDesktop extends StatelessWidget {
     return DesktopPage(
       children: [
         DesktopFigureHeader(
-          title: 'Recurring',
-          label: 'Every month',
+          title: l.recurring,
+          label: l.everyMonth,
           figure: formatRinggit(stats.monthlyTotalCents / 100),
           titleTrailing: DesktopIconButton(
             icon: Icons.search,
-            tooltip: 'Search transactions',
+            tooltip: l.searchTransactions,
             onPressed: () => showSearchSheet(context),
           ),
           trailing: DesktopAccentButton(
             icon: Icons.add,
-            label: 'Add recurring charge',
+            label: l.addRecurringCharge,
             height: 44,
             onPressed: () => showSubscriptionFormSheet(context),
           ),
@@ -57,49 +58,46 @@ class RecurringDesktop extends StatelessWidget {
         const SizedBox(height: desktopGap),
         DesktopCardRow(children: [
           DesktopStatCard(
-            label: 'Already charged',
+            label: l.alreadyCharged,
             value: formatRinggit(stats.chargedCents / 100),
             valueColor: c.negative,
-            meta: '${stats.alreadyCharged.length} of $total this month',
+            meta: l.nOfMThisMonth(stats.alreadyCharged.length, total),
           ),
           DesktopStatCard(
-            label: 'Still to come',
+            label: l.stillToCome,
             value: formatRinggit(stats.toComeCents / 100),
-            meta: stats.stillToCome.length == 1
-                ? '1 charge before month end'
-                : '${stats.stillToCome.length} charges before month end',
+            meta: l.nChargesBeforeMonthEnd(stats.stillToCome.length),
           ),
           DesktopStatCard(
-            label: 'Next charge',
+            label: l.nextCharge,
             accent: true,
-            value: next?.name ?? 'Nothing due',
+            value: next?.name ?? l.nothingDue,
             meta: next == null
-                ? 'Everything has been charged'
-                : '${formatRinggit(next.amount)} on day ${next.dayOfMonth}',
+                ? l.everythingHasBeenCharged
+                : l.amountOnDay(formatRinggit(next.amount), next.dayOfMonth),
           ),
         ]),
         const SizedBox(height: desktopGap),
         DesktopPanel(
           child: rows.isEmpty
-              ? const DesktopEmpty(
+              ? DesktopEmpty(
                   icon: Icons.event_repeat,
-                  title: 'No recurring charges',
-                  message:
-                      'Add the ones that repeat and they stop surprising you.',
+                  title: l.noRecurringCharges,
+                  message: l.noRecurringChargesBody,
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const DesktopTableHeader(
+                    DesktopTableHeader(
                       columns: columns,
                       labels: [
-                        'Service',
-                        'Category',
-                        'Charges on',
-                        'Amount',
-                        'Actions'
+                        l.tableService,
+                        l.tableCategory,
+                        l.tableChargesOn,
+                        l.tableAmount,
+                        l.tableActions,
                       ],
-                      alignRight: {3, 4},
+                      alignRight: const {3, 4},
                     ),
                     for (var i = 0; i < rows.length; i++)
                       _row(
@@ -125,6 +123,7 @@ class RecurringDesktop extends StatelessWidget {
     required bool charged,
     required bool last,
   }) {
+    final l = context.l;
     final daysAway = s.dayOfMonth - now.day;
     // The nearest upcoming charge is the one worth flagging; charged rows read
     // green, exactly as on the phone.
@@ -136,11 +135,11 @@ class RecurringDesktop extends StatelessWidget {
       final recorded = s.lastRecordedDate;
       metaColor = c.positive;
       meta = recorded == null
-          ? 'Charged this month'
-          : 'Charged ${DateFormat('d MMM').format(recorded)}';
+          ? l.chargedThisMonth
+          : l.chargedOn(context.dates.dayMonth(recorded));
     } else {
       metaColor = imminent ? c.onAccentSoft : c.textSecondary;
-      meta = _relative(daysAway);
+      meta = _relative(l, daysAway);
     }
 
     return DesktopTableRow(
@@ -158,10 +157,9 @@ class RecurringDesktop extends StatelessWidget {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: DesktopChip(
-              label: s.category.isEmpty ? 'Uncategorised' : s.category),
+          child: DesktopChip(label: displayCategory(l, s.category)),
         ),
-        Text('Day ${s.dayOfMonth}',
+        Text(l.dayOfMonth(s.dayOfMonth),
             style:
                 ScandyDesktopText.cellPlain.copyWith(color: c.textTertiary)),
         DesktopAmountCell(
@@ -176,10 +174,10 @@ class RecurringDesktop extends StatelessWidget {
     );
   }
 
-  static String _relative(int days) {
-    if (days < 0) return 'Due next month';
-    if (days == 0) return 'Due today';
-    if (days == 1) return 'Due tomorrow';
-    return 'Due in $days days';
+  static String _relative(L l, int days) {
+    if (days < 0) return l.dueNextMonth;
+    if (days == 0) return l.dueToday;
+    if (days == 1) return l.dueTomorrow;
+    return l.dueInNDays(days);
   }
 }

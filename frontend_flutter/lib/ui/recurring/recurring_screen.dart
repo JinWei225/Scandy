@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/subscription.dart';
 import '../../models/summary_stats.dart';
 import '../../state/app_state.dart';
@@ -25,6 +25,7 @@ class RecurringScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final c = context.scandy;
+    final l = context.l;
     final now = clock ?? DateTime.now();
     final stats = RecurringStats.from(state.subscriptions, now: now);
 
@@ -32,7 +33,7 @@ class RecurringScreen extends StatelessWidget {
 
     return FabScaffold(
       navHeight: navHeight,
-      tooltip: 'Add recurring charge',
+      tooltip: l.addRecurringCharge,
       onPressed: () => showSubscriptionFormSheet(context),
       child: RefreshIndicator(
       onRefresh: state.refresh,
@@ -44,38 +45,38 @@ class RecurringScreen extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(18, 14, 18, navHeight + 88),
         children: [
           ScreenHeader(
-            title: 'Recurring',
+            title: l.recurring,
             trailing: HeaderActions(onSearch: () => showSearchSheet(context)),
           ),
           const SizedBox(height: 14),
           _TotalCard(stats: stats),
           const SizedBox(height: 14),
           SectionHeader(
-            title: 'Still to come',
+            title: l.stillToCome,
             actionLabel: stats.stillToCome.isEmpty
                 ? null
-                : 'All ${stats.stillToCome.length}',
+                : l.allN(stats.stillToCome.length),
           ),
           const SizedBox(height: 9),
           _SubscriptionList(
             subscriptions: stats.stillToCome,
             now: now,
             charged: false,
-            emptyMessage: 'Everything for this month has been recorded.',
+            emptyMessage: l.everythingRecordedThisMonth,
           ),
           const SizedBox(height: 15),
           SectionHeader(
-            title: 'Already charged',
+            title: l.alreadyCharged,
             actionLabel: stats.alreadyCharged.isEmpty
                 ? null
-                : 'All ${stats.alreadyCharged.length}',
+                : l.allN(stats.alreadyCharged.length),
           ),
           const SizedBox(height: 9),
           _SubscriptionList(
             subscriptions: stats.alreadyCharged,
             now: now,
             charged: true,
-            emptyMessage: 'Nothing has been charged yet this month.',
+            emptyMessage: l.nothingChargedYetThisMonth,
           ),
         ],
       ),
@@ -92,12 +93,13 @@ class _TotalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return ScandyCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Every month'.toUpperCase(),
+          Text(l.everyMonth.toUpperCase(),
               style: ScandyText.cardEyebrow.copyWith(color: c.textSecondary)),
           const SizedBox(height: 6),
           FittedBox(
@@ -117,7 +119,7 @@ class _TotalCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _MiniStat(
-                    label: 'Charged',
+                    label: l.chargedLabel,
                     value: formatBare(stats.chargedCents / 100),
                     color: c.negative,
                   ),
@@ -125,7 +127,7 @@ class _TotalCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _MiniStat(
-                    label: 'To come',
+                    label: l.toComeLabel,
                     value: formatBare(stats.toComeCents / 100),
                     color: c.textPrimary,
                   ),
@@ -195,7 +197,9 @@ class _SubscriptionList extends StatelessWidget {
       child: subscriptions.isEmpty
           ? EmptyState(
               icon: Icons.event_repeat,
-              title: charged ? 'Nothing charged yet' : 'Nothing due',
+              title: charged
+                  ? context.l.nothingChargedYet
+                  : context.l.nothingDue,
               message: emptyMessage,
             )
           : Column(
@@ -229,6 +233,7 @@ class _SubscriptionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     // The clamped day, so a day-31 charge reads "Day 30" in a 30-day month
     // rather than counting down to a date that never arrives.
     final dueDay = subscription.dueDayIn(now);
@@ -248,16 +253,16 @@ class _SubscriptionRow extends StatelessWidget {
       final recorded = subscription.lastRecordedDate;
       metaColor = c.positive;
       meta = recorded == null
-          ? 'Charged this month'
-          : 'Charged ${DateFormat('d MMM').format(recorded)}';
+          ? l.chargedThisMonth
+          : l.chargedOn(context.dates.dayMonth(recorded));
     } else if (overdue) {
       // Not an alarm: the renewal day moves with when the bill is actually
       // paid, so a passed day means "log what you paid", not "you are late".
       metaColor = c.negative;
-      meta = 'Day $dueDay · not recorded yet';
+      meta = l.dayNotRecordedYet(dueDay);
     } else {
       metaColor = imminent ? c.onAccentSoft : c.textSecondary;
-      meta = 'Day $dueDay · ${_relative(daysAway)}';
+      meta = l.dayWithRelative(dueDay, _relative(l, daysAway));
     }
 
     return Material(
@@ -316,9 +321,9 @@ class _SubscriptionRow extends StatelessWidget {
     );
   }
 
-  static String _relative(int days) {
-    if (days <= 0) return 'today';
-    if (days == 1) return 'tomorrow';
-    return 'in $days days';
+  static String _relative(L l, int days) {
+    if (days <= 0) return l.relToday;
+    if (days == 1) return l.relTomorrow;
+    return l.relInNDays(days);
   }
 }

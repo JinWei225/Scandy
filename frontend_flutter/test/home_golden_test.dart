@@ -14,7 +14,9 @@ import 'package:provider/provider.dart';
 import 'package:scandy/models/account.dart';
 import 'package:scandy/models/subscription.dart';
 import 'package:scandy/models/transaction.dart';
+import 'package:scandy/l10n/l10n.dart';
 import 'package:scandy/services/scandy_repository.dart';
+import 'package:scandy/state/locale_controller.dart';
 import 'package:scandy/state/app_state.dart';
 import 'package:scandy/theme/app_theme.dart';
 import 'package:scandy/ui/home/home_screen.dart';
@@ -119,6 +121,12 @@ Widget _app(Brightness brightness, AppState state) {
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: buildScandyTheme(brightness),
+      // Pinned rather than left to the host: these goldens were recorded in
+      // English, and the test runner's own locale must not decide what the
+      // screen says.
+      locale: const Locale('en'),
+      localizationsDelegates: L.localizationsDelegates,
+      supportedLocales: LocaleController.supported,
       home: Builder(
         builder: (context) => Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,

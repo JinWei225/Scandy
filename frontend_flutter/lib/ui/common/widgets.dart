@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 
@@ -335,13 +336,13 @@ class HeaderActions extends StatelessWidget {
       children: [
         SquareIconButton(
           icon: Icons.search,
-          tooltip: 'Search transactions',
+          tooltip: context.l.searchTransactions,
           onPressed: onSearch,
         ),
         const SizedBox(width: 10),
         SquareIconButton(
           icon: Icons.settings,
-          tooltip: 'Settings',
+          tooltip: context.l.settings,
           onPressed: () => Navigator.of(context).pushNamed('/settings'),
         ),
       ],

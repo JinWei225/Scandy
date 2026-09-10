@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'l10n/l10n.dart';
 import 'services/scandy_repository.dart';
 import 'services/share_intent_service.dart';
 import 'services/supabase_config.dart';
 import 'state/app_state.dart';
+import 'state/locale_controller.dart';
 import 'state/theme_controller.dart';
 import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
@@ -28,23 +31,34 @@ Future<void> main() async {
     );
   }
 
+  // Month and weekday names for every locale intl ships. GlobalMaterial-
+  // Localizations loads them for the *active* locale on its own, but a
+  // DateFormat built before that finishes throws, and the greeting date is
+  // formatted in the first frame.
+  await initializeDateFormatting();
+
   final theme = ThemeController();
   await theme.load();
+
+  final locale = LocaleController();
+  await locale.load();
 
   final shareIntent = ShareIntentService();
   await shareIntent.start();
 
-  runApp(ScandyApp(theme: theme, shareIntent: shareIntent));
+  runApp(ScandyApp(theme: theme, locale: locale, shareIntent: shareIntent));
 }
 
 class ScandyApp extends StatelessWidget {
   const ScandyApp({
     super.key,
     required this.theme,
+    required this.locale,
     required this.shareIntent,
   });
 
   final ThemeController theme;
+  final LocaleController locale;
   final ShareIntentService shareIntent;
 
   @override
@@ -52,13 +66,18 @@ class ScandyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: theme),
+        ChangeNotifierProvider.value(value: locale),
         ChangeNotifierProvider(create: (_) => AppState(SupabaseRepository())),
       ],
-      child: Consumer<ThemeController>(
-        builder: (context, theme, _) => MaterialApp(
+      child: Consumer2<ThemeController, LocaleController>(
+        builder: (context, theme, locale, _) => MaterialApp(
           title: 'Scandy',
           debugShowCheckedModeBanner: false,
           themeMode: theme.mode,
+          // Null means follow the phone, which is what a first launch gets.
+          locale: locale.locale,
+          localizationsDelegates: L.localizationsDelegates,
+          supportedLocales: LocaleController.supported,
           theme: buildScandyTheme(Brightness.light),
           darkTheme: buildScandyTheme(Brightness.dark),
           routes: {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/account.dart';
 import '../../models/subscription.dart';
 import '../../models/transaction.dart';
@@ -20,14 +21,13 @@ Future<void> deleteTransactionFromRow(
   Transaction transaction,
 ) async {
   final state = context.read<AppState>();
+  final l = context.l;
   final confirmed = await confirmDestructive(
     context: context,
-    title: 'Delete this transaction?',
+    title: l.deleteThisTransactionQ,
     message: transaction.isTransfer
-        ? 'Both legs of the transfer are removed, and the account balances go '
-            'back to what they were.'
-        : 'It is removed for good and the account balance goes back to what '
-            'it was.',
+        ? l.deleteTransferBody
+        : l.deleteTransactionBody,
   );
   if (!confirmed || !context.mounted) return;
 
@@ -40,12 +40,11 @@ Future<void> deleteTransactionFromRow(
 
 Future<void> deleteAccountFromRow(BuildContext context, Account account) async {
   final state = context.read<AppState>();
+  final l = context.l;
   final confirmed = await confirmDestructive(
     context: context,
-    title: 'Delete ${account.name}?',
-    message:
-        'The account is removed from the list. Transactions recorded against '
-        'it are kept, but will no longer be attributed to an account.',
+    title: l.deleteAccountQ(account.name),
+    message: l.deleteAccountBody,
   );
   if (!confirmed || !context.mounted) return;
 
@@ -62,11 +61,11 @@ Future<void> deleteSubscriptionFromRow(
   Subscription subscription,
 ) async {
   final state = context.read<AppState>();
+  final l = context.l;
   final confirmed = await confirmDestructive(
     context: context,
-    title: 'Delete ${subscription.name}?',
-    message: 'It stops counting toward your monthly total. Charges already '
-        'recorded as transactions are kept.',
+    title: l.deleteChargeQ(subscription.name),
+    message: l.deleteChargeBodyDesktop,
   );
   if (!confirmed || !context.mounted) return;
 

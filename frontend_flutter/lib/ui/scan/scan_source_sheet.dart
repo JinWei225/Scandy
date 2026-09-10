@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/tokens.dart';
 import '../common/sheets.dart';
 import '../common/widgets.dart';
@@ -13,10 +14,11 @@ import '../common/widgets.dart';
 Future<ImageSource?> showScanSourceSheet(BuildContext context) {
   return showScandySheet<ImageSource>(
     context: context,
-    title: 'Scan a receipt',
+    title: context.l.scanAReceipt,
     child: Builder(
       builder: (sheetContext) {
         final c = sheetContext.scandy;
+        final l = sheetContext.l;
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -25,8 +27,8 @@ Future<ImageSource?> showScanSourceSheet(BuildContext context) {
               icon: Icons.photo_camera,
               iconColor: c.onAccent,
               tileColor: c.accent,
-              title: 'Take a photo',
-              subtitle: 'Point the camera at the receipt',
+              title: l.takeAPhoto,
+              subtitle: l.takeAPhotoSubtitle,
               onTap: () =>
                   Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
@@ -35,8 +37,8 @@ Future<ImageSource?> showScanSourceSheet(BuildContext context) {
               icon: Icons.photo_library,
               iconColor: c.textTertiary,
               tileColor: c.surfaceMuted,
-              title: 'Choose from gallery',
-              subtitle: 'Pick a photo or screenshot you already have',
+              title: l.chooseFromGallery,
+              subtitle: l.chooseFromGallerySubtitle,
               onTap: () =>
                   Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),

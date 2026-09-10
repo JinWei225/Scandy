@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/account.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -23,6 +24,7 @@ class AccountsDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
     final accounts = state.accounts;
     final total = accounts.fold<double>(0, (sum, a) => sum + a.balance);
@@ -30,18 +32,18 @@ class AccountsDesktop extends StatelessWidget {
     return DesktopPage(
       children: [
         DesktopFigureHeader(
-          title: 'Accounts',
-          label: 'Total balance',
+          title: l.accounts,
+          label: l.totalBalance,
           figure: formatRinggit(total),
           figureColor: total < 0 ? c.negative : null,
           titleTrailing: DesktopIconButton(
             icon: Icons.search,
-            tooltip: 'Search transactions',
+            tooltip: l.searchTransactions,
             onPressed: () => showSearchSheet(context),
           ),
           trailing: DesktopAccentButton(
             icon: Icons.add,
-            label: 'Add account',
+            label: l.addAccount,
             height: 44,
             onPressed: () => showAccountFormSheet(context),
           ),
@@ -49,18 +51,23 @@ class AccountsDesktop extends StatelessWidget {
         const SizedBox(height: desktopGap),
         DesktopPanel(
           child: accounts.isEmpty
-              ? const DesktopEmpty(
+              ? DesktopEmpty(
                   icon: Icons.account_balance_wallet,
-                  title: 'No accounts yet',
-                  message: 'Add one to start tracking where your money sits.',
+                  title: l.noAccountsYet,
+                  message: l.noAccountsYetBody,
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const DesktopTableHeader(
+                    DesktopTableHeader(
                       columns: columns,
-                      labels: ['Account', 'Type', 'Balance', 'Actions'],
-                      alignRight: {2, 3},
+                      labels: [
+                        l.tableAccount,
+                        l.fieldType,
+                        l.tableBalance,
+                        l.tableActions,
+                      ],
+                      alignRight: const {2, 3},
                     ),
                     for (var i = 0; i < accounts.length; i++)
                       _row(
@@ -75,8 +82,7 @@ class AccountsDesktop extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Deleting an account keeps its transactions — they just stop being '
-          'attributed to it.',
+          l.deletingAnAccountNote,
           style: ScandyDesktopText.actionSubtitle
               .copyWith(color: c.textSecondary),
         ),
@@ -94,6 +100,7 @@ class AccountsDesktop extends StatelessWidget {
     // A credit card in the design carries a red tile and a red figure; the
     // same rule applies to anything overdrawn.
     final negative = account.balance < 0;
+    final l = context.l;
     return DesktopTableRow(
       columns: columns,
       showDivider: !last,
@@ -105,14 +112,13 @@ class AccountsDesktop extends StatelessWidget {
           large: true,
           size: 40,
           title: account.name,
-          meta: count == 1 ? '1 transaction' : '$count transactions',
+          meta: l.nTransactions(count),
           tileColor: negative ? c.negativeSoft : c.surfaceMuted,
           glyphColor: negative ? c.negative : c.textTertiary,
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: DesktopChip(
-              label: account.type.isEmpty ? 'Other' : account.type),
+          child: DesktopChip(label: accountTypeLabel(l, account.type)),
         ),
         DesktopAmountCell(
           large: true,

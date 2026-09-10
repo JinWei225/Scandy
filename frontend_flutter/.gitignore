@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Generated from lib/l10n/*.arb by gen-l10n on every `pub get` and `build`
+# (pubspec sets `generate: true`, l10n.yaml says where). Not checked in: it is
+# derived, and a tracked copy invites someone to edit the Dart instead of the
+# .arb it comes from.
+lib/l10n/app_localizations*.dart

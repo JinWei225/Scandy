@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/auth_errors.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -34,10 +35,11 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    final emailIssue = emailProblem(_email.text);
+    final l = context.l;
+    final emailIssue = emailProblem(l, _email.text);
     setState(() {
       _emailError = emailIssue;
-      _passwordError = _password.text.isEmpty ? 'Enter your password.' : null;
+      _passwordError = _password.text.isEmpty ? l.enterYourPassword : null;
       _error = null;
     });
     if (emailIssue != null || _password.text.isEmpty) return;
@@ -52,7 +54,7 @@ class _SignInScreenState extends State<SignInScreen> {
       // and swaps the whole app over. Pushing a route as well would leave the
       // sign-in screen underneath the app in the back stack.
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyAuthError(e));
+      if (mounted) setState(() => _error = friendlyAuthError(l, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -61,20 +63,21 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return AuthScaffold(
-      title: 'Welcome back',
-      subtitle: 'Sign in to your ledger.',
+      title: l.signInTitle,
+      subtitle: l.signInSubtitle,
       children: [
         ScandyField(
-          label: 'Email',
+          label: l.fieldEmail,
           controller: _email,
-          hint: 'you@example.com',
+          hint: l.hintEmail,
           keyboardType: TextInputType.emailAddress,
           errorText: _emailError,
         ),
         const SizedBox(height: 16),
         PasswordField(
-          label: 'Password',
+          label: l.fieldPassword,
           controller: _password,
           errorText: _passwordError,
           onSubmitted: _busy ? null : _signIn,
@@ -89,18 +92,18 @@ class _SignInScreenState extends State<SignInScreen> {
                       builder: (_) =>
                           ForgotPasswordScreen(initialEmail: _email.text.trim()),
                     )),
-            child: Text('Forgot password?',
+            child: Text(l.forgotPassword,
                 style: ScandyText.link.copyWith(color: c.accent)),
           ),
         ),
         const SizedBox(height: 12),
         AuthError(_error),
-        PrimaryButton(label: 'Sign in', busy: _busy, onPressed: _signIn),
+        PrimaryButton(label: l.signIn, busy: _busy, onPressed: _signIn),
         const SizedBox(height: 18),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('New here?',
+            Text(l.newHere,
                 style: ScandyText.sheetItemSubtitle
                     .copyWith(color: c.textSecondary)),
             TextButton(
@@ -109,7 +112,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   : () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => const SignUpScreen(),
                       )),
-              child: Text('Create an account',
+              child: Text(l.createAnAccount,
                   style: ScandyText.link.copyWith(color: c.accent)),
             ),
           ],

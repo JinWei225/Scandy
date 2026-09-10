@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/account.dart';
 import '../../models/subscription.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
+import '../../util/formatting.dart';
 import '../common/sheets.dart';
 import '../common/widgets.dart';
 
@@ -16,7 +18,9 @@ Future<void> showSubscriptionFormSheet(
 }) {
   return showScandySheet<void>(
     context: context,
-    title: subscription == null ? 'Add recurring charge' : 'Edit recurring charge',
+    title: subscription == null
+        ? context.l.addRecurringCharge
+        : context.l.editRecurringCharge,
     child: _SubscriptionForm(subscription: subscription),
   );
 }
@@ -58,23 +62,23 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
   }
 
   bool _validate() {
+    final l = context.l;
     final amount = double.tryParse(_amount.text.trim());
     final day = int.tryParse(_day.text.trim());
     setState(() {
-      _nameError = _name.text.trim().isEmpty ? 'Give it a name' : null;
+      _nameError = _name.text.trim().isEmpty ? l.giveItAName : null;
       // Same ladder as the transaction form, and as the backend's
       // _validate_subscription — all three should agree on what an amount is.
       _amountError = _amount.text.trim().isEmpty
-          ? 'Enter an amount'
+          ? l.enterAnAmount
           : amount == null
-              ? 'Must be a number'
+              ? l.mustBeANumber
               : amount <= 0
-                  ? 'Must be more than zero'
+                  ? l.mustBeMoreThanZero
                   : null;
       // Matches the backend's own check in _validate_subscription.
-      _dayError = day == null || day < 1 || day > 31
-          ? 'Pick a day between 1 and 31'
-          : null;
+      _dayError =
+          day == null || day < 1 || day > 31 ? l.pickADayBetween1And31 : null;
     });
     return _nameError == null && _amountError == null && _dayError == null;
   }
@@ -85,10 +89,16 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
 
     final state = context.read<AppState>();
     final existing = widget.subscription;
+    // Falling back to a hard-coded 'Bills & Utilities' filed the charge under
+    // a category the account might not have -- which is every Chinese account,
+    // whose starter list has no row by that name. The person's own first
+    // expense category is a real one, whatever it is called.
+    final expenseCategories = state.categories['expense'] ?? const <String>[];
     final body = <String, dynamic>{
       'name': _name.text.trim(),
       'amount': double.parse(_amount.text.trim()),
-      'category': _category ?? 'Bills & Utilities',
+      'category': _category ??
+          (expenseCategories.isEmpty ? 'Other' : expenseCategories.first),
       'day_of_month': int.parse(_day.text.trim()),
       'account_id': _accountId,
       // Preserved so editing does not make an already-charged month look due
@@ -117,11 +127,11 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
     final existing = widget.subscription;
     if (existing == null) return;
 
+    final l = context.l;
     final confirmed = await confirmDestructive(
       context: context,
-      title: 'Delete ${existing.name}?',
-      message: 'It stops counting towards your monthly commitment. '
-          'Charges already recorded stay in your transactions.',
+      title: l.deleteChargeQ(existing.name),
+      message: l.deleteChargeBody,
     );
     if (!confirmed || !mounted) return;
 
@@ -149,17 +159,20 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
     final expenseCategories = state.categories['expense'] ?? const <String>[];
+    final categoryLabel =
+        _category == null ? null : displayCategory(l, _category!);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         ScandyField(
-          label: 'Name',
+          label: l.fieldName,
           controller: _name,
-          hint: 'Spotify Family',
+          hint: l.hintSubscriptionName,
           autofocus: widget.subscription == null,
           errorText: _nameError,
         ),
@@ -169,7 +182,7 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
           children: [
             Expanded(
               child: ScandyField(
-                label: 'Amount',
+                label: l.fieldAmount,
                 controller: _amount,
                 hint: '0.00',
                 prefix: 'RM ',
@@ -182,7 +195,7 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
             SizedBox(
               width: 110,
               child: ScandyField(
-                label: 'Day',
+                label: l.fieldDay,
                 controller: _day,
                 hint: '1',
                 keyboardType: TextInputType.number,
@@ -194,17 +207,18 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         if (expenseCategories.isNotEmpty) ...[
           const SizedBox(height: 14),
           ScandyPickerRow(
-            label: 'Category',
-            value: _category,
-            placeholder: 'Choose a category',
+            label: l.fieldCategory,
+            value: categoryLabel,
+            placeholder: l.chooseACategory,
             onTap: () async {
               final picked = await showScandyPicker<String>(
                 context: context,
-                title: 'Category',
+                title: l.fieldCategory,
                 selected: _category,
                 options: [
                   for (final category in expenseCategories)
-                    PickerOption(value: category, label: category),
+                    PickerOption(
+                        value: category, label: displayCategory(l, category)),
                 ],
               );
               if (picked != null) setState(() => _category = picked);
@@ -214,13 +228,13 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         if (state.accounts.isNotEmpty) ...[
           const SizedBox(height: 14),
           ScandyPickerRow(
-            label: 'Charged to',
+            label: l.fieldChargedTo,
             value: _accountName(state.accounts, _accountId),
-            placeholder: 'Choose an account',
+            placeholder: l.chooseAnAccount,
             onTap: () async {
               final picked = await showScandyPicker<String>(
                 context: context,
-                title: 'Charged to',
+                title: l.fieldChargedTo,
                 selected: _accountId,
                 options: [
                   for (final account in state.accounts)
@@ -233,7 +247,9 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
         ],
         const SizedBox(height: 20),
         PrimaryButton(
-          label: widget.subscription == null ? 'Add charge' : 'Save changes',
+          label: widget.subscription == null
+              ? l.addCharge
+              : l.actionSaveChanges,
           busy: _busy,
           onPressed: _save,
         ),
@@ -245,7 +261,7 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
               foregroundColor: c.negative,
               minimumSize: const Size.fromHeight(44),
             ),
-            child: Text('Delete charge', style: ScandyText.sheetItemTitle),
+            child: Text(l.deleteCharge, style: ScandyText.sheetItemTitle),
           ),
         ],
       ],

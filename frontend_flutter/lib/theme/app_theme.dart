@@ -8,6 +8,26 @@ import 'tokens.dart';
 /// network — silently changing every metric the design specifies.
 const scandyFontFamily = 'PlusJakartaSans';
 
+/// Faces to fall through to when Plus Jakarta Sans has no glyph.
+///
+/// It is a Latin face: parsing its character map turns up nothing for 食
+/// (U+98DF) or any other CJK codepoint, so every Chinese character on the
+/// screen is drawn by whatever the platform lends us. Naming the platform
+/// faces here rather than leaving it to the engine's own fallback means the
+/// same font is picked every time instead of whichever one the system happens
+/// to resolve first.
+///
+/// Nothing is bundled: a CJK face is 8-10 MB against a 31 MB APK, and since it
+/// would not match Plus Jakarta Sans either, the mixed look is the same both
+/// ways — one just costs 10 MB. The list is ordered Android, Apple, Windows.
+const cjkFallback = <String>[
+  'Noto Sans CJK SC',
+  'Source Han Sans SC',
+  'PingFang SC',
+  'Microsoft YaHei',
+  'sans-serif',
+];
+
 /// The design sets `font-variant-numeric: tabular-nums` on every figure
 /// (`.num`). Without it the big safe-to-spend number jitters as it animates or
 /// refreshes, because proportional digits have different widths.
@@ -25,6 +45,7 @@ abstract final class ScandyText {
   }) {
     return TextStyle(
       fontFamily: scandyFontFamily,
+      fontFamilyFallback: cjkFallback,
       fontSize: size,
       fontWeight: weight,
       letterSpacing: letterSpacing,
@@ -177,6 +198,7 @@ abstract final class ScandyDesktopText {
   }) =>
       TextStyle(
         fontFamily: scandyFontFamily,
+        fontFamilyFallback: cjkFallback,
         fontSize: size,
         fontWeight: weight,
         letterSpacing: letterSpacing,
@@ -319,10 +341,12 @@ ThemeData buildScandyTheme(Brightness brightness) {
       error: c.negative,
     ),
     fontFamily: scandyFontFamily,
+    fontFamilyFallback: cjkFallback,
     textTheme: ThemeData(brightness: brightness)
         .textTheme
         .apply(
           fontFamily: scandyFontFamily,
+          fontFamilyFallback: cjkFallback,
           bodyColor: c.textPrimary,
           displayColor: c.textPrimary,
         ),

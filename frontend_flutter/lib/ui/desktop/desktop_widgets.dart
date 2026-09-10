@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 
@@ -310,13 +311,13 @@ class RowActions extends StatelessWidget {
       children: [
         RowActionButton(
           icon: Icons.edit,
-          tooltip: 'Edit',
+          tooltip: context.l.actionEdit,
           onPressed: onEdit,
         ),
         if (onDelete != null)
           RowActionButton(
             icon: Icons.delete,
-            tooltip: 'Delete',
+            tooltip: context.l.actionDelete,
             hoverColor: c.negative,
             onPressed: onDelete!,
           ),

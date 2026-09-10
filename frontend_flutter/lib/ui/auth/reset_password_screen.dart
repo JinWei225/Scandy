@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/auth_errors.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -42,9 +43,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _save() async {
-    final issue = passwordProblem(_password.text);
+    final l = context.l;
+    final issue = passwordProblem(l, _password.text);
     final mismatch =
-        _password.text != _confirm.text ? 'Both passwords must match.' : null;
+        _password.text != _confirm.text ? l.passwordsMustMatch : null;
     setState(() {
       _passwordError = issue;
       _confirmError = mismatch;
@@ -59,7 +61,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
       if (mounted) widget.onDone();
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyAuthError(e));
+      if (mounted) setState(() => _error = friendlyAuthError(l, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -76,32 +78,33 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return AuthScaffold(
-      title: 'Choose a new password',
-      subtitle: 'Then you will be signed in.',
+      title: l.chooseNewPassword,
+      subtitle: l.chooseNewPasswordSubtitle,
       children: [
         PasswordField(
-          label: 'New password',
+          label: l.fieldNewPassword,
           controller: _password,
-          hint: 'At least 8 characters',
+          hint: l.hintAtLeast8,
           autofocus: true,
           errorText: _passwordError,
           textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 16),
         PasswordField(
-          label: 'Confirm password',
+          label: l.fieldConfirmPassword,
           controller: _confirm,
           errorText: _confirmError,
           onSubmitted: _busy ? null : _save,
         ),
         const SizedBox(height: 20),
         AuthError(_error),
-        PrimaryButton(label: 'Save password', busy: _busy, onPressed: _save),
+        PrimaryButton(label: l.savePassword, busy: _busy, onPressed: _save),
         const SizedBox(height: 10),
         TextButton(
           onPressed: _busy ? null : _cancel,
-          child: Text('Cancel',
+          child: Text(l.actionCancel,
               style: ScandyText.link.copyWith(color: c.textSecondary)),
         ),
       ],

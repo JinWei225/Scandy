@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/receipt_scanner.dart';
 import '../../services/local_scanner.dart';
 import '../../services/share_intent_service.dart';
@@ -128,7 +129,7 @@ class _AppShellState extends State<AppShell>
   /// there. A failed read still surfaces, inside the scanning dialog.
   Future<void> _scanFile(XFile file) async {
     if (!mounted) return;
-    final job = _ScanJob(cloud: const SupabaseCloudScanner(), file: file);
+    final job = _ScanJob(cloud: SupabaseCloudScanner(context.l), file: file);
 
     // An on-device scan finishes in about 150 ms. Showing a spinner for that is
     // worse than showing nothing: the photo picker has just displayed its own
@@ -446,14 +447,14 @@ class _ScanningDialogState extends State<_ScanningDialog> {
                 CircularProgressIndicator(color: c.accent, strokeWidth: 2.5),
                 const SizedBox(height: 18),
                 Text(
-                  'Reading your receipt…',
+                  context.l.readingYourReceipt,
                   style: ScandyText.sheetItemTitle.copyWith(
                     color: c.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'This can take a few seconds.',
+                  context.l.thisCanTakeAFewSeconds,
                   textAlign: TextAlign.center,
                   style: ScandyText.sheetItemSubtitle.copyWith(
                     color: c.textSecondary,
@@ -463,7 +464,7 @@ class _ScanningDialogState extends State<_ScanningDialog> {
                 Icon(Icons.error_outline, color: c.negative, size: 28),
                 const SizedBox(height: 14),
                 Text(
-                  "Couldn't read that one",
+                  context.l.couldntReadThatOne,
                   style: ScandyText.sheetItemTitle.copyWith(
                     color: c.textPrimary,
                   ),
@@ -496,7 +497,7 @@ class _ScanningDialogState extends State<_ScanningDialog> {
                       ),
                     ),
                     child: Text(
-                      'Enter it by hand',
+                      context.l.enterItByHand,
                       style: ScandyText.sheetItemTitle,
                     ),
                   ),
@@ -510,7 +511,8 @@ class _ScanningDialogState extends State<_ScanningDialog> {
                       foregroundColor: c.textSecondary,
                       minimumSize: const Size.fromHeight(44),
                     ),
-                    child: Text('Cancel', style: ScandyText.sheetItemTitle),
+                    child: Text(context.l.actionCancel,
+                        style: ScandyText.sheetItemTitle),
                   ),
                 ),
               ],

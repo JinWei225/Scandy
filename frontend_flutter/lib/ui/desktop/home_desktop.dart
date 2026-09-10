@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/month_summary.dart';
 import '../../models/transaction.dart';
 import '../../state/app_state.dart';
@@ -33,6 +33,7 @@ class HomeDesktop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l;
     final state = context.watch<AppState>();
     final now = clock ?? DateTime.now();
     final summary = state.summaryFor(now);
@@ -40,20 +41,20 @@ class HomeDesktop extends StatelessWidget {
     return DesktopPage(
       children: [
         DesktopHeader(
-          title: greetingFor(now),
-          subtitle: formatGreetingDate(now),
+          title: greetingFor(l, now),
+          subtitle: context.dates.greeting(now),
           // Search only: the frame also puts a "Scan receipt" button here, but
           // the card below it does the same job with room to explain itself,
           // so the header keeps one action rather than two of the same.
           trailing: DesktopIconButton(
             icon: Icons.search,
-            tooltip: 'Search transactions',
+            tooltip: l.searchTransactions,
             onPressed: () => showSearchSheet(context),
           ),
         ),
         const SizedBox(height: 22),
         if (state.status == LoadStatus.failed)
-          _ErrorPanel(message: state.error ?? 'Something went wrong')
+          _ErrorPanel(message: state.error ?? l.somethingWentWrong)
         else if (state.status == LoadStatus.loading)
           const _LoadingPanel()
         else ...[
@@ -75,8 +76,8 @@ class HomeDesktop extends StatelessWidget {
                       Expanded(
                         child: _ActionCard(
                           icon: Icons.photo_camera,
-                          title: 'Scan a receipt',
-                          subtitle: "Snap it and we'll fill in the details",
+                          title: l.scanAReceipt,
+                          subtitle: l.scanAReceiptSubtitle,
                           filled: true,
                           onTap: onScanReceipt,
                         ),
@@ -85,9 +86,8 @@ class HomeDesktop extends StatelessWidget {
                       Expanded(
                         child: _ActionCard(
                           icon: Icons.edit_note,
-                          title: 'Log it by hand',
-                          subtitle:
-                              'Cash, transfers, anything without a receipt',
+                          title: l.logItByHand,
+                          subtitle: l.logItByHandSubtitle,
                           filled: false,
                           onTap: () => showAddTransactionSheet(context),
                         ),
@@ -117,6 +117,7 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final perDay = summary.perDay;
     final negative = summary.safeToSpendCents < 0;
 
@@ -134,7 +135,7 @@ class _HeroCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Safe to spend · ${DateFormat('MMMM').format(now)}'
+                  '${l.safeToSpend} · ${context.dates.monthOnly(now)}'
                       .toUpperCase(),
                   style: ScandyDesktopText.eyebrow
                       .copyWith(color: c.textSecondary),
@@ -142,9 +143,7 @@ class _HeroCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               DesktopBadge(
-                label: summary.daysLeft == 1
-                    ? '1 day left'
-                    : '${summary.daysLeft} days left',
+                label: l.daysLeft(summary.daysLeft),
                 color: c.onAccentSoft,
                 background: c.accentSoft,
               ),
@@ -166,26 +165,28 @@ class _HeroCard extends StatelessWidget {
               TextSpan(
                 style: ScandyDesktopText.heroCaption
                     .copyWith(color: c.textSecondary),
+                // Two halves, either of which may be empty: the bold figure
+                // ends the English sentence and opens the Chinese one.
                 children: [
-                  const TextSpan(text: "That's "),
+                  TextSpan(text: l.perDayPrefixDesktop),
                   TextSpan(
                     text: formatRinggit(perDay),
                     style: ScandyDesktopText.heroCaptionStrong
                         .copyWith(color: c.textPrimary),
                   ),
-                  const TextSpan(text: ' a day for the rest of the month.'),
+                  TextSpan(text: l.perDaySuffixDesktop),
                 ],
               ),
             )
           else if (summary.daysLeft <= 0)
-            Text('The month is done — this is what it came to.',
+            Text(l.monthIsDone,
                 style: ScandyDesktopText.heroCaption
                     .copyWith(color: c.textSecondary))
           else
             // No daily allowance to state. Says what happened and stops there:
             // a month with no income is not the same story as overspending,
             // and the card cannot tell the two apart.
-            Text('More has gone out than came in this month.',
+            Text(l.overspentCaptionDesktop,
                 style: ScandyDesktopText.heroCaption
                     .copyWith(color: c.textSecondary)),
           const SizedBox(height: 20),
@@ -206,6 +207,7 @@ class _HeroBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final spent = summary.spentFraction;
     final due = summary.recurringFraction;
     final left = (1 - spent - due).clamp(0.0, 1.0);
@@ -244,10 +246,11 @@ class _HeroBar extends StatelessWidget {
           spacing: 18,
           runSpacing: 6,
           children: [
-            _LegendItem(color: c.negative, label: 'Spent ${pct(spent)}%'),
+            _LegendItem(color: c.negative, label: l.legendSpent(pct(spent))),
             _LegendItem(
-                color: c.trackRecurring, label: 'Recurring due ${pct(due)}%'),
-            _LegendItem(color: c.track, label: 'Left ${pct(left)}%'),
+                color: c.trackRecurring,
+                label: l.legendRecurringDue(pct(due))),
+            _LegendItem(color: c.track, label: l.legendLeft(pct(left))),
           ],
         ),
       ],
@@ -292,11 +295,12 @@ class _Breakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final cells = [
-      ('Money in', formatRinggit(summary.moneyInCents / 100), c.positive),
-      ('Spent', formatRinggit(summary.spentCents / 100), c.negative),
+      (l.moneyIn, formatRinggit(summary.moneyInCents / 100), c.positive),
+      (l.spentLabel, formatRinggit(summary.spentCents / 100), c.negative),
       (
-        'Recurring due',
+        l.recurringDue,
         formatRinggit(summary.recurringDueCents / 100),
         c.textPrimary
       ),
@@ -435,23 +439,29 @@ class _RecentPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final recent = context.watch<AppState>().recentTransactions;
 
     return DesktopPanel(
-      title: 'Recent transactions',
+      title: l.recentTransactions,
       child: recent.isEmpty
-          ? const DesktopEmpty(
+          ? DesktopEmpty(
               icon: Icons.receipt_long,
-              title: 'Nothing logged yet',
-              message: 'Scan a receipt or log one by hand to get started.',
+              title: l.nothingLoggedYet,
+              message: l.nothingLoggedYetBody,
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const DesktopTableHeader(
+                DesktopTableHeader(
                   columns: columns,
-                  labels: ['Description', 'Category', 'Amount', 'Actions'],
-                  alignRight: {2, 3},
+                  labels: [
+                    l.tableDescription,
+                    l.tableCategory,
+                    l.tableAmount,
+                    l.tableActions,
+                  ],
+                  alignRight: const {2, 3},
                 ),
                 for (var i = 0; i < recent.length; i++)
                   _row(context, c, recent[i], i == recent.length - 1),
@@ -467,6 +477,7 @@ class _RecentPanel extends StatelessWidget {
     bool last,
   ) {
     final income = t.isIncome;
+    final l = context.l;
     return DesktopTableRow(
       columns: columns,
       showDivider: !last,
@@ -474,15 +485,15 @@ class _RecentPanel extends StatelessWidget {
       cells: [
         DesktopRowIdentity(
           icon: iconForCategory(t.category, isTransfer: t.isTransfer),
-          title: t.description.isEmpty ? 'Untitled' : t.description,
-          meta: _meta(t),
+          title: t.description.isEmpty ? l.untitled : t.description,
+          meta: _meta(context, t),
           tileColor: income ? c.positiveSoft : c.surfaceMuted,
           glyphColor: income ? c.positive : c.textTertiary,
         ),
         Align(
           alignment: Alignment.centerLeft,
           child: DesktopChip(
-            label: t.category.isEmpty ? 'Uncategorised' : t.category,
+            label: displayCategory(l, t.category),
             income: income,
           ),
         ),
@@ -500,12 +511,12 @@ class _RecentPanel extends StatelessWidget {
 
   /// "6 Sep · 14:22" — the desktop row has room for both, where the phone
   /// shows whichever is more useful.
-  static String _meta(Transaction t) {
+  static String _meta(BuildContext context, Transaction t) {
     final parts = <String>[];
     final date = t.date;
-    if (date != null) parts.add(DateFormat('d MMM').format(date));
+    if (date != null) parts.add(context.dates.dayMonth(date));
     if (t.shortTime.isNotEmpty) parts.add(t.shortTime);
-    if (t.isTransfer) parts.add('transfer');
+    if (t.isTransfer) parts.add(context.l.transferTag);
     return parts.join(' · ');
   }
 }
@@ -549,7 +560,7 @@ class _ErrorPanel extends StatelessWidget {
         children: [
           Icon(Icons.cloud_off, size: 28, color: c.negative),
           const SizedBox(height: 12),
-          Text("Can't load your data",
+          Text(context.l.cantLoadYourData,
               style:
                   ScandyDesktopText.cardTitle.copyWith(color: c.textPrimary)),
           const SizedBox(height: 6),
@@ -561,7 +572,7 @@ class _ErrorPanel extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: DesktopAccentButton(
               icon: Icons.refresh,
-              label: 'Try again',
+              label: context.l.actionTryAgain,
               onPressed: () => context.read<AppState>().loadAll(),
             ),
           ),

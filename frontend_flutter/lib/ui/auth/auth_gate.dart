@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/share_intent_service.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -179,7 +180,7 @@ class MissingConfigScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.settings_outlined, size: 32, color: c.iconMuted),
                   const SizedBox(height: 14),
-                  Text('Scandy is not configured',
+                  Text(context.l.notConfiguredTitle,
                       style: ScandyText.sectionTitle
                           .copyWith(color: c.textPrimary)),
                   const SizedBox(height: 10),

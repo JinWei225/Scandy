@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/summary_stats.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -31,6 +31,7 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
     final now = widget.clock ?? DateTime.now();
     final month = _month ?? DateTime(now.year, now.month);
@@ -73,14 +74,14 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
     return DesktopPage(
       children: [
         DesktopHeader(
-          title: 'Monthly summary',
-          subtitle: 'Where your money went, by category',
+          title: l.navMonthlySummary,
+          subtitle: l.whereYourMoneyWentByCategory,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               DesktopIconButton(
                 icon: Icons.search,
-                tooltip: 'Search transactions',
+                tooltip: l.searchTransactions,
                 onPressed: () => showSearchSheet(context),
               ),
               const SizedBox(width: 10),
@@ -98,30 +99,27 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
         const SizedBox(height: desktopGap),
         DesktopCardRow(children: [
           DesktopStatCard(
-            label: 'Money in',
+            label: l.moneyIn,
             value: formatRinggit(stats.moneyInCents / 100),
             valueColor: c.positive,
-            meta: incomeCount == 1 ? '1 deposit' : '$incomeCount deposits',
+            meta: l.nDeposits(incomeCount),
           ),
           DesktopStatCard(
-            label: 'Spent',
+            label: l.spentLabel,
             value: formatRinggit(stats.spentCents / 100),
             valueColor: c.negative,
-            meta: expenseCount == 1
-                ? '1 transaction'
-                : '$expenseCount transactions',
+            meta: l.nTransactions(expenseCount),
           ),
           DesktopStatCard(
-            label: 'Net',
+            label: l.netLabel,
             value: formatRinggit(stats.netCents / 100),
             valueColor: stats.netCents < 0 ? c.negative : c.textPrimary,
-            meta: stats.netCents < 0 ? 'overspent' : 'saved this month',
+            meta: stats.netCents < 0 ? l.overspentMeta : l.savedThisMonth,
           ),
           DesktopStatCard(
-            label: 'Daily average',
-            value: avg == null ? '—' : formatRinggit(avg),
-            meta: 'over ${stats.daysElapsed} '
-                '${stats.daysElapsed == 1 ? 'day' : 'days'}',
+            label: l.dailyAverage,
+            value: avg == null ? l.emDash : formatRinggit(avg),
+            meta: l.overNDays(stats.daysElapsed),
           ),
         ]),
         const SizedBox(height: desktopGap),
@@ -132,13 +130,11 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
             Expanded(
               flex: 135,
               child: DesktopPanel(
-                title: 'Where it went',
+                title: l.whereItWent,
                 trailing: stats.categories.isEmpty
                     ? null
                     : DesktopBadge(
-                        label: stats.categories.length == 1
-                            ? '1 category'
-                            : '${stats.categories.length} categories',
+                        label: l.nCategories(stats.categories.length),
                         color: c.negative,
                         background: c.negativeSoft,
                       ),
@@ -146,9 +142,8 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
                   categories: stats.categories,
                   counts: counts,
                   color: c.negative,
-                  emptyTitle: 'Nothing spent this month',
-                  emptyMessage:
-                      'Categories appear here once you log some spending.',
+                  emptyTitle: l.nothingSpentThisMonth,
+                  emptyMessage: l.nothingSpentThisMonthBody,
                 ),
               ),
             ),
@@ -156,7 +151,7 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
             Expanded(
               flex: 100,
               child: DesktopPanel(
-                title: 'Money in',
+                title: l.moneyIn,
                 child: _IncomeList(
                   categories: stats.incomeCategories,
                   counts: counts,
@@ -173,7 +168,7 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
     final months = context.read<AppState>().availableMonths(now: now);
     final picked = await showScandySheet<DateTime>(
       context: context,
-      title: 'Choose a month',
+      title: context.l.chooseAMonth,
       child: _MonthGrid(months: months, selected: current),
     );
     if (picked != null && mounted) setState(() => _month = picked);
@@ -210,7 +205,7 @@ class _MonthStepper extends StatelessWidget {
           _Chevron(
             icon: Icons.chevron_left,
             onPressed: onOlder,
-            tooltip: 'Previous month with data',
+            tooltip: context.l.previousMonthWithData,
           ),
           InkWell(
             onTap: onPick,
@@ -220,7 +215,7 @@ class _MonthStepper extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               alignment: Alignment.center,
               child: Text(
-                DateFormat('MMMM yyyy').format(month),
+                context.dates.monthYear(month),
                 style: ScandyDesktopText.monthLabel
                     .copyWith(color: c.textPrimary),
               ),
@@ -229,7 +224,7 @@ class _MonthStepper extends StatelessWidget {
           _Chevron(
             icon: Icons.chevron_right,
             onPressed: onNewer,
-            tooltip: 'Next month with data',
+            tooltip: context.l.nextMonthWithData,
           ),
         ],
       ),
@@ -309,13 +304,13 @@ class _CategoryTable extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(categories[i].category,
+                  Text(displayCategory(context.l, categories[i].category),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: ScandyDesktopText.cellTitle
                           .copyWith(color: c.textPrimary)),
                   const SizedBox(height: 2),
-                  Text(_countLabel(categories[i].category),
+                  Text(_countLabel(context.l, categories[i].category),
                       style: ScandyDesktopText.cellMeta
                           .copyWith(color: c.textSecondary)),
                 ],
@@ -351,9 +346,9 @@ class _CategoryTable extends StatelessWidget {
     );
   }
 
-  String _countLabel(String category) {
+  String _countLabel(L l, String category) {
     final n = counts[category] ?? 0;
-    return n == 1 ? '1 transaction' : '$n transactions';
+    return l.nTransactions(n);
   }
 }
 
@@ -367,11 +362,12 @@ class _IncomeList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     if (categories.isEmpty) {
-      return const DesktopEmpty(
+      return DesktopEmpty(
         icon: Icons.payments,
-        title: 'Nothing came in this month',
-        message: 'Income categories appear here once you log some.',
+        title: l.nothingCameInThisMonth,
+        message: l.nothingCameInThisMonthBody,
       );
     }
 
@@ -402,14 +398,14 @@ class _IncomeList extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(category.category,
+                      Text(displayCategory(l, category.category),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: ScandyDesktopText.cellTitle
                               .copyWith(color: c.textPrimary)),
                       const SizedBox(height: 2),
                       Text(
-                        '${_count(category.category)} · '
+                        '${_count(l, category.category)} · '
                         '${(category.fractionOfSpend * 100).round()}%',
                         style: ScandyDesktopText.cellMeta
                             .copyWith(color: c.textSecondary),
@@ -428,9 +424,9 @@ class _IncomeList extends StatelessWidget {
     );
   }
 
-  String _count(String category) {
+  String _count(L l, String category) {
     final n = counts[category] ?? 0;
-    return n == 1 ? '1 transaction' : '$n transactions';
+    return l.nTransactions(n);
   }
 }
 
@@ -499,7 +495,7 @@ class _MonthChip extends StatelessWidget {
           height: 46,
           alignment: Alignment.center,
           child: Text(
-            DateFormat('MMM').format(month),
+            context.dates.shortMonth(month),
             style: (selected
                     ? ScandyText.segmentLabelActive
                     : ScandyText.segmentLabel)

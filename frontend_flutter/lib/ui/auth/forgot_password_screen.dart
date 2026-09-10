@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/auth_errors.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -45,7 +46,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _send() async {
-    final issue = emailProblem(_email.text);
+    final l = context.l;
+    final issue = emailProblem(l, _email.text);
     setState(() {
       _emailError = issue;
       _error = null;
@@ -60,7 +62,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
       if (mounted) setState(() => _sent = true);
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyAuthError(e));
+      if (mounted) setState(() => _error = friendlyAuthError(l, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,27 +71,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
 
     if (_sent) {
       return AuthScaffold(
-        title: 'Check your email',
+        title: l.checkYourEmail,
         // Deliberately does not confirm whether an account exists for this
         // address. Supabase answers the same way for both, and saying more
         // here would give that away.
-        subtitle:
-            'If ${_email.text.trim()} has an account, a reset link is on its '
-            'way.',
+        subtitle: l.resetSentSubtitle(_email.text.trim()),
         showBack: true,
         children: [
           Text(
-            'The link opens Scandy and lets you choose a new password. It '
-            'expires after an hour.',
+            l.resetSentBody,
             style:
                 ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
           ),
           const SizedBox(height: 22),
           PrimaryButton(
-            label: 'Back to sign in',
+            label: l.backToSignIn,
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],
@@ -97,21 +97,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
 
     return AuthScaffold(
-      title: 'Reset your password',
-      subtitle: 'We will email you a link to set a new one.',
+      title: l.resetTitle,
+      subtitle: l.resetSubtitle,
       showBack: true,
       children: [
         ScandyField(
-          label: 'Email',
+          label: l.fieldEmail,
           controller: _email,
-          hint: 'you@example.com',
+          hint: l.hintEmail,
           keyboardType: TextInputType.emailAddress,
           autofocus: true,
           errorText: _emailError,
         ),
         const SizedBox(height: 20),
         AuthError(_error),
-        PrimaryButton(label: 'Send reset link', busy: _busy, onPressed: _send),
+        PrimaryButton(label: l.sendResetLink, busy: _busy, onPressed: _send),
       ],
     );
   }

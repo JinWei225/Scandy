@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/month_summary.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -74,11 +75,14 @@ class SafeToSpendCard extends StatelessWidget {
 
   Widget _header(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return Row(
       children: [
         Expanded(
           child: Text(
-            'Safe to spend · ${formatShortMonth(now)}'.toUpperCase(),
+            // toUpperCase is a no-op on Chinese, so the eyebrow simply reads
+            // as written there.
+            '${l.safeToSpend} · ${context.dates.shortMonth(now)}'.toUpperCase(),
             style: ScandyText.cardEyebrow.copyWith(color: c.textSecondary),
           ),
         ),
@@ -90,7 +94,7 @@ class SafeToSpendCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(ScandyRadius.pill),
           ),
           child: Text(
-            summary.daysLeft == 1 ? '1 day left' : '${summary.daysLeft} days left',
+            l.daysLeft(summary.daysLeft),
             style: ScandyText.pill.copyWith(color: c.onAccentSoft),
           ),
         ),
@@ -98,12 +102,18 @@ class SafeToSpendCard extends StatelessWidget {
     );
   }
 
+  /// The figure is bold and the sentence around it is not, which is why this
+  /// is three spans rather than one string: English hangs the caption off the
+  /// end of the amount, Chinese puts the whole clause in front of it, so the
+  /// translation supplies both halves and either may be empty.
   Widget _perDayCaption(BuildContext context, double perDay) {
     final c = context.scandy;
+    final l = context.l;
     return Text.rich(
       TextSpan(
         style: ScandyText.heroCaption.copyWith(color: c.textSecondary),
         children: [
+          TextSpan(text: l.perDayPrefix),
           TextSpan(
             text: formatRinggit(perDay),
             style: ScandyText.heroCaptionStrong.copyWith(
@@ -111,7 +121,7 @@ class SafeToSpendCard extends StatelessWidget {
               fontFeatures: tabularFigures,
             ),
           ),
-          const TextSpan(text: ' a day for the rest of the month'),
+          TextSpan(text: l.perDaySuffix),
         ],
       ),
     );
@@ -125,7 +135,7 @@ class SafeToSpendCard extends StatelessWidget {
   Widget _overspentCaption(BuildContext context) {
     final c = context.scandy;
     return Text(
-      'More has gone out than came in this month',
+      context.l.overspentCaption,
       style: ScandyText.heroCaption.copyWith(color: c.textSecondary),
     );
   }
@@ -182,16 +192,18 @@ class SafeToSpendCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: _stat(context, 'In', summary.moneyInCents / 100, c.positive),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _stat(context, 'Spent', summary.spentCents / 100, c.negative),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
           child: _stat(
-              context, 'Due', summary.recurringDueCents / 100, c.textPrimary),
+              context, context.l.statIn, summary.moneyInCents / 100, c.positive),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _stat(context, context.l.statSpent, summary.spentCents / 100,
+              c.negative),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _stat(context, context.l.statDue,
+              summary.recurringDueCents / 100, c.textPrimary),
         ),
       ],
     );

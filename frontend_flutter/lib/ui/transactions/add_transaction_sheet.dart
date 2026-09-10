@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/transaction.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
+import '../../util/formatting.dart';
 import '../common/sheets.dart';
 import '../common/widgets.dart';
 
@@ -26,7 +28,9 @@ Future<void> showAddTransactionSheet(
 }) {
   return showScandySheet<void>(
     context: context,
-    title: transaction == null ? 'Log a transaction' : 'Edit transaction',
+    title: transaction == null
+        ? context.l.logATransaction
+        : context.l.editTransaction,
     child: _AddTransactionForm(prefill: prefill, transaction: transaction),
   );
 }
@@ -162,33 +166,34 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
       };
 
   bool _validate(AppState state) {
+    final l = context.l;
     final amount = double.tryParse(_amount.text.trim());
     final description = _description.text.trim();
 
     setState(() {
       _amountError = _amount.text.trim().isEmpty
-          ? 'Enter an amount'
+          ? l.enterAnAmount
           : amount == null
-              ? 'Must be a number'
+              ? l.mustBeANumber
               : amount <= 0
-                  ? 'Must be more than zero'
+                  ? l.mustBeMoreThanZero
                   : null;
 
       // The backend defaults a transfer's description to "Transfer", so it is
       // optional there and required everywhere else — it is the only label the
       // row will carry.
       _descriptionError =
-          !_isTransfer && description.isEmpty ? 'Give it a description' : null;
+          !_isTransfer && description.isEmpty ? l.giveItADescription : null;
 
       if (_isTransfer) {
         _accountError = _accountId == null || _toAccountId == null
-            ? 'Pick both accounts'
+            ? l.pickBothAccounts
             : _accountId == _toAccountId
-                ? 'From and To must differ'
+                ? l.fromAndToMustDiffer
                 : null;
       } else {
         _accountError = state.accounts.isNotEmpty && _accountId == null
-            ? 'Pick an account'
+            ? l.pickAnAccount
             : null;
       }
     });
@@ -204,7 +209,9 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
     setState(() => _busy = true);
 
     // The API takes DD/MM/YYYY and HH:MM:SS (see _to_iso_date/_normalize_time).
-    final date = DateFormat('dd/MM/yyyy').format(_date);
+    // Pinned to en_US: this is a wire format, not something anyone reads, and
+    // a locale with its own digits would write a date the server cannot parse.
+    final date = DateFormat('dd/MM/yyyy', 'en_US').format(_date);
     final time = '${_time.hour.toString().padLeft(2, '0')}:'
         '${_time.minute.toString().padLeft(2, '0')}:00';
     final amount = double.parse(_amount.text.trim());
@@ -288,6 +295,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
     final categories = _categoriesFor(state);
 
@@ -303,15 +311,15 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
             _category = null;
             _accountError = null;
           }),
-          options: const [
-            SegmentOption(value: EntryKind.expense, label: 'Expense'),
-            SegmentOption(value: EntryKind.income, label: 'Income'),
-            SegmentOption(value: EntryKind.transfer, label: 'Transfer'),
+          options: [
+            SegmentOption(value: EntryKind.expense, label: l.kindExpense),
+            SegmentOption(value: EntryKind.income, label: l.kindIncome),
+            SegmentOption(value: EntryKind.transfer, label: l.kindTransfer),
           ],
         ),
         const SizedBox(height: 16),
         ScandyField(
-          label: 'Amount',
+          label: l.fieldAmount,
           controller: _amount,
           hint: '0.00',
           prefix: 'RM ',
@@ -321,9 +329,9 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
         ),
         const SizedBox(height: 14),
         ScandyField(
-          label: _isTransfer ? 'Description (optional)' : 'Description',
+          label: _isTransfer ? l.fieldDescriptionOptional : l.fieldDescription,
           controller: _description,
-          hint: _isTransfer ? 'Transfer' : 'Jaya Grocer',
+          hint: _isTransfer ? l.hintTransfer : l.hintDescription,
           errorText: _descriptionError,
         ),
         const SizedBox(height: 14),
@@ -331,8 +339,8 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
           children: [
             Expanded(
               child: _PickerTile(
-                label: 'Date',
-                value: DateFormat('d MMM yyyy').format(_date),
+                label: l.fieldDate,
+                value: context.dates.medium(_date),
                 icon: Icons.calendar_today,
                 onTap: _pickDate,
               ),
@@ -340,7 +348,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
             const SizedBox(width: 12),
             Expanded(
               child: _PickerTile(
-                label: 'Time',
+                label: l.fieldTime,
                 value: _time.format(context),
                 icon: Icons.schedule,
                 onTap: _pickTime,
@@ -351,17 +359,18 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
         if (!_isTransfer && categories.isNotEmpty) ...[
           const SizedBox(height: 14),
           ScandyPickerRow(
-            label: 'Category',
-            value: _category,
-            placeholder: 'Choose a category',
+            label: l.fieldCategory,
+            value: _category == null ? null : displayCategory(l, _category!),
+            placeholder: l.chooseACategory,
             onTap: () async {
               final picked = await showScandyPicker<String>(
                 context: context,
-                title: 'Category',
+                title: l.fieldCategory,
                 selected: _category,
                 options: [
                   for (final category in categories)
-                    PickerOption(value: category, label: category),
+                    PickerOption(
+                        value: category, label: displayCategory(l, category)),
                 ],
               );
               if (picked != null) setState(() => _category = picked);
@@ -371,13 +380,13 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
         if (state.accounts.isNotEmpty) ...[
           const SizedBox(height: 14),
           ScandyPickerRow(
-            label: _isTransfer ? 'From' : 'Account',
+            label: _isTransfer ? l.fieldFrom : l.fieldAccount,
             value: _accountName(state, _accountId),
-            placeholder: 'Choose an account',
+            placeholder: l.chooseAnAccount,
             errorText: _isTransfer ? null : _accountError,
             onTap: () => _pickAccount(
               state,
-              title: _isTransfer ? 'From account' : 'Account',
+              title: _isTransfer ? l.fromAccount : l.fieldAccount,
               current: _accountId,
               onPicked: (v) => _accountId = v,
             ),
@@ -385,13 +394,13 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
           if (_isTransfer) ...[
             const SizedBox(height: 14),
             ScandyPickerRow(
-              label: 'To',
+              label: l.fieldTo,
               value: _accountName(state, _toAccountId),
-              placeholder: 'Choose an account',
+              placeholder: l.chooseAnAccount,
               errorText: _accountError,
               onTap: () => _pickAccount(
                 state,
-                title: 'To account',
+                title: l.toAccount,
                 current: _toAccountId,
                 onPicked: (v) => _toAccountId = v,
               ),
@@ -401,10 +410,10 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
         const SizedBox(height: 20),
         PrimaryButton(
           label: _isEditing
-              ? 'Save changes'
+              ? l.actionSaveChanges
               : _isTransfer
-                  ? 'Record transfer'
-                  : 'Add transaction',
+                  ? l.recordTransfer
+                  : l.addTransaction,
           busy: _busy,
           onPressed: _save,
         ),
@@ -417,7 +426,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
             foregroundColor: c.textSecondary,
             minimumSize: const Size.fromHeight(44),
           ),
-          child: Text('Cancel', style: ScandyText.sheetItemTitle),
+          child: Text(l.actionCancel, style: ScandyText.sheetItemTitle),
         ),
       ],
     );

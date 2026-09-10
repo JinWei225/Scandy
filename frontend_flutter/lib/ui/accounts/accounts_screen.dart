@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/account.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -19,6 +20,7 @@ class AccountsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final c = context.scandy;
+    final l = context.l;
     final accounts = state.accounts;
     final total = accounts.fold<double>(0, (sum, a) => sum + a.balance);
 
@@ -26,7 +28,7 @@ class AccountsScreen extends StatelessWidget {
 
     return FabScaffold(
       navHeight: navHeight,
-      tooltip: 'Add account',
+      tooltip: l.addAccount,
       onPressed: () => showAccountFormSheet(context),
       child: RefreshIndicator(
       onRefresh: state.refresh,
@@ -38,7 +40,7 @@ class AccountsScreen extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(18, 14, 18, navHeight + 88),
         children: [
           ScreenHeader(
-            title: 'Accounts',
+            title: l.accounts,
             trailing: HeaderActions(onSearch: () => showSearchSheet(context)),
           ),
           const SizedBox(height: 14),
@@ -47,7 +49,7 @@ class AccountsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Total balance'.toUpperCase(),
+                Text(l.totalBalance.toUpperCase(),
                     style:
                         ScandyText.cardEyebrow.copyWith(color: c.textSecondary)),
                 const SizedBox(height: 6),
@@ -60,9 +62,7 @@ class AccountsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  accounts.length == 1
-                      ? 'across 1 account'
-                      : 'across ${accounts.length} accounts',
+                  l.acrossNAccounts(accounts.length),
                   style:
                       ScandyText.greetingMeta.copyWith(color: c.textSecondary),
                 ),
@@ -74,10 +74,10 @@ class AccountsScreen extends StatelessWidget {
             ScandyCard(
               radius: ScandyRadius.list,
               clip: true,
-              child: const EmptyState(
+              child: EmptyState(
                 icon: Icons.account_balance_wallet,
-                title: 'No accounts yet',
-                message: 'Add one to start tracking where your money sits.',
+                title: l.noAccountsYet,
+                message: l.noAccountsYetBody,
               ),
             )
           else
@@ -114,6 +114,7 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     // A negative balance — a credit card in the design — is tinted red on both
     // the tile and the figure.
     final negative = account.balance < 0;
@@ -159,8 +160,8 @@ class _AccountCard extends StatelessWidget {
                             .copyWith(color: c.textPrimary)),
                     const SizedBox(height: 3),
                     Text(
-                      '${account.type} · $transactionCount '
-                      '${transactionCount == 1 ? 'transaction' : 'transactions'}',
+                      '${accountTypeLabel(l, account.type)} · '
+                      '${l.nTransactions(transactionCount)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: ScandyText.rowMetaSmall

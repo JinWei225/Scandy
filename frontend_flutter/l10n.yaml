@@ -1,0 +1,8 @@
+# Scandy ships English and Simplified Chinese. `flutter gen-l10n` runs as part
+# of `flutter pub get` and `flutter run` (pubspec sets `generate: true`), so the
+# generated AppLocalizations is never checked in — edit the .arb files instead.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: L
+nullable-getter: false

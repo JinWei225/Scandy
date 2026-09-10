@@ -42,6 +42,11 @@ dependencies:
   cross_file: ^0.3.5+5
   google_mlkit_text_recognition: ^0.17.1
   supabase_flutter: ^2.17.2
+  # Ships Material's own Chinese strings (date picker, text-selection menu, the
+  # "OK"/"Cancel" Flutter draws itself) so switching locale doesn't leave half
+  # the app in English.
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +92,10 @@ flutter_launcher_icons:
 # The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
+
+  # Runs `gen-l10n` over lib/l10n/*.arb on every `pub get`, writing
+  # AppLocalizations into .dart_tool. See l10n.yaml.
+  generate: true
 
   # Plus Jakarta Sans is bundled rather than fetched at runtime. Scandy talks to
   # a self-hosted backend and is expected to open offline, where a runtime fetch

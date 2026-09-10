@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
+import '../common/language_toggle.dart';
 
 /// The frame every auth screen sits in.
 ///
@@ -37,20 +39,26 @@ class AuthScaffold extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (showBack)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: Icon(Icons.arrow_back,
-                            size: 22, color: c.textPrimary),
-                        tooltip: 'Back',
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 44, minHeight: 44),
-                        alignment: Alignment.centerLeft,
-                      ),
+                  SizedBox(
+                    height: 44,
+                    child: Row(
+                      children: [
+                        if (showBack)
+                          IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: Icon(Icons.arrow_back,
+                                size: 22, color: c.textPrimary),
+                            tooltip: context.l.actionBack,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                                minWidth: 44, minHeight: 44),
+                            alignment: Alignment.centerLeft,
+                          ),
+                        const Spacer(),
+                        const LanguageToggle(),
+                      ],
                     ),
+                  ),
                   const SizedBox(height: 8),
                   Text(title, style: ScandyText.greeting.copyWith(color: c.textPrimary)),
                   const SizedBox(height: 6),
@@ -150,7 +158,9 @@ class _PasswordFieldState extends State<PasswordField> {
                 size: 20,
                 color: c.iconMuted,
               ),
-              tooltip: _hidden ? 'Show password' : 'Hide password',
+              tooltip: _hidden
+                  ? context.l.showPassword
+                  : context.l.hidePassword,
             ),
           ),
         ),

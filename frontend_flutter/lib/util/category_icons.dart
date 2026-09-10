@@ -7,6 +7,12 @@ import 'package:flutter/material.dart';
 /// Food & drink → local_cafe). The rest are extended in the same spirit to
 /// cover the real category list in `backend/categories.json`; matching is
 /// case-insensitive so a renamed category keeps its icon.
+///
+/// The Chinese names are the ones handle_new_user() seeds a Chinese account
+/// with. Without them every row on that account would draw the fallback
+/// receipt glyph, which is the difference between a translated app and one
+/// that merely has translated words in it. A name nobody here recognises --
+/// which is most of them, once people start renaming -- still falls back.
 IconData iconForCategory(String category, {bool isTransfer = false}) {
   if (isTransfer) return Icons.swap_horiz;
 
@@ -45,6 +51,37 @@ IconData iconForCategory(String category, {bool isTransfer = false}) {
       return Icons.account_balance;
     case 'transfer':
       return Icons.swap_horiz;
+
+    // — the Chinese starter list, in the same order as the English one —
+    case '餐饮':
+      return Icons.local_cafe;
+    case '购物':
+      return Icons.shopping_bag;
+    case '交通':
+      return Icons.local_taxi;
+    case '水电杂费':
+      return Icons.receipt_long;
+    case '娱乐':
+      return Icons.movie;
+    case '医疗':
+      return Icons.favorite;
+    case '日用采买':
+      return Icons.shopping_basket;
+    case '分期付款':
+      return Icons.calendar_month;
+    case '工资':
+      return Icons.payments;
+    case '投资':
+      return Icons.trending_up;
+    case '礼金':
+      return Icons.card_giftcard;
+    case '退款':
+      return Icons.undo;
+    case '订阅':
+      return Icons.event_repeat;
+    case '转账':
+      return Icons.swap_horiz;
+
     default:
       return Icons.receipt_long;
   }

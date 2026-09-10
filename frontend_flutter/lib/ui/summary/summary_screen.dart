@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/summary_stats.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -30,6 +30,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l;
     final state = context.watch<AppState>();
     final now = widget.clock ?? DateTime.now();
     final month = _month ?? DateTime(now.year, now.month);
@@ -66,8 +67,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             18, 14, 18, ScandyBottomNav.heightFor(context) + 16),
         children: [
           ScreenHeader(
-            title: 'Monthly summary',
-            subtitle: 'Where your money went',
+            title: l.navMonthlySummary,
+            subtitle: l.whereYourMoneyWent,
             trailing:
                 HeaderActions(onSearch: () => showSearchSheet(context)),
           ),
@@ -82,15 +83,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
           _StatGrid(stats: stats),
           const SizedBox(height: 14),
           SectionHeader(
-            title: 'Where it went',
+            title: l.whereItWent,
             actionLabel: stats.categories.length > 4
-                ? 'All ${stats.categories.length}'
+                ? l.allN(stats.categories.length)
                 : null,
             onAction: () => _showAllCategories(
               context,
               stats.month,
               stats.categories,
-              'Where it went',
+              l.whereItWent,
               context.scandy.negative,
             ),
           ),
@@ -101,20 +102,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
             totalCount: stats.categories.length,
             color: context.scandy.negative,
             emptyIcon: Icons.bar_chart,
-            emptyTitle: 'Nothing spent this month',
-            emptyMessage: 'Categories appear here once you log some spending.',
+            emptyTitle: l.nothingSpentThisMonth,
+            emptyMessage: l.nothingSpentThisMonthBody,
           ),
           const SizedBox(height: 15),
           SectionHeader(
-            title: 'Where it came from',
+            title: l.whereItCameFrom,
             actionLabel: stats.incomeCategories.length > 4
-                ? 'All ${stats.incomeCategories.length}'
+                ? l.allN(stats.incomeCategories.length)
                 : null,
             onAction: () => _showAllCategories(
               context,
               stats.month,
               stats.incomeCategories,
-              'Where it came from',
+              l.whereItCameFrom,
               context.scandy.positive,
             ),
           ),
@@ -124,8 +125,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
             totalCount: stats.incomeCategories.length,
             color: context.scandy.positive,
             emptyIcon: Icons.payments,
-            emptyTitle: 'Nothing came in this month',
-            emptyMessage: 'Income categories appear here once you log some.',
+            emptyTitle: l.nothingCameInThisMonth,
+            emptyMessage: l.nothingCameInThisMonthBody,
           ),
         ],
       ),
@@ -142,7 +143,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final months = context.read<AppState>().availableMonths(now: now);
     final picked = await showScandySheet<DateTime>(
       context: context,
-      title: 'Choose a month',
+      title: context.l.chooseAMonth,
       child: _MonthPicker(months: months, selected: current),
     );
     if (picked != null && mounted) setState(() => _month = picked);
@@ -157,14 +158,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
   ) {
     showScandySheet<void>(
       context: context,
-      title: '$title · ${DateFormat('MMMM yyyy').format(month)}',
+      title: '$title · ${context.dates.monthYear(month)}',
       child: _CategoryList(
         categories: categories,
         totalCount: categories.length,
         color: color,
         emptyIcon: Icons.bar_chart,
-        emptyTitle: 'Nothing here',
-        emptyMessage: 'No categories for this month.',
+        emptyTitle: context.l.nothingHere,
+        emptyMessage: context.l.noCategoriesForThisMonth,
       ),
     );
   }
@@ -202,7 +203,7 @@ class _MonthStepper extends StatelessWidget {
           _Chevron(
             icon: Icons.chevron_left,
             onPressed: onOlder,
-            tooltip: 'Previous month with data',
+            tooltip: context.l.previousMonthWithData,
           ),
           Expanded(
             child: InkWell(
@@ -211,7 +212,7 @@ class _MonthStepper extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Text(
-                  DateFormat('MMMM yyyy').format(month),
+                  context.dates.monthYear(month),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                   style: ScandyText.monthLabel.copyWith(color: c.textPrimary),
@@ -222,7 +223,7 @@ class _MonthStepper extends StatelessWidget {
           _Chevron(
             icon: Icons.chevron_right,
             onPressed: onNewer,
-            tooltip: 'Next month with data',
+            tooltip: context.l.nextMonthWithData,
           ),
         ],
       ),
@@ -266,6 +267,7 @@ class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final avg = stats.dailyAverage;
     return Column(
       children: [
@@ -273,13 +275,13 @@ class _StatGrid extends StatelessWidget {
           children: [
             Expanded(
                 child: _Stat(
-                    label: 'Money in',
+                    label: l.moneyIn,
                     value: formatBare(stats.moneyInCents / 100),
                     color: c.positive)),
             const SizedBox(width: 10),
             Expanded(
                 child: _Stat(
-                    label: 'Spent',
+                    label: l.spentLabel,
                     value: formatBare(stats.spentCents / 100),
                     color: c.negative)),
           ],
@@ -289,15 +291,15 @@ class _StatGrid extends StatelessWidget {
           children: [
             Expanded(
                 child: _Stat(
-                    label: 'Net',
+                    label: l.netLabel,
                     value: formatBare(stats.netCents / 100),
                     // A negative month should read as a loss, not as neutral.
                     color: stats.netCents < 0 ? c.negative : c.textPrimary)),
             const SizedBox(width: 10),
             Expanded(
                 child: _Stat(
-                    label: 'Daily avg',
-                    value: avg == null ? '—' : formatBare(avg),
+                    label: l.dailyAvg,
+                    value: avg == null ? l.emDash : formatBare(avg),
                     color: c.textPrimary)),
           ],
         ),
@@ -393,7 +395,9 @@ class _CategoryList extends StatelessWidget {
                               Row(
                                 children: [
                                   Flexible(
-                                    child: Text(categories[i].category,
+                                    child: Text(
+                                        displayCategory(
+                                            context.l, categories[i].category),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: ScandyText.rowTitle
@@ -526,7 +530,7 @@ class _MonthChip extends StatelessWidget {
           alignment: Alignment.center,
           constraints: const BoxConstraints(minHeight: 46),
           child: Text(
-            DateFormat('MMM').format(month),
+            context.dates.shortMonth(month),
             style: (selected
                     ? ScandyText.segmentLabelActive
                     : ScandyText.segmentLabel)

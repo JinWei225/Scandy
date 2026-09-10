@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
+import '../../state/locale_controller.dart';
 import '../../state/theme_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -32,7 +34,7 @@ class SettingsScreen extends StatelessWidget {
         // Settings has no slot in the design's five-item nav, so it is pushed
         // from the Home header and needs its own way back.
         if (!embedded) const _BackRow(),
-        const ScreenHeader(title: 'Settings'),
+        ScreenHeader(title: context.l.settings),
         const SizedBox(height: 16),
         const _AppearanceSection(),
         const SizedBox(height: 16),
@@ -57,7 +59,7 @@ class _BackRow extends StatelessWidget {
         child: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: Icon(Icons.arrow_back, size: 22, color: c.textPrimary),
-          tooltip: 'Back',
+          tooltip: context.l.actionBack,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           alignment: Alignment.centerLeft,
@@ -73,12 +75,14 @@ class _AppearanceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final theme = context.watch<ThemeController>();
+    final locale = context.watch<LocaleController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const GroupLabel('Appearance'),
+        GroupLabel(l.appearance),
         const SizedBox(height: 9),
         ScandyCard(
           radius: ScandyRadius.list,
@@ -87,7 +91,7 @@ class _AppearanceSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Theme',
+              Text(l.theme,
                   style: ScandyText.rowTitleLarge
                       .copyWith(color: c.textPrimary)),
               const SizedBox(height: 12),
@@ -96,19 +100,40 @@ class _AppearanceSection extends StatelessWidget {
                 onChanged: theme.set,
                 // The design lists Light, Dark, System in that order — not the
                 // order of Flutter's own enum.
-                options: const [
+                options: [
                   SegmentOption(
                       value: ThemeMode.light,
-                      label: 'Light',
+                      label: l.themeLight,
                       icon: Icons.light_mode),
                   SegmentOption(
                       value: ThemeMode.dark,
-                      label: 'Dark',
+                      label: l.themeDark,
                       icon: Icons.dark_mode),
                   SegmentOption(
                       value: ThemeMode.system,
-                      label: 'System',
+                      label: l.themeSystem,
                       icon: Icons.contrast),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(l.language,
+                  style: ScandyText.rowTitleLarge
+                      .copyWith(color: c.textPrimary)),
+              const SizedBox(height: 3),
+              Text(l.languageFollowsSystem,
+                  style: ScandyText.sheetItemSubtitle
+                      .copyWith(color: c.textSecondary)),
+              const SizedBox(height: 12),
+              // Each language names itself. Somebody who cannot read the
+              // current one still has to be able to find their own, which a
+              // translated list of language names does not allow.
+              ScandySegmented<Locale?>(
+                value: locale.locale,
+                onChanged: locale.set,
+                options: [
+                  const SegmentOption(value: Locale('en'), label: 'English'),
+                  const SegmentOption(value: Locale('zh'), label: '中文'),
+                  SegmentOption(value: null, label: l.languageSystem),
                 ],
               ),
             ],
@@ -134,16 +159,21 @@ class _CategoriesSectionState extends State<_CategoriesSection> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final state = context.watch<AppState>();
 
     // 'transfer' is a single fixed category the backend manages itself, so it
-    // is not offered for editing.
-    const groups = [('expense', 'Expense categories'), ('income', 'Income categories')];
+    // is not offered for editing. The keys are stored values; the labels are
+    // what a reader sees.
+    final groups = [
+      ('expense', l.expenseCategories),
+      ('income', l.incomeCategories),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const GroupLabel('Categories'),
+        GroupLabel(l.categories),
         const SizedBox(height: 9),
         ScandyCard(
           radius: ScandyRadius.list,
@@ -165,8 +195,7 @@ class _CategoriesSectionState extends State<_CategoriesSection> {
         ),
         const SizedBox(height: 9),
         Text(
-          'Renaming a category updates it everywhere. Deleting one leaves old '
-          'transactions labelled.',
+          l.categoriesNote,
           style: ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
         ),
       ],
@@ -250,7 +279,7 @@ class _CategoryGroup extends StatelessWidget {
                       children: [
                         Icon(Icons.add, size: 20, color: c.accent),
                         const SizedBox(width: 10),
-                        Text('Add category',
+                        Text(context.l.addCategory,
                             style: ScandyText.rowTitle
                                 .copyWith(color: c.accent)),
                       ],
@@ -300,13 +329,13 @@ class _CategoryRow extends StatelessWidget {
             onPressed: () =>
                 editCategory(context, type: type, existingName: name),
             icon: Icon(Icons.edit, size: 18, color: c.iconMuted),
-            tooltip: 'Rename',
+            tooltip: context.l.actionRename,
           ),
           if (canDelete)
             IconButton(
               onPressed: () => deleteCategory(context, type: type, name: name),
               icon: Icon(Icons.delete, size: 18, color: c.iconMuted),
-              tooltip: 'Delete',
+              tooltip: context.l.actionDelete,
             ),
         ],
       ),
@@ -323,6 +352,7 @@ Future<void> editCategory(
 }) async {
   final controller = TextEditingController(text: existingName ?? '');
   final state = context.read<AppState>();
+  final l = context.l;
 
   // Outside the builder: a StatefulBuilder re-runs it on every setState, so a
   // message declared inside would be cleared by the very rebuild that was
@@ -332,13 +362,13 @@ Future<void> editCategory(
 
   await showScandySheet<void>(
     context: context,
-    title: existingName == null ? 'Add category' : 'Rename category',
+    title: existingName == null ? l.addCategory : l.renameCategory,
     child: StatefulBuilder(
       builder: (sheetContext, setSheetState) {
         Future<void> submit() async {
           final value = controller.text.trim();
           if (value.isEmpty) {
-            setSheetState(() => error = 'Give the category a name');
+            setSheetState(() => error = l.giveTheCategoryAName);
             return;
           }
           try {
@@ -360,15 +390,15 @@ Future<void> editCategory(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ScandyField(
-              label: 'Name',
+              label: l.fieldName,
               controller: controller,
-              hint: 'Groceries',
+              hint: l.hintCategoryName,
               autofocus: true,
               errorText: error,
             ),
             const SizedBox(height: 20),
             PrimaryButton(
-              label: existingName == null ? 'Add' : 'Rename',
+              label: existingName == null ? l.actionAdd : l.actionRename,
               onPressed: submit,
             ),
           ],
@@ -386,11 +416,11 @@ Future<void> deleteCategory(
   required String name,
 }) async {
   final state = context.read<AppState>();
+  final l = context.l;
   final confirmed = await confirmDestructive(
     context: context,
-    title: 'Delete "$name"?',
-    message: 'Transactions already filed under it keep the label, but you '
-        'will not be able to pick it again.',
+    title: l.deleteCategoryQ(name),
+    message: l.deleteCategoryBody,
   );
   if (!confirmed || !context.mounted) return;
 
@@ -438,6 +468,7 @@ class _AccountSectionState extends State<AccountSection> {
   /// Updating one and not the other leaves the app disagreeing with itself.
   Future<void> _rename(BuildContext context, String current) async {
     final controller = TextEditingController(text: current);
+    final l = context.l;
     // Declared outside the builder, like editCategory's: a StatefulBuilder
     // re-runs the builder on every setState, so a message declared inside is
     // cleared by the rebuild meant to show it.
@@ -445,13 +476,13 @@ class _AccountSectionState extends State<AccountSection> {
 
     await showScandySheet<void>(
       context: context,
-      title: 'Your name',
+      title: l.yourName,
       child: StatefulBuilder(
         builder: (sheetContext, setSheetState) {
           Future<void> submit() async {
             final value = controller.text.trim();
             if (value.isEmpty) {
-              setSheetState(() => error = 'Give yourself a name');
+              setSheetState(() => error = l.giveYourselfAName);
               return;
             }
             final client = Supabase.instance.client;
@@ -465,7 +496,7 @@ class _AccountSectionState extends State<AccountSection> {
               if (sheetContext.mounted) Navigator.of(sheetContext).pop();
               if (mounted) setState(() {});
             } catch (_) {
-              setSheetState(() => error = 'Could not save that name.');
+              setSheetState(() => error = l.couldNotSaveThatName);
             }
           }
 
@@ -474,14 +505,14 @@ class _AccountSectionState extends State<AccountSection> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ScandyField(
-                label: 'Name',
+                label: l.fieldName,
                 controller: controller,
-                hint: 'What should we call you?',
+                hint: l.hintYourName,
                 autofocus: true,
                 errorText: error,
               ),
               const SizedBox(height: 20),
-              PrimaryButton(label: 'Save', onPressed: submit),
+              PrimaryButton(label: l.actionSave, onPressed: submit),
             ],
           );
         },
@@ -491,12 +522,12 @@ class _AccountSectionState extends State<AccountSection> {
   }
 
   Future<void> _signOut(BuildContext context) async {
+    final l = context.l;
     final confirmed = await confirmDestructive(
       context: context,
-      title: 'Sign out?',
-      message: 'Your transactions stay in your account. You will need your '
-          'password to get back in.',
-      confirmLabel: 'Sign out',
+      title: l.signOutQ,
+      message: l.signOutBody,
+      confirmLabel: l.signOut,
     );
     if (!confirmed) return;
 
@@ -508,6 +539,7 @@ class _AccountSectionState extends State<AccountSection> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final user = Supabase.instance.client.auth.currentUser;
     final name = (user?.userMetadata?['display_name'] as String?)?.trim() ?? '';
     final email = user?.email ?? '';
@@ -534,7 +566,7 @@ class _AccountSectionState extends State<AccountSection> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name.isEmpty ? 'Add your name' : name,
+                    name.isEmpty ? l.addYourName : name,
                     style: ScandyText.rowTitle.copyWith(
                         color: name.isEmpty ? c.textSecondary : c.textPrimary),
                   ),
@@ -550,7 +582,7 @@ class _AccountSectionState extends State<AccountSection> {
             IconButton(
               onPressed: () => _rename(context, name),
               icon: Icon(Icons.edit_outlined, size: 18, color: c.iconMuted),
-              tooltip: 'Change your name',
+              tooltip: l.changeYourName,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             ),
           ],
@@ -568,7 +600,7 @@ class _AccountSectionState extends State<AccountSection> {
                 borderRadius: BorderRadius.circular(ScandyRadius.tile),
               ),
             ),
-            child: Text('Sign out', style: ScandyText.sheetItemTitle),
+            child: Text(l.signOut, style: ScandyText.sheetItemTitle),
           ),
         ),
       ],
@@ -579,7 +611,7 @@ class _AccountSectionState extends State<AccountSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const GroupLabel('Account'),
+        GroupLabel(l.accountSection),
         const SizedBox(height: 9),
         ScandyCard(
           radius: ScandyRadius.list,

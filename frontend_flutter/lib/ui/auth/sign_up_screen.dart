@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/l10n.dart';
 import '../../services/auth_errors.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -35,8 +36,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    final emailIssue = emailProblem(_email.text);
-    final passwordIssue = passwordProblem(_password.text);
+    final l = context.l;
+    final emailIssue = emailProblem(l, _email.text);
+    final passwordIssue = passwordProblem(l, _password.text);
     setState(() {
       _emailError = emailIssue;
       _passwordError = passwordIssue;
@@ -49,8 +51,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final response = await Supabase.instance.client.auth.signUp(
         email: _email.text.trim(),
         password: _password.text,
-        // Read by the handle_new_user() trigger to fill in profiles.display_name.
-        data: {'display_name': _name.text.trim()},
+        // Read by the handle_new_user() trigger: the name fills in
+        // profiles.display_name, and the language decides which set of
+        // starter categories the account gets. Sent once, at sign-up --
+        // changing the app's language later renames nothing, because by then
+        // the categories are the person's own rows.
+        data: {
+          'display_name': _name.text.trim(),
+          'locale': Localizations.localeOf(context).languageCode,
+        },
       );
 
       // With email confirmation switched on, signUp returns a user but no
@@ -60,7 +69,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         setState(() => _needsConfirmation = true);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = friendlyAuthError(e));
+      if (mounted) setState(() => _error = friendlyAuthError(l, e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,24 +78,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
 
     if (_needsConfirmation) {
       return AuthScaffold(
-        title: 'Check your email',
-        subtitle:
-            'We sent a confirmation link to ${_email.text.trim()}. Tap it, then '
-            'come back and sign in.',
+        title: l.checkYourEmail,
+        subtitle: l.confirmSentTo(_email.text.trim()),
         showBack: true,
         children: [
           Text(
-            'Nothing arrived? It can take a minute, and it sometimes lands in '
-            'spam.',
+            l.confirmNothingArrived,
             style:
                 ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
           ),
           const SizedBox(height: 22),
           PrimaryButton(
-            label: 'Back to sign in',
+            label: l.backToSignIn,
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],
@@ -94,35 +101,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     return AuthScaffold(
-      title: 'Create an account',
-      subtitle: 'Your ledger is yours alone — nobody else can see it.',
+      title: l.createAnAccount,
+      subtitle: l.signUpSubtitle,
       showBack: true,
       children: [
         ScandyField(
-          label: 'Name',
+          label: l.fieldName,
           controller: _name,
-          hint: 'What should we call you?',
+          hint: l.hintYourName,
           keyboardType: TextInputType.name,
         ),
         const SizedBox(height: 16),
         ScandyField(
-          label: 'Email',
+          label: l.fieldEmail,
           controller: _email,
-          hint: 'you@example.com',
+          hint: l.hintEmail,
           keyboardType: TextInputType.emailAddress,
           errorText: _emailError,
         ),
         const SizedBox(height: 16),
         PasswordField(
-          label: 'Password',
+          label: l.fieldPassword,
           controller: _password,
-          hint: 'At least 8 characters',
+          hint: l.hintAtLeast8,
           errorText: _passwordError,
           onSubmitted: _busy ? null : _signUp,
         ),
         const SizedBox(height: 20),
         AuthError(_error),
-        PrimaryButton(label: 'Create account', busy: _busy, onPressed: _signUp),
+        PrimaryButton(label: l.createAccount, busy: _busy, onPressed: _signUp),
       ],
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -39,7 +40,7 @@ class HomeScreen extends StatelessWidget {
           _Header(now: now),
           const SizedBox(height: 16),
           if (state.status == LoadStatus.failed)
-            _ErrorCard(message: state.error ?? 'Something went wrong')
+            _ErrorCard(message: state.error ?? context.l.somethingWentWrong)
           else if (state.status == LoadStatus.loading)
             const _LoadingCard()
           else ...[
@@ -72,14 +73,14 @@ class _Header extends StatelessWidget {
                 // The design reads "Good evening, Aiman", but there is no
                 // profile feature yet, so the greeting stands on its own and
                 // simply tracks the time of day.
-                greetingFor(now),
+                greetingFor(context.l, now),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: ScandyText.greeting.copyWith(color: c.textPrimary),
               ),
               const SizedBox(height: 2),
               Text(
-                formatGreetingDate(now),
+                context.dates.greeting(now),
                 style: ScandyText.greetingMeta.copyWith(color: c.textSecondary),
               ),
             ],
@@ -107,7 +108,7 @@ class _RecentSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recent',
+          context.l.recent,
           style: ScandyText.sectionTitle.copyWith(color: c.textPrimary),
         ),
         const SizedBox(height: 10),
@@ -149,12 +150,12 @@ class _EmptyRecent extends StatelessWidget {
           Icon(Icons.receipt_long, size: 28, color: c.iconMuted),
           const SizedBox(height: 10),
           Text(
-            'Nothing logged yet',
+            context.l.nothingLoggedYet,
             style: ScandyText.rowTitle.copyWith(color: c.textPrimary),
           ),
           const SizedBox(height: 4),
           Text(
-            'Scan a receipt or log one by hand to get started.',
+            context.l.nothingLoggedYetBody,
             textAlign: TextAlign.center,
             style: ScandyText.rowMeta.copyWith(color: c.textSecondary),
           ),
@@ -204,7 +205,7 @@ class _ErrorCard extends StatelessWidget {
           Icon(Icons.cloud_off, size: 26, color: c.negative),
           const SizedBox(height: 12),
           Text(
-            "Can't load your data",
+            context.l.cantLoadYourData,
             style: ScandyText.sectionTitle.copyWith(color: c.textPrimary),
           ),
           const SizedBox(height: 6),
@@ -224,13 +225,13 @@ class _ErrorCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(ScandyRadius.tile),
                   ),
                 ),
-                child: Text('Try again', style: ScandyText.link),
+                child: Text(context.l.actionTryAgain, style: ScandyText.link),
               ),
               const SizedBox(width: 8),
               TextButton(
                 onPressed: () => Navigator.of(context).pushNamed('/settings'),
                 style: TextButton.styleFrom(foregroundColor: c.textSecondary),
-                child: Text('Server settings', style: ScandyText.link),
+                child: Text(context.l.settings, style: ScandyText.link),
               ),
             ],
           ),

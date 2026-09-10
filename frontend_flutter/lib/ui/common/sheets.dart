@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import 'widgets.dart';
@@ -112,9 +113,11 @@ Future<bool> confirmDestructive({
   required BuildContext context,
   required String title,
   required String message,
-  String confirmLabel = 'Delete',
+  String? confirmLabel,
 }) async {
   final c = context.scandy;
+  final l = context.l;
+  final confirm = confirmLabel ?? l.actionDelete;
   final result = await showDialog<bool>(
     context: context,
     barrierColor: scrimColor(),
@@ -171,7 +174,7 @@ Future<bool> confirmDestructive({
                       borderRadius: BorderRadius.circular(ScandyRadius.tile),
                     ),
                   ),
-                  child: Text(confirmLabel, style: ScandyText.sheetItemTitle),
+                  child: Text(confirm, style: ScandyText.sheetItemTitle),
                 ),
               ),
               const SizedBox(height: 8),
@@ -183,7 +186,7 @@ Future<bool> confirmDestructive({
                     foregroundColor: c.textSecondary,
                     minimumSize: const Size.fromHeight(44),
                   ),
-                  child: Text('Cancel', style: ScandyText.sheetItemTitle),
+                  child: Text(l.actionCancel, style: ScandyText.sheetItemTitle),
                 ),
               ),
             ],

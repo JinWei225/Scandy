@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/account.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
@@ -8,8 +9,23 @@ import '../../theme/tokens.dart';
 import '../common/sheets.dart';
 import '../common/widgets.dart';
 
-/// Account types the backend's own data uses (`backend/accounts.json`).
+/// Account types the database's own check constraint allows.
+///
+/// These are stored values, not labels: they go into `accounts.type` exactly
+/// as written and every existing row already holds one of them, so they stay
+/// English however the app is set. [accountTypeLabel] is what a reader sees.
 const accountTypes = ['Bank', 'E-Wallet', 'Card', 'Cash'];
+
+/// The reader's word for a stored account type. An unrecognised value — a row
+/// written before the constraint, say — is shown as it stands rather than
+/// relabelled into something it is not.
+String accountTypeLabel(L l, String type) => switch (type.toLowerCase()) {
+      'bank' => l.accountTypeBank,
+      'card' || 'credit' => l.accountTypeCard,
+      'e-wallet' || 'ewallet' || 'wallet' => l.accountTypeEWallet,
+      'cash' => l.accountTypeCash,
+      _ => type.isEmpty ? l.accountTypeOther : type,
+    };
 
 /// Add or edit an account. [account] null means add.
 Future<void> showAccountFormSheet(
@@ -18,7 +34,7 @@ Future<void> showAccountFormSheet(
 }) {
   return showScandySheet<void>(
     context: context,
-    title: account == null ? 'Add account' : 'Edit account',
+    title: account == null ? context.l.addAccount : context.l.editAccount,
     child: _AccountForm(account: account),
   );
 }
@@ -53,14 +69,15 @@ class _AccountFormState extends State<_AccountForm> {
   }
 
   bool _validate() {
+    final l = context.l;
     final name = _name.text.trim();
     final balance = double.tryParse(_initial.text.trim());
     setState(() {
-      _nameError = name.isEmpty ? 'Give the account a name' : null;
+      _nameError = name.isEmpty ? l.giveTheAccountAName : null;
       _balanceError = _initial.text.trim().isEmpty
-          ? 'Enter the starting balance'
+          ? l.enterTheStartingBalance
           : balance == null
-              ? 'Must be a number'
+              ? l.mustBeANumber
               : null;
     });
     return _nameError == null && _balanceError == null;
@@ -96,12 +113,11 @@ class _AccountFormState extends State<_AccountForm> {
     final account = widget.account;
     if (account == null) return;
 
+    final l = context.l;
     final confirmed = await confirmDestructive(
       context: context,
-      title: 'Delete ${account.name}?',
-      message:
-          'The account is removed from the list. Transactions recorded against '
-          'it are kept, but will no longer be attributed to an account.',
+      title: l.deleteAccountQ(account.name),
+      message: l.deleteAccountBody,
     );
     if (!confirmed || !mounted) return;
 
@@ -121,30 +137,31 @@ class _AccountFormState extends State<_AccountForm> {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         ScandyField(
-          label: 'Name',
+          label: l.fieldName,
           controller: _name,
-          hint: 'Maybank',
+          hint: l.hintAccountName,
           autofocus: widget.account == null,
           errorText: _nameError,
         ),
         const SizedBox(height: 14),
         ScandyPickerRow(
-          label: 'Type',
-          value: _type,
-          placeholder: 'Choose a type',
+          label: l.fieldType,
+          value: accountTypeLabel(l, _type),
+          placeholder: l.chooseAType,
           onTap: () async {
             final picked = await showScandyPicker<String>(
               context: context,
-              title: 'Account type',
+              title: l.accountType,
               selected: _type,
               options: [
                 for (final type in accountTypes)
-                  PickerOption(value: type, label: type),
+                  PickerOption(value: type, label: accountTypeLabel(l, type)),
               ],
             );
             if (picked != null) setState(() => _type = picked);
@@ -152,7 +169,7 @@ class _AccountFormState extends State<_AccountForm> {
         ),
         const SizedBox(height: 14),
         ScandyField(
-          label: 'Starting balance',
+          label: l.fieldStartingBalance,
           controller: _initial,
           hint: '0.00',
           prefix: 'RM ',
@@ -162,13 +179,12 @@ class _AccountFormState extends State<_AccountForm> {
         ),
         const SizedBox(height: 8),
         Text(
-          'The balance shown on the Accounts screen is this figure plus every '
-          'transaction recorded against the account.',
+          l.startingBalanceHelp,
           style: ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
         ),
         const SizedBox(height: 20),
         PrimaryButton(
-          label: widget.account == null ? 'Add account' : 'Save changes',
+          label: widget.account == null ? l.addAccount : l.actionSaveChanges,
           busy: _busy,
           onPressed: _save,
         ),
@@ -180,7 +196,7 @@ class _AccountFormState extends State<_AccountForm> {
               foregroundColor: c.negative,
               minimumSize: const Size.fromHeight(44),
             ),
-            child: Text('Delete account', style: ScandyText.sheetItemTitle),
+            child: Text(l.deleteAccount, style: ScandyText.sheetItemTitle),
           ),
         ],
       ],

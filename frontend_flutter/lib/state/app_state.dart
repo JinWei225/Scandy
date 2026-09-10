@@ -118,7 +118,10 @@ class AppState extends ChangeNotifier {
       _error = e.message;
       _status = LoadStatus.failed;
     } catch (e) {
-      _error = 'Something went wrong: $e';
+      // The raw failure, with no English preamble bolted on: the UI supplies
+      // its own heading in the reader's language, and this line is whatever
+      // the server or the network actually said.
+      _error = '$e';
       _status = LoadStatus.failed;
     }
     notifyListeners();

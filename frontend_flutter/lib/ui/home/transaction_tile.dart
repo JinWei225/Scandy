@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/transaction.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -27,6 +28,7 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
+    final l = context.l;
     final isIncome = transaction.isIncome;
 
     // Income gets the green tile and green figure; everything else is neutral.
@@ -68,7 +70,7 @@ class TransactionTile extends StatelessWidget {
                 children: [
                   Text(
                     transaction.description.isEmpty
-                        ? 'Untitled'
+                        ? l.untitled
                         : transaction.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -77,6 +79,8 @@ class TransactionTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     transactionMeta(
+                      l: l,
+                      dates: context.dates,
                       category: transaction.category,
                       date: transaction.date,
                       shortTime: transaction.shortTime,

@@ -1,0 +1,501 @@
+{
+  "@@locale": "en",
+  "appTitle": "Scandy",
+  "actionCancel": "Cancel",
+  "actionDelete": "Delete",
+  "actionSave": "Save",
+  "actionEdit": "Edit",
+  "actionRename": "Rename",
+  "actionAdd": "Add",
+  "actionBack": "Back",
+  "actionTryAgain": "Try again",
+  "actionSaveChanges": "Save changes",
+  "settings": "Settings",
+  "searchTransactions": "Search transactions",
+  "somethingWentWrong": "Something went wrong",
+  "emDash": "—",
+  "signInTitle": "Welcome back",
+  "signInSubtitle": "Sign in to your ledger.",
+  "fieldEmail": "Email",
+  "hintEmail": "you@example.com",
+  "fieldPassword": "Password",
+  "forgotPassword": "Forgot password?",
+  "signIn": "Sign in",
+  "newHere": "New here?",
+  "createAnAccount": "Create an account",
+  "createAccount": "Create account",
+  "enterYourPassword": "Enter your password.",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password",
+  "signUpSubtitle": "Your ledger is yours alone — nobody else can see it.",
+  "fieldName": "Name",
+  "hintYourName": "What should we call you?",
+  "hintAtLeast8": "At least 8 characters",
+  "checkYourEmail": "Check your email",
+  "confirmSentTo": "We sent a confirmation link to {email}. Tap it, then come back and sign in.",
+  "@confirmSentTo": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmNothingArrived": "Nothing arrived? It can take a minute, and it sometimes lands in spam.",
+  "backToSignIn": "Back to sign in",
+  "resetTitle": "Reset your password",
+  "resetSubtitle": "We will email you a link to set a new one.",
+  "sendResetLink": "Send reset link",
+  "resetSentSubtitle": "If {email} has an account, a reset link is on its way.",
+  "@resetSentSubtitle": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "resetSentBody": "The link opens Scandy and lets you choose a new password. It expires after an hour.",
+  "chooseNewPassword": "Choose a new password",
+  "chooseNewPasswordSubtitle": "Then you will be signed in.",
+  "fieldNewPassword": "New password",
+  "fieldConfirmPassword": "Confirm password",
+  "savePassword": "Save password",
+  "passwordsMustMatch": "Both passwords must match.",
+  "notConfiguredTitle": "Scandy is not configured",
+  "authInvalidCredentials": "That email and password do not match. Check both and try again.",
+  "authEmailNotConfirmed": "Check your email and tap the confirmation link first.",
+  "authInviteOnly": "Scandy is invite only at the moment. Ask for your email address to be added, then try again.",
+  "authCouldNotCreate": "That account could not be created. Scandy is invite only — ask for your email address to be added, then try again.",
+  "authEmailRejected": "That email address was not accepted. Check it and try again.",
+  "authAlreadyRegistered": "That email already has an account. Try signing in instead.",
+  "authPasswordTooShort": "That password is too short — use at least 8 characters.",
+  "authWeakPassword": "That password is too easy to guess. Try a longer one.",
+  "authNotAnEmail": "That does not look like an email address.",
+  "authTooManyAttempts": "Too many attempts just now. Wait a minute and try again.",
+  "authSamePassword": "That is the password you already have. Choose a different one.",
+  "authLinkExpired": "That link has expired. Ask for a new one.",
+  "authGenericFailure": "Something went wrong. Try again.",
+  "authOffline": "Cannot reach Scandy right now. Check your connection.",
+  "passwordUseAtLeast8": "Use at least 8 characters.",
+  "enterYourEmail": "Enter your email address.",
+  "goodMorning": "Good morning",
+  "goodAfternoon": "Good afternoon",
+  "goodEvening": "Good evening",
+  "recent": "Recent",
+  "nothingLoggedYet": "Nothing logged yet",
+  "nothingLoggedYetBody": "Scan a receipt or log one by hand to get started.",
+  "cantLoadYourData": "Can't load your data",
+  "safeToSpend": "Safe to spend",
+  "daysLeft": "{count, plural, =1{1 day left} other{{count} days left}}",
+  "@daysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "perDayPrefix": "",
+  "perDaySuffix": " a day for the rest of the month",
+  "perDayPrefixDesktop": "That's ",
+  "perDaySuffixDesktop": " a day for the rest of the month.",
+  "overspentCaption": "More has gone out than came in this month",
+  "overspentCaptionDesktop": "More has gone out than came in this month.",
+  "monthIsDone": "The month is done — this is what it came to.",
+  "statIn": "In",
+  "statSpent": "Spent",
+  "statDue": "Due",
+  "legendSpent": "Spent {pct}%",
+  "@legendSpent": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "legendRecurringDue": "Recurring due {pct}%",
+  "@legendRecurringDue": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "legendLeft": "Left {pct}%",
+  "@legendLeft": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "navHome": "Home",
+  "navSummary": "Summary",
+  "navAccounts": "Accounts",
+  "navRecurring": "Recurring",
+  "navMonthlySummary": "Monthly summary",
+  "navAddShort": "ADD",
+  "addATransaction": "Add a transaction",
+  "scanAReceipt": "Scan a receipt",
+  "scanAReceiptSubtitle": "Snap it and we'll fill in the details",
+  "logItByHand": "Log it by hand",
+  "logItByHandSubtitle": "Cash, transfers, anything without a receipt",
+  "takeAPhoto": "Take a photo",
+  "takeAPhotoSubtitle": "Point the camera at the receipt",
+  "chooseFromGallery": "Choose from gallery",
+  "chooseFromGallerySubtitle": "Pick a photo or screenshot you already have",
+  "readingYourReceipt": "Reading your receipt…",
+  "thisCanTakeAFewSeconds": "This can take a few seconds.",
+  "couldntReadThatOne": "Couldn't read that one",
+  "enterItByHand": "Enter it by hand",
+  "scannerUnreadableReply": "The scanner sent back something unreadable.",
+  "scannerCouldNotScan": "Could not scan that receipt.",
+  "scannerTookTooLong": "The scan took too long. Add the amount by hand, or try again.",
+  "scannerUnreachable": "Cannot reach the scanner right now. Check your connection.",
+  "whereYourMoneyWent": "Where your money went",
+  "whereYourMoneyWentByCategory": "Where your money went, by category",
+  "whereItWent": "Where it went",
+  "whereItCameFrom": "Where it came from",
+  "moneyIn": "Money in",
+  "spentLabel": "Spent",
+  "netLabel": "Net",
+  "dailyAvg": "Daily avg",
+  "dailyAverage": "Daily average",
+  "allN": "All {count}",
+  "@allN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nothingSpentThisMonth": "Nothing spent this month",
+  "nothingSpentThisMonthBody": "Categories appear here once you log some spending.",
+  "nothingCameInThisMonth": "Nothing came in this month",
+  "nothingCameInThisMonthBody": "Income categories appear here once you log some.",
+  "nothingHere": "Nothing here",
+  "noCategoriesForThisMonth": "No categories for this month.",
+  "chooseAMonth": "Choose a month",
+  "previousMonthWithData": "Previous month with data",
+  "nextMonthWithData": "Next month with data",
+  "overspentMeta": "overspent",
+  "savedThisMonth": "saved this month",
+  "overNDays": "{count, plural, =1{over 1 day} other{over {count} days}}",
+  "@overNDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nDeposits": "{count, plural, =1{1 deposit} other{{count} deposits}}",
+  "@nDeposits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nTransactions": "{count, plural, =1{1 transaction} other{{count} transactions}}",
+  "@nTransactions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "nCategories": "{count, plural, =1{1 category} other{{count} categories}}",
+  "@nCategories": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accounts": "Accounts",
+  "totalBalance": "Total balance",
+  "acrossNAccounts": "{count, plural, =1{across 1 account} other{across {count} accounts}}",
+  "@acrossNAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noAccountsYet": "No accounts yet",
+  "noAccountsYetBody": "Add one to start tracking where your money sits.",
+  "addAccount": "Add account",
+  "editAccount": "Edit account",
+  "deleteAccount": "Delete account",
+  "hintAccountName": "Maybank",
+  "fieldType": "Type",
+  "chooseAType": "Choose a type",
+  "accountType": "Account type",
+  "fieldStartingBalance": "Starting balance",
+  "startingBalanceHelp": "The balance shown on the Accounts screen is this figure plus every transaction recorded against the account.",
+  "giveTheAccountAName": "Give the account a name",
+  "enterTheStartingBalance": "Enter the starting balance",
+  "mustBeANumber": "Must be a number",
+  "deleteAccountQ": "Delete {name}?",
+  "@deleteAccountQ": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteAccountBody": "The account is removed from the list. Transactions recorded against it are kept, but will no longer be attributed to an account.",
+  "accountTypeBank": "Bank",
+  "accountTypeCard": "Card",
+  "accountTypeEWallet": "E-Wallet",
+  "accountTypeCash": "Cash",
+  "accountTypeOther": "Other",
+  "tableAccount": "Account",
+  "tableBalance": "Balance",
+  "tableActions": "Actions",
+  "deletingAnAccountNote": "Deleting an account keeps its transactions — they just stop being attributed to it.",
+  "recurring": "Recurring",
+  "everyMonth": "Every month",
+  "chargedLabel": "Charged",
+  "toComeLabel": "To come",
+  "stillToCome": "Still to come",
+  "alreadyCharged": "Already charged",
+  "nothingChargedYet": "Nothing charged yet",
+  "nothingDue": "Nothing due",
+  "everythingRecordedThisMonth": "Everything for this month has been recorded.",
+  "nothingChargedYetThisMonth": "Nothing has been charged yet this month.",
+  "addRecurringCharge": "Add recurring charge",
+  "editRecurringCharge": "Edit recurring charge",
+  "chargedThisMonth": "Charged this month",
+  "chargedOn": "Charged {date}",
+  "@chargedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dayNotRecordedYet": "Day {day} · not recorded yet",
+  "@dayNotRecordedYet": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "dayWithRelative": "Day {day} · {when}",
+  "@dayWithRelative": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "relToday": "today",
+  "relTomorrow": "tomorrow",
+  "relInNDays": "{count, plural, other{in {count} days}}",
+  "@relInNDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dueNextMonth": "Due next month",
+  "dueToday": "Due today",
+  "dueTomorrow": "Due tomorrow",
+  "dueInNDays": "{count, plural, other{Due in {count} days}}",
+  "@dueInNDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "giveItAName": "Give it a name",
+  "enterAnAmount": "Enter an amount",
+  "mustBeMoreThanZero": "Must be more than zero",
+  "pickADayBetween1And31": "Pick a day between 1 and 31",
+  "fieldAmount": "Amount",
+  "fieldDay": "Day",
+  "fieldCategory": "Category",
+  "chooseACategory": "Choose a category",
+  "fieldChargedTo": "Charged to",
+  "chooseAnAccount": "Choose an account",
+  "addCharge": "Add charge",
+  "deleteCharge": "Delete charge",
+  "deleteChargeQ": "Delete {name}?",
+  "@deleteChargeQ": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteChargeBody": "It stops counting towards your monthly commitment. Charges already recorded stay in your transactions.",
+  "deleteChargeBodyDesktop": "It stops counting toward your monthly total. Charges already recorded as transactions are kept.",
+  "hintSubscriptionName": "Spotify Family",
+  "nextCharge": "Next charge",
+  "everythingHasBeenCharged": "Everything has been charged",
+  "amountOnDay": "{amount} on day {day}",
+  "@amountOnDay": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "noRecurringCharges": "No recurring charges",
+  "noRecurringChargesBody": "Add the ones that repeat and they stop surprising you.",
+  "nOfMThisMonth": "{done} of {total} this month",
+  "@nOfMThisMonth": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nChargesBeforeMonthEnd": "{count, plural, =1{1 charge before month end} other{{count} charges before month end}}",
+  "@nChargesBeforeMonthEnd": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tableService": "Service",
+  "tableCategory": "Category",
+  "tableChargesOn": "Charges on",
+  "tableAmount": "Amount",
+  "dayOfMonth": "Day {day}",
+  "@dayOfMonth": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "logATransaction": "Log a transaction",
+  "editTransaction": "Edit transaction",
+  "kindExpense": "Expense",
+  "kindIncome": "Income",
+  "kindTransfer": "Transfer",
+  "fieldDescription": "Description",
+  "fieldDescriptionOptional": "Description (optional)",
+  "hintDescription": "Jaya Grocer",
+  "hintTransfer": "Transfer",
+  "fieldDate": "Date",
+  "fieldTime": "Time",
+  "fieldAccount": "Account",
+  "fieldFrom": "From",
+  "fieldTo": "To",
+  "fromAccount": "From account",
+  "toAccount": "To account",
+  "giveItADescription": "Give it a description",
+  "pickAnAccount": "Pick an account",
+  "pickBothAccounts": "Pick both accounts",
+  "fromAndToMustDiffer": "From and To must differ",
+  "recordTransfer": "Record transfer",
+  "addTransaction": "Add transaction",
+  "transaction": "Transaction",
+  "untitled": "Untitled",
+  "uncategorised": "Uncategorised",
+  "noAccount": "No account",
+  "unknownAccount": "Unknown account",
+  "transferTwoRowsNote": "A transfer is stored as two linked rows. Editing or deleting one updates both.",
+  "deleteThisTransactionQ": "Delete this transaction?",
+  "deleteTransferBody": "Both legs of the transfer are removed, and the account balances go back to what they were.",
+  "deleteTransactionBody": "It is removed for good and the account balance goes back to what it was.",
+  "transferTag": "transfer",
+  "searchHint": "Description, category, account or amount",
+  "startTypingToSearch": "Start typing to search all {count} transactions.",
+  "@startTypingToSearch": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noMatches": "No matches",
+  "nMatches": "{count, plural, =1{1 match} other{{count} matches}}",
+  "@nMatches": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "totalOut": "{amount} out",
+  "@totalOut": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "totalIn": "{amount} in",
+  "@totalIn": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "nothingFound": "Nothing found",
+  "nothingFoundBody": "Try a shorter word, or part of the amount.",
+  "showingFirst50": "Showing the first 50. Narrow the search to see the rest.",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeSystem": "System",
+  "themeFollowsSystem": "Follows your system setting unless you pick one",
+  "language": "Language",
+  "languageSystem": "System",
+  "languageFollowsSystem": "Follows your phone unless you pick one",
+  "categories": "Categories",
+  "expenseCategories": "Expense categories",
+  "incomeCategories": "Income categories",
+  "addCategory": "Add category",
+  "renameCategory": "Rename category",
+  "hintCategoryName": "Groceries",
+  "giveTheCategoryAName": "Give the category a name",
+  "categoriesNote": "Renaming a category updates it everywhere. Deleting one leaves old transactions labelled.",
+  "categoriesNoteDesktop": "Renaming a category updates it everywhere. Deleting one leaves old transactions labelled — it just stops being selectable.",
+  "deleteCategoryQ": "Delete “{name}”?",
+  "@deleteCategoryQ": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCategoryBody": "Transactions already filed under it keep the label, but you will not be able to pick it again.",
+  "accountSection": "Account",
+  "yourName": "Your name",
+  "addYourName": "Add your name",
+  "changeYourName": "Change your name",
+  "giveYourselfAName": "Give yourself a name",
+  "couldNotSaveThatName": "Could not save that name.",
+  "signOut": "Sign out",
+  "signOutQ": "Sign out?",
+  "signOutBody": "Your transactions stay in your account. You will need your password to get back in.",
+  "settingsSubtitleDesktop": "Appearance, categories and your account",
+  "recentTransactions": "Recent transactions",
+  "tableDescription": "Description",
+  "recurringDue": "Recurring due",
+  "datePatternGreeting": "EEEE, d MMMM",
+  "datePatternShortMonth": "MMM",
+  "datePatternDayMonth": "d MMM",
+  "datePatternMonthYear": "MMMM yyyy",
+  "datePatternMonthOnly": "MMMM",
+  "datePatternFull": "EEEE, d MMMM yyyy",
+  "datePatternMedium": "d MMM yyyy"
+}

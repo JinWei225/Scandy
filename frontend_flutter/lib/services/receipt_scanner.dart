@@ -17,6 +17,8 @@ import 'dart:async';
 import 'package:cross_file/cross_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../l10n/app_localizations.dart';
+
 class ReceiptScanException implements Exception {
   ReceiptScanException(this.message);
   final String message;
@@ -31,8 +33,13 @@ abstract class CloudReceiptScanner {
 }
 
 /// Posts the image to the `scan-receipt` Edge Function.
+///
+/// Holds an [L] because every failure here ends up in front of a person, in a
+/// dialog with no other explanation on it.
 class SupabaseCloudScanner implements CloudReceiptScanner {
-  const SupabaseCloudScanner();
+  const SupabaseCloudScanner(this._l);
+
+  final L _l;
 
   @override
   Future<Map<String, dynamic>> scan(XFile file) async {
@@ -59,28 +66,30 @@ class SupabaseCloudScanner implements CloudReceiptScanner {
           .timeout(const Duration(seconds: 90));
       final data = res.data;
       if (data is Map<String, dynamic>) return data;
-      throw ReceiptScanException('The scanner sent back something unreadable.');
+      throw ReceiptScanException(_l.scannerUnreadableReply);
     } on FunctionException catch (e) {
       // The function answers every failure with {"error": "..."} written for a
       // person -- the daily cap, an unreadable photo, a signed-out session.
       final detail = e.details;
+      // The function's own {"error": "..."} is written for a person, but it
+      // is written in English -- it runs on the server and has no idea which
+      // language asked. Passing it through beats replacing it with something
+      // vaguer: it is the only place the daily cap is explained.
       final message = detail is Map && detail['error'] is String
           ? detail['error'] as String
-          : 'Could not scan that receipt.';
+          : _l.scannerCouldNotScan;
       throw ReceiptScanException(message);
     } on TimeoutException {
-      throw ReceiptScanException(
-          'The scan took too long. Add the amount by hand, or try again.');
+      throw ReceiptScanException(_l.scannerTookTooLong);
     } catch (e) {
       final text = '$e';
       if (text.contains('SocketException') ||
           text.contains('ClientException') ||
           text.contains('TimeoutException') ||
           text.contains('Failed host lookup')) {
-        throw ReceiptScanException(
-            'Cannot reach the scanner right now. Check your connection.');
+        throw ReceiptScanException(_l.scannerUnreachable);
       }
-      throw ReceiptScanException('Could not scan that receipt.');
+      throw ReceiptScanException(_l.scannerCouldNotScan);
     }
   }
 
