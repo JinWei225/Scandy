@@ -8,11 +8,7 @@ name: Deploy web
 
 on:
   push:
-    # multi-user-supabase is here temporarily, so the deploy can be proven
-    # before the migration lands on main. Remove it once merged -- GitHub only
-    # offers "Run workflow" for files that exist on the DEFAULT branch, so
-    # until then this push trigger is the only way to run it at all.
-    branches: [main, multi-user-supabase]
+    branches: [main]
     # Nothing outside the app changes what gets served, and a schema-only
     # commit should not spend three minutes rebuilding an identical bundle.
     paths:
