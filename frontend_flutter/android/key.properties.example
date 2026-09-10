@@ -1,0 +1,24 @@
+# Template for android/key.properties, which is gitignored and holds the
+# release signing secrets. Copy it, then replace BOTH ___REPLACE_ME___ values
+# with the password you chose when you ran keytool:
+#
+#   cp key.properties.example key.properties
+#
+# Both are the same password if you pressed RETURN at "Enter key password".
+#
+# Two things that silently break this file, because it is parsed as a Java
+# .properties file and not as plain text:
+#   - a backslash escapes the next character, so a password containing \
+#     is not read the way it looks
+#   - a trailing space is preserved, and will not match
+#
+# Check your work with:  ./gradlew :app:signingReport
+# You want "Config: release" AND no "Error:" line under it.
+
+storePassword=___REPLACE_ME___
+keyPassword=___REPLACE_ME___
+keyAlias=scandy-upload
+
+# Absolute path on purpose: the keystore belongs OUTSIDE this repository, so no
+# future .gitignore mistake can commit it. Back this file up somewhere durable.
+storeFile=/Users/YOU/keys/scandy-upload.jks

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../services/api_client.dart';
+import '../../services/receipt_scanner.dart';
 import '../../services/local_scanner.dart';
 import '../../services/share_intent_service.dart';
 import '../../state/app_state.dart';
@@ -128,9 +128,7 @@ class _AppShellState extends State<AppShell>
   /// there. A failed read still surfaces, inside the scanning dialog.
   Future<void> _scanFile(XFile file) async {
     if (!mounted) return;
-    final api = context.read<AppState>().api;
-
-    final job = _ScanJob(api: api, file: file);
+    final job = _ScanJob(cloud: const SupabaseCloudScanner(), file: file);
 
     // An on-device scan finishes in about 150 ms. Showing a spinner for that is
     // worse than showing nothing: the photo picker has just displayed its own
@@ -323,21 +321,22 @@ class _ScanOutcome {
 /// must, and hands the same result to whoever asks.
 ///
 /// On Android and iOS ML Kit plus the local rules answer most scans in well
-/// under a second with no network at all. The server is asked only when the
-/// device cannot scan (the web build), or when the rules left a field empty —
-/// it runs the same rules plus a small extraction model for the remainder.
+/// under a second with no network at all. The cloud scanner is asked only when
+/// the device cannot scan (the web build), or when the rules left a field
+/// empty.
 ///
-/// When the server is unreachable and the device read *something*, that partial
-/// answer still opens the form. Every field there is editable, so a prefilled
-/// amount with a blank date is far more useful than a failed scan.
+/// When the cloud path is unavailable and the device read *something*, that
+/// partial answer still opens the form. Every field there is editable, so a
+/// prefilled amount with a blank date is far more useful than a failed scan.
 class _ScanJob {
-  _ScanJob({required ApiClient api, required XFile file}) {
-    result = _run(api, file);
+  _ScanJob({required CloudReceiptScanner cloud, required XFile file}) {
+    result = _run(cloud, file);
   }
 
   late final Future<_ScanOutcome> result;
 
-  static Future<_ScanOutcome> _run(ApiClient api, XFile file) async {
+  static Future<_ScanOutcome> _run(
+      CloudReceiptScanner cloud, XFile file) async {
     final scanner = createLocalScanner();
     try {
       final local = await _scanLocally(scanner, file);
@@ -346,15 +345,15 @@ class _ScanJob {
       }
 
       try {
-        final data = await api.scanReceipt(file);
-        // A receipt it cannot read comes back 200 with an `error` key rather
-        // than a failed status, so it has to be checked in the success path.
+        final data = await cloud.scan(file);
+        // A receipt it cannot read returns an `error` key rather than throwing,
+        // so it has to be checked in the success path too.
         final error = data['error'];
         if (error is String) return _ScanOutcome.failed(error);
         return _ScanOutcome.fields(data);
-      } on ApiException catch (e) {
-        // Offline, or no server address set. A partial local read is still
-        // worth opening the form with.
+      } on ReceiptScanException catch (e) {
+        // Offline, or the cloud scanner is not wired up yet. A partial local
+        // read is still worth opening the form with.
         if (local != null && local.fields.missing.length < 3) {
           return _ScanOutcome.fields(prefillFrom(local.fields));
         }
@@ -367,7 +366,7 @@ class _ScanJob {
     }
   }
 
-  /// Never lets an on-device failure end the scan — the server is still there.
+  /// Never lets an on-device failure end the scan — the cloud path is next.
   static Future<LocalScanResult?> _scanLocally(
       LocalScanner scanner, XFile file) async {
     if (!scanner.isAvailable) {
@@ -385,7 +384,7 @@ class _ScanJob {
           '${result?.fields} (${result?.text.split('\n').length ?? 0} rows)');
       return result;
     } catch (e, st) {
-      debugPrint('[scan] on-device failed, falling back to the server: $e\n$st');
+      debugPrint('[scan] on-device failed, falling back to the cloud: $e\n$st');
       return null;
     }
   }

@@ -4,7 +4,7 @@ import '../models/account.dart';
 import '../models/month_summary.dart';
 import '../models/subscription.dart';
 import '../models/transaction.dart';
-import '../services/api_client.dart';
+import '../services/scandy_repository.dart';
 
 enum LoadStatus { idle, loading, ready, failed }
 
@@ -13,9 +13,9 @@ enum LoadStatus { idle, loading, ready, failed }
 /// the same list; a single ChangeNotifier provided above the app gives the
 /// same property without the implicit global.
 class AppState extends ChangeNotifier {
-  AppState(this._api);
+  AppState(this._repo);
 
-  final ApiClient _api;
+  final ScandyRepository _repo;
 
   List<Transaction> _transactions = const [];
   List<Account> _accounts = const [];
@@ -37,7 +37,7 @@ class AppState extends ChangeNotifier {
   LoadStatus get status => _status;
   String? get error => _error;
 
-  ApiClient get api => _api;
+  ScandyRepository get repo => _repo;
 
   /// The five most recent rows, as the design's "Recent" card shows. The API
   /// already orders newest-first, so this is a plain prefix.
@@ -90,7 +90,7 @@ class AppState extends ChangeNotifier {
     // stays down so the next load tries again.
     if (!_subscriptionsChecked) {
       try {
-        await _api.checkSubscriptions();
+        await _repo.checkSubscriptions();
         _subscriptionsChecked = true;
       } catch (_) {
         // Nothing is lost by skipping it: the backend works out what it owes
@@ -102,10 +102,10 @@ class AppState extends ChangeNotifier {
       // One await for four independent GETs — on a phone talking to a LAN
       // server the round trips dominate, so serialising them is felt.
       final results = await Future.wait([
-        _api.fetchTransactions(),
-        _api.fetchAccounts(),
-        _api.fetchSubscriptions(),
-        _api.fetchCategories(),
+        _repo.fetchTransactions(),
+        _repo.fetchAccounts(),
+        _repo.fetchSubscriptions(),
+        _repo.fetchCategories(),
       ]);
 
       _transactions = results[0] as List<Transaction>;
@@ -114,7 +114,7 @@ class AppState extends ChangeNotifier {
       _categories = results[3] as Map<String, List<String>>;
       _status = LoadStatus.ready;
       _error = null;
-    } on ApiException catch (e) {
+    } on RepositoryException catch (e) {
       _error = e.message;
       _status = LoadStatus.failed;
     } catch (e) {
@@ -127,17 +127,42 @@ class AppState extends ChangeNotifier {
   /// Pull-to-refresh: keeps the current data on screen while it revalidates.
   Future<void> refresh() => loadAll(showSpinner: false);
 
+  /// Forget everything, on sign-out.
+  ///
+  /// Without this the next person to sign in on this device sees the previous
+  /// user's transactions until the first load returns. Brief, but separate
+  /// ledgers that leak for a second are not separate ledgers.
+  ///
+  /// _subscriptionsChecked is reset too: the catch-up is per session, and the
+  /// next user has their own recurring charges to settle.
+  void clear() {
+    _transactions = const [];
+    _accounts = const [];
+    _subscriptions = const [];
+    _categories = const {};
+    _status = LoadStatus.idle;
+    _error = null;
+    _subscriptionsChecked = false;
+    notifyListeners();
+  }
+
   Future<void> deleteTransaction(String id) async {
     final previous = _transactions;
-    // Optimistic, mirroring the Vue composable — and dropping the paired
-    // transfer leg too, which the backend also removes.
+    // Optimistic, and dropping the paired transfer leg too, which the
+    // repository also removes. Matching on the shared group rather than on the
+    // id means either half of a transfer can be the one deleted.
+    final group = _transactions
+        .where((t) => t.id == id)
+        .map((t) => t.transferGroupId)
+        .firstOrNull;
     _transactions = _transactions
-        .where((t) => t.id != id && t.transferRelatedId != id)
+        .where((t) =>
+            t.id != id && (group == null || t.transferGroupId != group))
         .toList(growable: false);
     notifyListeners();
 
     try {
-      await _api.deleteTransaction(id);
+      await _repo.deleteTransaction(id);
     } catch (_) {
       _transactions = previous;
       notifyListeners();

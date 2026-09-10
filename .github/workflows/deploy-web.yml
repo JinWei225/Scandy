@@ -1,0 +1,109 @@
+# Build the Flutter web app and ship it to Vercel.
+#
+# Vercel's build image has no Flutter toolchain, so the build happens here and
+# the finished directory is uploaded. See DEPLOYING.md for the reasoning and for
+# the five secrets this needs.
+
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    # Nothing outside the app changes what gets served, and a schema-only
+    # commit should not spend three minutes rebuilding an identical bundle.
+    paths:
+      - 'frontend_flutter/**'
+      - 'vercel.json'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  # A second push while the first is mid-deploy should win, not queue behind it.
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, not `channel: stable`. Unpinned, the toolchain moves under
+          # the build -- the runner picked up 3.47.3 the day after it shipped,
+          # while this project is on 3.47.2. Bump deliberately, in a commit.
+          flutter-version: 3.47.2
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # The goldens are excluded and are not run in CI at all -- see
+      # DEPLOYING.md for why they cannot pass on a machine that is not the one
+      # that recorded them.
+      - run: flutter test --exclude-tags golden
+
+  deploy:
+    # A deploy that fails its own tests should never reach anybody, and finding
+    # out afterwards means it already has.
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, not `channel: stable`. Unpinned, the toolchain moves under
+          # the build -- the runner picked up 3.47.3 the day after it shipped,
+          # while this project is on 3.47.2. Bump deliberately, in a commit.
+          flutter-version: 3.47.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_ANON_KEY is not set."
+            echo "Without them the app builds fine and then shows"
+            echo "'Scandy is not configured' to everyone who opens it."
+            exit 1
+          fi
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # Vercel's Build Output API, rather than uploading build/web and letting
+      # Vercel work out what it is. It guessed Flask -- the repository has a
+      # pyproject.toml and a backend/app.py, so the project was created with a
+      # Python preset, and every deploy then ran a Python pipeline no matter
+      # what was uploaded.
+      #
+      # .vercel/output is the "already built, just serve it" contract: no
+      # detection, no build step, no framework preset involved.
+      - name: Arrange the build output the way Vercel expects
+        working-directory: .
+        run: |
+          mkdir -p .vercel/output
+          cp vercel-output-config.json .vercel/output/config.json
+          cp -r frontend_flutter/build/web .vercel/output/static
+          echo "Files to be served:"
+          find .vercel/output/static -maxdepth 1 -mindepth 1 -printf '  %f\n' | sort
+
+      - name: Deploy
+        working-directory: .
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@latest deploy --prebuilt --prod --yes \
+            --token="${{ secrets.VERCEL_TOKEN }}"

@@ -214,7 +214,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
       if (_isEditing) {
         // PUT takes the same field names, plus to_account_id when the row is
         // (or becomes) a transfer. The backend rebuilds the pair from scratch.
-        await state.api.updateTransaction(widget.transaction!.id, {
+        await state.repo.updateTransaction(widget.transaction!.id, {
           'date': date,
           'time': time,
           'description': description.isEmpty && _isTransfer
@@ -231,7 +231,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
           if (_isTransfer) 'to_account_id': _toAccountId,
         });
       } else if (_isTransfer) {
-        await state.api.createTransfer({
+        await state.repo.createTransfer({
           'date': date,
           'time': time,
           'description': description.isEmpty ? 'Transfer' : description,
@@ -240,7 +240,7 @@ class _AddTransactionFormState extends State<_AddTransactionForm> {
           'to_account_id': _toAccountId,
         });
       } else {
-        await state.api.createManualTransaction({
+        await state.repo.createManualTransaction({
           'date': date,
           'time': time,
           'description': description,

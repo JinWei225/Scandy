@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../state/app_state.dart';
 import '../../state/theme_controller.dart';
@@ -9,11 +10,11 @@ import '../common/sheets.dart';
 import '../common/widgets.dart';
 import '../shell/bottom_nav.dart';
 
-/// "Settings" — appearance, categories, and where the backend lives.
+/// "Settings" — appearance, categories, and the account.
 ///
-/// The design covers Appearance and Categories. The server card is an addition:
-/// a Flutter binary has no origin to infer the API from, unlike the Vue build
-/// which was served alongside it.
+/// The design covers Appearance and Categories. The Account card is an
+/// addition: with more than one person using Scandy there has to be somewhere
+/// that says who you are and lets you leave.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, this.embedded = true});
 
@@ -37,7 +38,7 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 16),
         const _CategoriesSection(),
         const SizedBox(height: 16),
-        const ServerSection(),
+        const AccountSection(),
       ],
     );
   }
@@ -342,9 +343,9 @@ Future<void> editCategory(
           }
           try {
             if (existingName == null) {
-              await state.api.addCategory(type: type, name: value);
+              await state.repo.addCategory(type: type, name: value);
             } else {
-              await state.api.renameCategory(
+              await state.repo.renameCategory(
                   type: type, oldName: existingName, newName: value);
             }
             await state.refresh();
@@ -394,7 +395,7 @@ Future<void> deleteCategory(
   if (!confirmed || !context.mounted) return;
 
   try {
-    await state.api.deleteCategory(type: type, name: name);
+    await state.repo.deleteCategory(type: type, name: name);
     await state.refresh();
   } catch (e) {
     if (!context.mounted) return;
@@ -413,80 +414,177 @@ Future<void> deleteCategory(
   }
 }
 
-/// Where the backend lives. Public so the desktop page can show the same
-/// card — it is the one setting a Flutter build cannot infer for itself.
-class ServerSection extends StatefulWidget {
-  const ServerSection({super.key, this.bare = false});
+/// Who is signed in, and the way out.
+///
+/// Sits at the bottom of Settings deliberately: signing out is rare and
+/// destructive-feeling, and it should not share an edge with the controls
+/// people actually come here for.
+class AccountSection extends StatefulWidget {
+  const AccountSection({super.key, this.bare = false});
 
-  /// True on desktop, where the surrounding panel already supplies the card
-  /// and the heading, so this renders the form alone.
+  /// True on desktop, where the panel supplies the card and heading.
   final bool bare;
 
   @override
-  State<ServerSection> createState() => _ServerSectionState();
+  State<AccountSection> createState() => _AccountSectionState();
 }
 
-class _ServerSectionState extends State<ServerSection> {
-  late final TextEditingController _controller =
-      TextEditingController(text: context.read<AppState>().api.baseUrl);
-  bool _saving = false;
+class _AccountSectionState extends State<AccountSection> {
+  /// Written on both the auth user and the profile row.
+  ///
+  /// They are two records and both are read: the greeting comes from the
+  /// session's metadata, which is what is available before any query returns,
+  /// while profiles.display_name is what anything server-side would join on.
+  /// Updating one and not the other leaves the app disagreeing with itself.
+  Future<void> _rename(BuildContext context, String current) async {
+    final controller = TextEditingController(text: current);
+    // Declared outside the builder, like editCategory's: a StatefulBuilder
+    // re-runs the builder on every setState, so a message declared inside is
+    // cleared by the rebuild meant to show it.
+    String? error;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+    await showScandySheet<void>(
+      context: context,
+      title: 'Your name',
+      child: StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> submit() async {
+            final value = controller.text.trim();
+            if (value.isEmpty) {
+              setSheetState(() => error = 'Give yourself a name');
+              return;
+            }
+            final client = Supabase.instance.client;
+            try {
+              await client.auth
+                  .updateUser(UserAttributes(data: {'display_name': value}));
+              await client
+                  .from('profiles')
+                  .update({'display_name': value})
+                  .eq('id', client.auth.currentUser!.id);
+              if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+              if (mounted) setState(() {});
+            } catch (_) {
+              setSheetState(() => error = 'Could not save that name.');
+            }
+          }
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ScandyField(
+                label: 'Name',
+                controller: controller,
+                hint: 'What should we call you?',
+                autofocus: true,
+                errorText: error,
+              ),
+              const SizedBox(height: 20),
+              PrimaryButton(label: 'Save', onPressed: submit),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final state = context.read<AppState>();
-    await state.api.setBaseUrl(_controller.text);
-    await state.loadAll();
-    if (mounted) setState(() => _saving = false);
+  Future<void> _signOut(BuildContext context) async {
+    final confirmed = await confirmDestructive(
+      context: context,
+      title: 'Sign out?',
+      message: 'Your transactions stay in your account. You will need your '
+          'password to get back in.',
+      confirmLabel: 'Sign out',
+    );
+    if (!confirmed) return;
+
+    // AuthGate is listening for signedOut and swaps the app for the sign-in
+    // screen, so there is nothing to navigate to here.
+    await Supabase.instance.client.auth.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
-    final form = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final user = Supabase.instance.client.auth.currentUser;
+    final name = (user?.userMetadata?['display_name'] as String?)?.trim() ?? '';
+    final email = user?.email ?? '';
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ScandyField(
-          label: 'Address',
-          controller: _controller,
-          hint: 'http://100.x.y.z:5001',
-          keyboardType: TextInputType.url,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Use the Tailscale address of the machine running the backend '
-          'to reach it from anywhere. On the same Wi-Fi its LAN address '
-          'works too; on the Android emulator the host is 10.0.2.2. '
-          'Scanning a receipt works on the phone without this — only your '
-          'saved transactions need the server.',
-          style: ScandyText.sheetItemSubtitle.copyWith(color: c.textSecondary),
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: c.surfaceMuted,
+                borderRadius: BorderRadius.circular(ScandyRadius.tile),
+              ),
+              child: Icon(Icons.person_outline, size: 20, color: c.textTertiary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.isEmpty ? 'Add your name' : name,
+                    style: ScandyText.rowTitle.copyWith(
+                        color: name.isEmpty ? c.textSecondary : c.textPrimary),
+                  ),
+                  Text(
+                    email,
+                    style: ScandyText.sheetItemSubtitle
+                        .copyWith(color: c.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => _rename(context, name),
+              icon: Icon(Icons.edit_outlined, size: 18, color: c.iconMuted),
+              tooltip: 'Change your name',
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
-        PrimaryButton(
-          label: 'Save and reload',
-          busy: _saving,
-          onPressed: _save,
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => _signOut(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: c.negative,
+              side: BorderSide(color: c.border),
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(ScandyRadius.tile),
+              ),
+            ),
+            child: Text('Sign out', style: ScandyText.sheetItemTitle),
+          ),
         ),
       ],
     );
 
-    if (widget.bare) return form;
+    if (widget.bare) return body;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const GroupLabel('Server'),
+        const GroupLabel('Account'),
         const SizedBox(height: 9),
         ScandyCard(
           radius: ScandyRadius.list,
           padding: const EdgeInsets.all(16),
-          child: form,
+          child: body,
         ),
       ],
     );

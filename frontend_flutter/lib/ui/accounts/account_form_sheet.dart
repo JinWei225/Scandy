@@ -79,9 +79,9 @@ class _AccountFormState extends State<_AccountForm> {
 
     try {
       if (widget.account == null) {
-        await state.api.createAccount(body);
+        await state.repo.createAccount(body);
       } else {
-        await state.api.updateAccount(widget.account!.id, body);
+        await state.repo.updateAccount(widget.account!.id, body);
       }
       await state.refresh();
       if (mounted) Navigator.of(context).pop();
@@ -108,7 +108,7 @@ class _AccountFormState extends State<_AccountForm> {
     setState(() => _busy = true);
     final state = context.read<AppState>();
     try {
-      await state.api.deleteAccount(account.id);
+      await state.repo.deleteAccount(account.id);
       await state.refresh();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

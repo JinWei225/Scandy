@@ -21,14 +21,14 @@ class SettingsDesktop extends StatelessWidget {
       children: [
         DesktopHeader(
           title: 'Settings',
-          subtitle: 'Appearance, categories and your data',
+          subtitle: 'Appearance, categories and your account',
         ),
         SizedBox(height: desktopGap),
         _AppearancePanel(),
         SizedBox(height: desktopGap),
         _CategoriesPanel(),
         SizedBox(height: desktopGap),
-        _ServerPanel(),
+        _AccountPanel(),
       ],
     );
   }
@@ -225,20 +225,21 @@ class _CategoryColumn extends StatelessWidget {
   }
 }
 
-class _ServerPanel extends StatelessWidget {
-  const _ServerPanel();
+/// The desktop layout composes its own panels rather than reusing the phone
+/// screen, so a section added there does not appear here -- which is how the
+/// web build ended up with no way to sign out.
+class _AccountPanel extends StatelessWidget {
+  const _AccountPanel();
 
   @override
   Widget build(BuildContext context) {
     return const DesktopPanel(
-      title: 'Server',
+      title: 'Account',
       child: Padding(
         padding: EdgeInsets.fromLTRB(22, 18, 22, 20),
-        // The address form itself is shared with the phone — it is a form,
-        // and a form does not change shape with the window.
         child: Align(
           alignment: Alignment.centerLeft,
-          child: SizedBox(width: 520, child: ServerSection(bare: true)),
+          child: SizedBox(width: 520, child: AccountSection(bare: true)),
         ),
       ),
     );
