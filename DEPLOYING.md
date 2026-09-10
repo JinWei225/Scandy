@@ -11,12 +11,33 @@ fix. Building in Actions and shipping the finished directory keeps deploys to
 seconds and makes them reproducible off any machine, including when the Mac mini
 is switched off -- which is the point of the whole migration.
 
-## Two settings that are not obvious
+## Why the deploy is `--prebuilt`
 
-**The SPA rewrite.** Every path serves `index.html`, because the app routes
-client-side and a refresh on any route would otherwise 404. Vercel applies
-rewrites *after* checking the filesystem, so real files still win and this
-catch-all only sees paths that do not exist.
+Uploading the built directory and letting Vercel work out what it is does not
+work here: it guessed Flask. This repository has a `pyproject.toml` and a
+`backend/app.py`, so the project was created with a Python preset, and every
+deploy then ran a Python pipeline regardless of what was uploaded --
+
+    Error: No Flask entrypoint found.
+
+`.vercel/output` is Vercel's Build Output API, the "already built, just serve
+it" contract. No detection, no build step, no framework preset involved. The
+workflow assembles it:
+
+    .vercel/output/config.json     <- vercel-output-config.json
+    .vercel/output/static/         <- frontend_flutter/build/web
+
+## Two routing decisions that are not obvious
+
+Both live in `vercel-output-config.json`.
+
+**The SPA fallback.** The route table is: apply headers and continue, then
+`handle: filesystem`, then send anything still unmatched to `index.html`. The
+filesystem stage is what stops the catch-all swallowing `main.dart.js` --
+verified against the real build output, along with canvaskit, the bootstrap and
+the favicon, while `/settings` and `/some/deep/route` correctly fall through.
+The app routes client-side, so without that fallback a refresh on any route
+404s.
 
 **`Cache-Control: no-cache` on everything.** Flutter emits one large
 `main.dart.js` under a fixed name, so a cached copy survives a redeploy and the
@@ -109,5 +130,8 @@ Rarely needed, but there is no CI dependency in the app itself:
     flutter build web --release \
       --dart-define=SUPABASE_URL=... \
       --dart-define=SUPABASE_ANON_KEY=...
-    cp ../vercel.json build/web/
-    npx vercel deploy build/web --prod --token=...
+    cd ..
+    mkdir -p .vercel/output
+    cp vercel-output-config.json .vercel/output/config.json
+    cp -r frontend_flutter/build/web .vercel/output/static
+    npx vercel deploy --prebuilt --prod --token=...

@@ -86,15 +86,28 @@ jobs:
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
-      # vercel.json has to sit at the root of what is deployed, and what is
-      # deployed is build/web.
-      - name: Add the Vercel config to the output
-        run: cp ../vercel.json build/web/vercel.json
+      # Vercel's Build Output API, rather than uploading build/web and letting
+      # Vercel work out what it is. It guessed Flask -- the repository has a
+      # pyproject.toml and a backend/app.py, so the project was created with a
+      # Python preset, and every deploy then ran a Python pipeline no matter
+      # what was uploaded.
+      #
+      # .vercel/output is the "already built, just serve it" contract: no
+      # detection, no build step, no framework preset involved.
+      - name: Arrange the build output the way Vercel expects
+        working-directory: .
+        run: |
+          mkdir -p .vercel/output
+          cp vercel-output-config.json .vercel/output/config.json
+          cp -r frontend_flutter/build/web .vercel/output/static
+          echo "Files to be served:"
+          find .vercel/output/static -maxdepth 1 -mindepth 1 -printf '  %f\n' | sort
 
       - name: Deploy
+        working-directory: .
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          npx --yes vercel@latest deploy build/web \
-            --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
+          npx --yes vercel@latest deploy --prebuilt --prod --yes \
+            --token="${{ secrets.VERCEL_TOKEN }}"
