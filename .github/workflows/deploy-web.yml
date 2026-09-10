@@ -27,7 +27,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # Everything except the goldens, which cannot pass here -- see below.
+      - run: flutter test --exclude-tags golden
+
+  goldens:
+    # macOS because matchesGoldenFile compares pixels, and text rasterises
+    # differently on macOS and Linux. These goldens were recorded on a Mac, so
+    # Ubuntu fails them every time regardless of whether anything changed.
+    # macOS runners are free on a public repository.
+    #
+    # Deliberately not a dependency of deploy: a golden diff means "the UI
+    # changed, go and look", which is a red check worth seeing, not a reason to
+    # block a release that passes every behavioural test.
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test --tags golden
+      - name: Upload the rendered difference
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: frontend_flutter/test/failures/
+          if-no-files-found: ignore
+
   deploy:
+    # A deploy that fails its own tests should never reach anybody, and finding
+    # out afterwards means it already has.
+    needs: test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,14 +91,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      # Before the build, not after: a deploy that fails its own tests should
-      # never reach anybody, and finding out afterwards means it already has.
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
 
       - name: Build
         env:

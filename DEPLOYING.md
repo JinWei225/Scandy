@@ -26,6 +26,25 @@ revalidates on every load, but an unchanged file comes back as a 304 rather than
 re-downloading 3 MB. Correctness with the round trip made cheap, instead of
 correctness paid for in bandwidth.
 
+## Why the golden tests run on their own machine
+
+`matchesGoldenFile` compares actual pixels. The same font at the same size
+rasterises differently on macOS and Linux -- sub-pixel differences, invisible
+to a person, fatal to a byte comparison. A golden recorded on one platform will
+never match the other, which is why Flutter's own repository pins its goldens to
+a single platform.
+
+These were recorded on a Mac, so they are checked on `macos-latest`, which is
+free on a public repository. The `deploy` job deliberately does not wait for
+them: a golden diff means "the UI changed, go and look", which is worth a red
+check but is not a reason to block a release that passed every behavioural test.
+
+When a golden does fail, the run uploads a `golden-failures` artifact with the
+expected, actual and difference images. If the change was intended, re-record
+locally and commit the new PNGs:
+
+    cd frontend_flutter && flutter test --tags golden --update-goldens
+
 ## First-time setup
 
 1. Create a Vercel project. It does not need to be connected to the repository

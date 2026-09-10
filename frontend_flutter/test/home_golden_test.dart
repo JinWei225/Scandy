@@ -1,3 +1,13 @@
+// Tagged so CI can run this separately from everything else.
+//
+// matchesGoldenFile compares actual pixels, and text rasterises differently on
+// macOS and Linux -- sub-pixel differences in the same font, at the same size.
+// A golden recorded on one will never match the other, which is why Flutter's
+// own repository pins its goldens to a single platform. These were recorded on
+// macOS, so they are checked on macOS.
+@Tags(['golden'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
