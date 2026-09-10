@@ -1,3 +1,24 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+// Release signing material. key.properties and the keystore itself are both
+// gitignored (see android/.gitignore) so the password never reaches the repo;
+// keep the .jks outside the project directory and backed up somewhere durable.
+// Losing it means no future build can update an already-installed copy of the
+// app, because Android refuses a signature change on upgrade.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasKeystore = keystorePropertiesFile.exists()
+val keystoreProperties = Properties().apply {
+    if (hasKeystore) FileInputStream(keystorePropertiesFile).use { load(it) }
+}
+if (!hasKeystore) {
+    logger.warn(
+        "\n*** android/key.properties not found - release builds will be signed " +
+        "with DEBUG keys. An APK signed this way cannot be updated later from a " +
+        "machine with a different debug keystore. See deployment notes. ***\n"
+    )
+}
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,11 +50,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Only declared when the properties file is present, so a checkout
+        // without the keystore still configures instead of failing outright.
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // The real key when it is available, debug otherwise so that
+            // `flutter run --release` still works on a fresh clone. The warning
+            // above is what stops that fallback from being silent.
+            signingConfig = signingConfigs.getByName(if (hasKeystore) "release" else "debug")
             // proguard-rules.pro explains why: ML Kit's other script models are
             // referenced by the plugin but deliberately not bundled.
             proguardFiles(

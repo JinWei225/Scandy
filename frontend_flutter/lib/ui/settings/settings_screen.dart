@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../state/app_state.dart';
 import '../../state/theme_controller.dart';
@@ -38,6 +39,8 @@ class SettingsScreen extends StatelessWidget {
         const _CategoriesSection(),
         const SizedBox(height: 16),
         const ServerSection(),
+        const SizedBox(height: 16),
+        const AccountSection(),
       ],
     );
   }
@@ -487,6 +490,112 @@ class _ServerSectionState extends State<ServerSection> {
           radius: ScandyRadius.list,
           padding: const EdgeInsets.all(16),
           child: form,
+        ),
+      ],
+    );
+  }
+}
+
+
+/// Who is signed in, and the way out.
+///
+/// Sits at the bottom of Settings deliberately: signing out is rare and
+/// destructive-feeling, and it should not share an edge with the controls
+/// people actually come here for.
+class AccountSection extends StatelessWidget {
+  const AccountSection({super.key, this.bare = false});
+
+  /// True on desktop, where the panel supplies the card and heading.
+  final bool bare;
+
+  Future<void> _signOut(BuildContext context) async {
+    final confirmed = await confirmDestructive(
+      context: context,
+      title: 'Sign out?',
+      message: 'Your transactions stay in your account. You will need your '
+          'password to get back in.',
+      confirmLabel: 'Sign out',
+    );
+    if (!confirmed) return;
+
+    // AuthGate is listening for signedOut and swaps the app for the sign-in
+    // screen, so there is nothing to navigate to here.
+    await Supabase.instance.client.auth.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.scandy;
+    final user = Supabase.instance.client.auth.currentUser;
+    final name = (user?.userMetadata?['display_name'] as String?)?.trim();
+    final email = user?.email ?? '';
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: c.surfaceMuted,
+                borderRadius: BorderRadius.circular(ScandyRadius.tile),
+              ),
+              child: Icon(Icons.person_outline, size: 20, color: c.textTertiary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (name != null && name.isNotEmpty)
+                    Text(name,
+                        style: ScandyText.rowTitle
+                            .copyWith(color: c.textPrimary)),
+                  Text(
+                    email,
+                    style: ScandyText.sheetItemSubtitle
+                        .copyWith(color: c.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => _signOut(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: c.negative,
+              side: BorderSide(color: c.border),
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(ScandyRadius.tile),
+              ),
+            ),
+            child: Text('Sign out', style: ScandyText.sheetItemTitle),
+          ),
+        ),
+      ],
+    );
+
+    if (bare) return body;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const GroupLabel('Account'),
+        const SizedBox(height: 9),
+        ScandyCard(
+          radius: ScandyRadius.list,
+          padding: const EdgeInsets.all(16),
+          child: body,
         ),
       ],
     );

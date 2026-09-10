@@ -59,7 +59,7 @@ class ApiClient {
   ///
   /// On the web the page's own host is the better guess than `localhost`: the
   /// app is served from the same machine as the backend, so opening it at
-  /// `100.x.y.z:8088` should talk to `100.x.y.z:5001`, not to whatever happens
+  /// `100.x.y.z:8081` should talk to `100.x.y.z:5001`, not to whatever happens
   /// to be on the viewer's own loopback.
   ///
   /// `defaultTargetPlatform` rather than `dart:io`'s `Platform`, so this file

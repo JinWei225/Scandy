@@ -127,6 +127,25 @@ class AppState extends ChangeNotifier {
   /// Pull-to-refresh: keeps the current data on screen while it revalidates.
   Future<void> refresh() => loadAll(showSpinner: false);
 
+  /// Forget everything, on sign-out.
+  ///
+  /// Without this the next person to sign in on this device sees the previous
+  /// user's transactions until the first load returns. Brief, but separate
+  /// ledgers that leak for a second are not separate ledgers.
+  ///
+  /// _subscriptionsChecked is reset too: the catch-up is per session, and the
+  /// next user has their own recurring charges to settle.
+  void clear() {
+    _transactions = const [];
+    _accounts = const [];
+    _subscriptions = const [];
+    _categories = const {};
+    _status = LoadStatus.idle;
+    _error = null;
+    _subscriptionsChecked = false;
+    notifyListeners();
+  }
+
   Future<void> deleteTransaction(String id) async {
     final previous = _transactions;
     // Optimistic, mirroring the Vue composable — and dropping the paired

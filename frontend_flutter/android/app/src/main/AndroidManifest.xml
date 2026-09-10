@@ -48,6 +48,23 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="image/*"/>
             </intent-filter>
+
+            <!-- Password reset and email confirmation. Supabase sends a link
+                 that ends up redirecting to this scheme; without the filter it
+                 opens a browser tab, which cannot complete the reset because
+                 the recovery session belongs to the app, not the browser.
+
+                 The scheme must match the redirectTo passed to
+                 resetPasswordForEmail() in Dart, and must be listed under
+                 Supabase > Authentication > URL Configuration > Redirect URLs.
+                 launchMode="singleTop" above is what keeps this from opening a
+                 second copy of the app on top of the running one. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.jinwei.scandy" android:host="login-callback"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

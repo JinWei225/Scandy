@@ -29,6 +29,8 @@ class SettingsDesktop extends StatelessWidget {
         _CategoriesPanel(),
         SizedBox(height: desktopGap),
         _ServerPanel(),
+        SizedBox(height: desktopGap),
+        _AccountPanel(),
       ],
     );
   }
@@ -239,6 +241,27 @@ class _ServerPanel extends StatelessWidget {
         child: Align(
           alignment: Alignment.centerLeft,
           child: SizedBox(width: 520, child: ServerSection(bare: true)),
+        ),
+      ),
+    );
+  }
+}
+
+/// The desktop layout composes its own panels rather than reusing the phone
+/// screen, so a section added there does not appear here -- which is how the
+/// web build ended up with no way to sign out.
+class _AccountPanel extends StatelessWidget {
+  const _AccountPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DesktopPanel(
+      title: 'Account',
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(22, 18, 22, 20),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(width: 520, child: AccountSection(bare: true)),
         ),
       ),
     );

@@ -1,18 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/api_client.dart';
 import 'services/share_intent_service.dart';
+import 'services/supabase_config.dart';
 import 'state/app_state.dart';
 import 'state/theme_controller.dart';
 import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
+import 'ui/auth/auth_gate.dart';
 import 'ui/settings/settings_screen.dart';
-import 'ui/shell/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Before anything reads Supabase.instance. This also restores a saved
+  // session from disk, which is why the app opens straight to the ledger
+  // rather than asking for a password every launch.
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      // publishableKey, not the deprecated anonKey: the SDK collapses both to
+      // the same value, so a legacy anon JWT works here unchanged.
+      publishableKey: SupabaseConfig.anonKey,
+    );
+  }
 
   final api = ApiClient();
   await api.loadBaseUrl();
@@ -43,7 +57,7 @@ class ScandyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: theme),
-        ChangeNotifierProvider(create: (_) => AppState(api)..loadAll()),
+        ChangeNotifierProvider(create: (_) => AppState(api)),
       ],
       child: Consumer<ThemeController>(
         builder: (context, theme, _) => MaterialApp(
@@ -58,7 +72,10 @@ class ScandyApp extends StatelessWidget {
                 ),
           },
           builder: (context, child) => _SystemBars(child: child!),
-          home: AppShell(shareIntent: shareIntent),
+          home: SupabaseConfig.isConfigured
+              ? AuthGate(shareIntent: shareIntent)
+              : const MissingConfigScreen(
+                  message: SupabaseConfig.missingMessage),
         ),
       ),
     );
