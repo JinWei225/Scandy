@@ -1,18 +1,20 @@
-/// Reading a receipt on the device, without the server.
+/// Reading a receipt on the device, without the network.
 ///
 /// ML Kit recognises the text and [extractFields] reads the fields out of it.
 /// Both halves are on-device, so a scan works with no network at all — which is
 /// the point: the share-to-Scandy path used to sit waiting for Tailscale before
 /// it could do anything.
 ///
-/// The server is still the fallback. It runs the same rules plus a 0.5B
-/// extraction model for anything they miss, so when it is reachable its answer
-/// supersedes a partial local one; when it is not, a partial local answer still
-/// beats failing the scan outright.
+/// The cloud path is the fallback: the `scan-receipt` Edge Function, which asks
+/// Gemini. It is reached only when the rules left a field empty, and its answer
+/// then supersedes the partial local one; when it cannot be reached, a partial
+/// local answer still beats failing the scan outright. That orchestration lives
+/// in `_ScanJob` in ui/shell/app_shell.dart, the call itself in
+/// receipt_scanner.dart.
 ///
 /// ML Kit is Android and iOS only. The implementation is selected by conditional
 /// import so the web build, which has no ML Kit, still compiles — there
-/// [LocalScanner.isAvailable] is false and scanning goes straight to the server.
+/// [LocalScanner.isAvailable] is false and every scan takes the cloud path.
 library;
 
 import 'package:cross_file/cross_file.dart';

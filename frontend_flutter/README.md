@@ -1,14 +1,16 @@
 # Scandy — Flutter client
 
 The Scandy user interface: one Flutter codebase serving the Android app and the
-web UI. It talks to the Flask backend in `../backend` over HTTP and holds no
-data of its own.
+web UI. It talks to Supabase directly — Postgres through `supabase_flutter`,
+plus one Edge Function — and holds no data of its own.
 
-This replaced a Vue 3 + Capacitor frontend. The API did not change with it —
-every figure the redesign introduced is derived here, on the client.
+This replaced a Vue 3 + Capacitor frontend, and later a Flask API on the LAN.
+Every figure the redesign introduced is still derived here, on the client.
 
-Setup, self-hosting and deployment live in the [root README](../README.md).
-This file is about working on the app itself.
+Building and configuring it lives in the [root README](../README.md); the
+schema and the policies in [supabase/README.md](../supabase/README.md); the
+deploy in [DEPLOYING.md](../DEPLOYING.md). This file is about working on the
+app itself.
 
 ---
 
@@ -30,57 +32,83 @@ across the breakpoint.
 
 ## Running it
 
+Every `run` and `build` needs the two Supabase defines — see
+[Where the data lives](#where-the-data-lives).
+
 ```bash
 flutter pub get
 
-flutter run -d chrome          # web, hot reload
-flutter run -d <device-id>     # a connected Android phone (flutter devices)
+flutter run -d chrome \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
+
+# A connected Android phone (flutter devices) — same two defines
+flutter run -d <device-id> --dart-define=... --dart-define=...
 ```
 
-Built with Flutter 3.47 / Dart 3.13.
+Built with Flutter 3.47 / Dart 3.13. CI pins 3.47.2, and
+[DEPLOYING.md](../DEPLOYING.md) explains why.
 
 ## Building
 
 ```bash
 # Web — output in build/web
-flutter build web --release --pwa-strategy=none
+flutter build web --release --pwa-strategy=none \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
 
-# Android
-flutter build apk --release
+# Android — also needs android/key.properties (see key.properties.example)
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
 ```
 
 `--pwa-strategy=none` is deliberate. The generated service worker caches the
 whole app per origin and keeps serving it after a rebuild, so a redeploy looks
-like it did nothing until the browser decides to update. For the same reason
-both nginx configs in this repo send `Cache-Control: no-store`: `main.dart.js`
-keeps its name across builds, so a cached copy otherwise outlives a deploy.
+like it did nothing until the browser decides to update. `main.dart.js` keeps
+its name across builds for the same reason, which is why the Vercel deploy
+sends `Cache-Control: no-cache` over the whole output — see
+[DEPLOYING.md](../DEPLOYING.md).
 
-## Where the API lives
+## Where the data lives
 
-A Flutter binary has no origin to infer the backend from, so the address is
-explicit and editable in **Settings → Server**. `ApiClient.defaultBaseUrl` is
-only the first-run guess:
+There is no address to configure at runtime and no **Settings → Server** any
+more. `SUPABASE_URL` and `SUPABASE_ANON_KEY` are compile-time constants read by
+`lib/services/supabase_config.dart`, and a build without them opens on
+"Scandy is not configured" instead of the app — there is nothing to type in to
+fix it. The [root README](../README.md#where-the-data-lives) says where the two
+values come from.
 
-| Platform | Guess |
-|---|---|
-| Web | The page's own host, port 5001 — serve the app from the backend's machine and it just works |
-| Android emulator | `http://10.0.2.2:5001` (the host machine) |
-| Everything else | `http://localhost:5001` |
+`lib/services/scandy_repository.dart` is the data layer — every query and the
+three RPCs (`create_transfer`, `rename_category`, `record_due_subscriptions`).
+Nothing in it passes a user id: the policies derive that from the caller's
+token, so a query cannot be pointed at somebody else's rows even by mistake.
 
-A physical phone needs the machine's Tailscale or LAN address. A saved address
-always wins, and it is stored per platform — on the web, per origin.
+Auth is the exception to that funnelling. `ui/auth/` and the account card in
+Settings call `Supabase.instance.client.auth` directly — sign in, sign up,
+password reset, display name, sign out — with `services/auth_errors.dart` as
+the one place Supabase's developer-facing messages become a sentence worth
+showing someone, in the reader's language.
 
 ## Layout of `lib/`
 
 ```
-main.dart              Providers, theme, the /settings route
-models/                Wire types and the derived figures
-services/api_client.dart      Every endpoint, plus the base-URL preference
+main.dart              Supabase.initialize, providers, theme, the /settings route
+l10n/*.arb             Every string, English and Simplified Chinese
+models/                Row types and the derived figures
+services/supabase_config.dart   The two --dart-defines
+services/scandy_repository.dart Every query, RPC and auth call
+services/auth_errors.dart       Supabase's error strings, turned into sentences
+services/local_scanner*.dart    ML Kit on the phone; a stub on the web
+services/receipt_rules.dart     Fields out of recognised text
+services/receipt_scanner.dart   The scan-receipt Edge Function fallback
 services/share_intent_service.dart
 state/app_state.dart          Transactions, accounts, subscriptions, categories
 state/theme_controller.dart   Light/dark/system, persisted
+state/locale_controller.dart  English/Chinese/follow the phone, persisted
 theme/tokens.dart      Colours and radii as a ThemeExtension
 theme/app_theme.dart   The type scale — ScandyText (phone), ScandyDesktopText
+ui/auth/               AuthGate and the sign-in, sign-up and reset screens
 ui/shell/              AppShell, bottom nav, the add sheet
 ui/desktop/            Sidebar and the desktop composition of every screen
 ui/home|summary|accounts|recurring|settings/   The phone compositions
@@ -96,21 +124,35 @@ the former.
 
 ## Things worth knowing before you edit
 
-**Money is integer cents.** The backend stores cents in a TEXT column and
-serialises both `amount_cents` (int) and `amount` (a pre-formatted `"RM 12.34"`
-string). All arithmetic goes through `Transaction.amountCents`; summing the
-display string would be lossy.
+**Money is integer cents.** `transactions.amount_cents` is a `bigint`, always
+positive; the direction lives in `type`, and a check constraint enforces the
+pair. `Transaction.fromRow` signs it on the way in, so all arithmetic goes
+through `Transaction.amountCents` and formatting stays on the screen. There is
+no pre-formatted amount on the wire — a display string cannot be summed without
+losing money.
 
-**Dates arrive as DD/MM/YYYY** and are parsed at the model boundary.
+**Dates arrive as ISO.** `occurred_on` is a `date` and `occurred_at` a `time`,
+parsed at the model boundary; only `HH:MM` is ever shown. (The doc comment on
+`Transaction.date` still says DD/MM/YYYY — it predates the migration and the
+code below it does not.)
 
-**Transfers are two real rows**, one income and one expense. They are excluded
-from every spending and income figure (`MonthSummary`, `MonthStats`) or they
-would double-count money moving between your own accounts. They are *not*
-excluded from an account's transaction count, where both legs are real.
+**Transfers are two real rows**, one income and one expense, sharing a
+`transfer_group_id`. They are excluded from every spending and income figure
+(`MonthSummary`, `MonthStats`) or they would double-count money moving between
+your own accounts. They are *not* excluded from an account's transaction count,
+where both legs are real. Creating one is an RPC, not two inserts, so a half-made
+transfer is not possible.
 
-**The scan endpoint fails in-band.** `POST /api/upload` returns HTTP 200 with an
-`error` key when it cannot read a receipt, so the success path has to check for
-it. It also only extracts — nothing is saved until the form is submitted.
+**Scanning has two paths, and the cloud one is capped.** On a phone, ML Kit plus
+`receipt_rules.dart` answer offline in well under a second. On the web, and when
+a phone read comes back missing a field, `receipt_scanner.dart` invokes the
+`scan-receipt` Edge Function, which is rate limited per person per day and
+reports failure as a `FunctionException` carrying a sentence written for the
+user. Either path only extracts — nothing is saved until the form is submitted.
+
+**Everything is behind `AuthGate`.** It owns the session, so a screen can assume
+there is a signed-in user; row level security assumes it too, and a query that
+somehow runs signed-out returns nothing rather than everything.
 
 ## Share intent
 
@@ -132,14 +174,21 @@ flutter test
 ```
 
 `month_summary_test.dart` pins the safe-to-spend arithmetic, including the
-transfer exclusion. `home_golden_test.dart` renders Home in both themes against
-a `MockClient` reproducing the design's own figures, so the goldens are the
-check that the redesign's numbers still come out right — dates are injected
-rather than read from the clock, or "24 days left" would break at midnight.
+transfer exclusion. `home_golden_test.dart` renders Home in both themes from
+model fixtures reproducing the design's own figures — there is no HTTP left to
+mock, so the fixture is the data itself — and dates are injected rather than
+read from the clock, or "24 days left" would break at midnight.
 `test/flutter_test_config.dart` registers the bundled fonts so the goldens show
 real type instead of Ahem boxes.
 
-The other screens have no golden coverage yet.
+The goldens are tagged, and CI runs `flutter test --exclude-tags golden`
+because pixels differ across platforms and Flutter versions; run the full suite
+locally before pushing a UI change. [DEPLOYING.md](../DEPLOYING.md) has the
+reasoning and the `--update-goldens` command.
+
+`integration_test/` holds the on-device check, which needs a real phone —
+that is the only place ML Kit actually exists. The other screens have no golden
+coverage yet.
 
 ## Icons
 
@@ -164,7 +213,12 @@ the system face and changes every metric the design specifies.
 
 ## Known constraint
 
-Cleartext HTTP is permitted app-wide (`android/app/src/main/res/xml/network_security_config.xml`)
-because the backend is self-hosted over plain HTTP. Android matches host *names*,
-not CIDR ranges, so scoping this to private addresses is not expressible. Put
-the backend behind HTTPS before exposing it beyond a trusted network.
+Cleartext HTTP is still permitted app-wide
+(`android/app/src/main/res/xml/network_security_config.xml`). It was there
+because the backend was self-hosted over plain HTTP at an address that could not
+be expressed as a rule — Android matches host *names*, not CIDR ranges.
+
+Nothing needs it now: the app talks to Supabase over HTTPS and there is no LAN
+backend left to reach. The file should be deleted along with the
+`android:networkSecurityConfig` attribute in `AndroidManifest.xml`, which is
+what its own comment says to do once the backend moves off the LAN.

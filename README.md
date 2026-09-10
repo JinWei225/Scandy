@@ -1,320 +1,114 @@
 # 🧾 Scandy
 
-Scandy is a sleek, modern, full-stack receipt scanner and personal transaction manager. Built to be local-first, it reads receipt images entirely on your own machine — **Apple Vision OCR plus a small extraction model** natively on macOS, or a **vision model on Ollama** anywhere else — to extract transaction details and categorize them. No data leaves your machine.
+Scandy is a receipt scanner and personal transaction manager. Photograph a
+receipt — or share one into the app — and it reads the date, time and total
+**on the phone itself**, with ML Kit, usually in well under a second and with no
+network at all. You confirm the fields, and it files the transaction.
 
-Want to self-host it? [**Jump to the Docker setup →**](#-docker-self-hosting)
+The interface is a Flutter app: one codebase for Android and the web, light and
+dark themes, English and Simplified Chinese. On a phone it uses a bottom
+navigation bar; on a desktop-width window it switches to a sidebar with wider,
+table-based layouts.
 
-The interface is a Flutter app — one codebase for Android and the web, with light and dark themes — to manage transactions, review category-wise expenses, manage recurring subscriptions, and monitor account balances. On a phone it uses a bottom navigation bar; on a desktop-width window it switches to a sidebar with wider, table-based layouts.
+The ledger lives in **Supabase**. There is no application server: the app talks
+to Postgres directly, and row level security is what separates one person's
+money from another's — so several people can share one deployment without ever
+seeing each other's transactions.
+
+| If you want | Read |
+| --- | --- |
+| To build and run the app | [Setup](#-setup) below |
+| The schema, the policies, the Edge Function, adding a user | [supabase/README.md](supabase/README.md) |
+| How the web app is built and shipped | [DEPLOYING.md](DEPLOYING.md) |
 
 ---
 
 ## ✨ Features
 
-- **Local AI OCR Receipt Scanning:** Upload receipt images (`.jpg`, `.png`, etc.) to automatically extract:
-  - Transaction Date & Time
-  - Total Amount
+- **On-device receipt scanning:** ML Kit reads the image and the rules in
+  `receipt_rules.dart` pick out the transaction date, time and total — offline,
+  and free. Anything they cannot read, and the web build, which has no ML Kit,
+  falls back to the `scan-receipt` Edge Function, which asks Gemini. Either way
+  the values are shown for confirmation before saving, so a partial reading is
+  never a failed scan.
 - **Manual Transaction Logging:** Quickly log expenses with custom details, accounts, and types (expense vs. income).
 - **Account Transfers:** Move money between accounts as a paired transaction.
 - **Category-Wise Summaries:** Monthly breakdowns per category, with a drill-down into the transactions behind each one.
 - **Custom Categories:** Add, rename, and delete expense/income categories from Settings. Renames cascade to existing transactions and subscriptions.
-- **Subscription Tracker:** Track recurring subscriptions with monthly cost summaries. Charges due in the current month are recorded automatically on app start.
+- **Subscription Tracker:** Track recurring subscriptions with monthly cost
+  summaries. Charges due in the current month are recorded on app start by
+  `record_due_subscriptions()` in the database rather than by the client, so two
+  devices opening at once cannot record the same charge twice.
 - **Multi-Account Balance Management:** Monitor balances across multiple accounts (e.g., Cash, Credit Cards, Bank Accounts), with a per-account transaction history.
-- **Search:** Full-text search across logged transactions.
-- **Light & Dark Themes:** Toggle from Settings; the choice is persisted.
-- **Navigation Bar:** Top navigation on desktop, bottom navigation bar on mobile.
-- **Capacitor Mobile Wrapper:** Built-in Android configuration, including share-to-Scandy support so a receipt image can be shared from any app straight into the transaction form.
+- **Search:** Every term must match somewhere in the transaction — description, category, account or amount.
+- **More than one person:** Everyone signs in, and row level security keeps the
+  ledgers apart. Sign-up is closed to an allowlist — see *Adding someone* in
+  [supabase/README.md](supabase/README.md).
+- **Light & dark themes, English & 简体中文:** both chosen in Settings, both persisted.
+- **Share-to-Scandy:** a receipt image shared from any Android app opens straight in the transaction form.
 
 ---
 
 ## 🛠️ Technology Stack
 
-### Backend
-- **Python / Flask:** Web API server
-- **Pluggable local OCR engine** (no remote API keys required!), selected with `OCR_BACKEND`:
-  - `vision` *(default)* — **Apple Vision** reads the text and deterministic parsing picks out the fields, with **NuExtract-1.5-tiny** (0.5B, Q4, via `llama.cpp`) as a fallback for anything they miss. macOS only
-  - `ollama` — a vision model on an **Ollama** server, used by the Docker stack so it runs on any platform
-- **SQLite:** Local-first relational database storage for transactions
-- **JSON files:** Accounts, subscriptions, and categories (`backend/accounts.json`, `subscriptions.json`, `categories.json`)
-- **Waitress:** Production-ready multi-threaded WSGI server
-- **Pillow:** Image preprocessing
+### The app
 
-### Frontend
 - **Flutter (Dart):** One codebase for Android and the web (`frontend_flutter/`)
 - **Material 3 + design tokens:** A `ThemeExtension` carrying the palette, radii and type scale, with light/dark theming
 - **Provider:** App state — transactions, accounts, subscriptions, categories
+- **`supabase_flutter`:** Auth, Postgres and Edge Function calls
+- **`google_mlkit_text_recognition`:** On-device OCR on the phone build; the web build has none, selected by conditional import
+- **Flutter `gen-l10n`:** Every string in `lib/l10n/*.arb`, English and Simplified Chinese
 - **Plus Jakarta Sans:** Bundled, not fetched, so the app renders identically offline
-- **Share intent:** Receipts shared from another app open straight in the scanner
+
+### The backend
+
+There is no server to run — it is a Supabase project:
+
+- **Postgres:** the source of truth, and the security boundary
+- **Row level security:** every table, `using` *and* `with check`, tested in `supabase/tests/`
+- **Supabase Auth:** email and password, with sign-up restricted to an allowlist table
+- **One Edge Function:** `scan-receipt` (Deno), which holds the Gemini API key and caps each person at 30 cloud scans a day
+
+[supabase/README.md](supabase/README.md) documents all of it, including the
+parts that will bite you if you change them.
+
+### Hosting
+
+The web build is static files: GitHub Actions builds them and Vercel serves
+them. See [DEPLOYING.md](DEPLOYING.md).
 
 ---
 
-## 🚀 Setup & Installation
-
-There are two ways to run Scandy — pick one:
-
-| | [🐳 Docker](#-docker-self-hosting) | [💻 Native](#-native-setup-macos) |
-| --- | --- | --- |
-| **Platform** | Linux, Windows, macOS (any CPU) | macOS only |
-| **Setup** | One command | Python + Flutter + nginx by hand |
-| **OCR engine** | Vision model on Ollama (containerized) | Apple Vision + rules |
-| **Scan speed** | 5–9 s | ~80 ms |
-| **Memory held** | ~1 GB in the Ollama container | ~71 MB |
-| **Best for** | Self-hosting on your own machine | Self-hosting on a Mac you also use for other things |
-
----
-
-## 🐳 Docker (Self-Hosting)
-
-The easiest way to run Scandy on your own machine. Everything — web app, API, and the
-vision model that reads receipts — runs in containers, so there is nothing to install
-besides Docker.
-
-> **Why a different OCR engine?** The native setup reads text with Apple's Vision
-> framework, which is part of macOS and cannot run inside a Linux container. The
-> Docker stack uses [Ollama](https://ollama.com/) instead, which runs anywhere. It
-> asks `qwen3.5:0.8b` to read the image directly, and returns the same fields in the
-> same format.
+## 🚀 Setup
 
 ### Prerequisites
-- **[Docker](https://docs.docker.com/get-docker/)** with Compose v2 (included in Docker Desktop)
-- **Disk space:** ~1.3 GB if you already run Ollama, or ~5.5 GB with the bundled one
-  (Ollama runtime image ≈4.2 GB, model ≈1 GB, Scandy images ≈240 MB)
-- 4 GB RAM recommended
 
-### Quick Start
+- **[Flutter](https://docs.flutter.dev/get-started/install)** — 3.47.2 is what CI builds with, pinned deliberately (see [DEPLOYING.md](DEPLOYING.md))
+- **A [Supabase](https://supabase.com/) project** — the free tier is enough
+- **[Supabase CLI](https://supabase.com/docs/guides/local-development)** — to apply the migrations
+- **Android Studio** — only if you are building the Android app
 
 ```bash
 git clone https://github.com/JinWei225/Scandy.git
 cd Scandy
-cp .env.example .env
-docker compose up -d
-```
-
-Then open **http://localhost:8080**.
-
-The app is usable straight away with an empty database and a default set of
-categories. In the background, the `ollama-pull` service downloads the ~1 GB model —
-until it finishes, manual transaction entry works normally and receipt scanning returns
-a "model not pulled yet" message.
-
-Watch the download progress with:
-
-```bash
-docker compose logs -f ollama-pull
-```
-
-> **Don't skip `cp .env.example .env`.** It sets `COMPOSE_PROFILES=bundled`, which is
-> what starts the bundled Ollama. Without it you'd need `--profile bundled` on *every*
-> command — including `down`, or the Ollama container gets left running.
-
----
-
-### Reuse an Ollama You Already Have
-
-If you already run Ollama — installed on your computer, or in another container — you
-don't need a second copy. Edit `.env`, remove the `COMPOSE_PROFILES=bundled` line, and
-point Scandy at it:
-
-```bash
-OLLAMA_HOST=http://host.docker.internal:11434
-```
-
-Then `docker compose up -d` starts only the web app and API — no Ollama image is
-downloaded and no second model copy is stored.
-
-| Your setup | `OLLAMA_HOST` |
-| --- | --- |
-| Ollama installed on this computer | `http://host.docker.internal:11434` |
-| Ollama container with port 11434 published | `http://host.docker.internal:11434` |
-| Ollama on another machine / NAS | `http://<your-machine-ip-address>:11434` |
-
-Pull the model once into your own Ollama:
-
-```bash
-ollama pull qwen3.5:0.8b
-```
-
-> **A host install must listen on `0.0.0.0`.** By default Ollama binds only to
-> `127.0.0.1`, which containers cannot reach — scans then fail with "Could not reach
-> Ollama". Fix it per platform:
-> - **macOS:** `launchctl setenv OLLAMA_HOST 0.0.0.0` then restart Ollama
-> - **Linux:** `systemctl edit ollama` → add `Environment="OLLAMA_HOST=0.0.0.0"`, then `systemctl restart ollama`
-> - **Windows:** set an `OLLAMA_HOST=0.0.0.0` user environment variable, then restart Ollama
->
-> `host.docker.internal` is wired up on Linux too (via `extra_hosts` in `compose.yaml`),
-> so the same value works on every platform.
-
-**Advanced — joining an existing container network.** If your Ollama runs in another
-compose stack and you'd rather not publish its port, attach Scandy to that network and
-use the container name directly, e.g. `OLLAMA_HOST=http://ollama:11434`, adding to
-`compose.yaml`:
-
-```yaml
-services:
-  backend:
-    networks: [default, ollama-net]
-networks:
-  ollama-net:
-    external: true
-    name: <the-other-stack>_default
 ```
 
 ---
 
-### Configuration
+### 1. The database
 
-All settings live in `.env` and have working defaults.
+[supabase/README.md](supabase/README.md) takes this end to end: pointing the
+CLI at your project and pushing the migrations, deploying the `scan-receipt`
+function with its Gemini key, running the row level security tests, and letting
+a person sign up.
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `COMPOSE_PROFILES` | `bundled` | Set to `bundled` to run Ollama in this stack; remove to use your own |
-| `OLLAMA_HOST` | `http://ollama:11434` | Your Ollama address, when not using the bundled one |
-| `SCANDY_PORT` | `8080` | Host port the web app is served on |
-| `OLLAMA_MODEL` | `qwen3.5:0.8b` | Model used for scanning |
-| `OLLAMA_NUM_CTX` | `8192` | Model context window (an image costs thousands of tokens) |
-| `OLLAMA_MAX_IMAGE_EDGE` | `1280` | Longest image edge sent to the model |
-
-### A Note on Scan Accuracy
-
-`qwen3.5:0.8b` reads the image directly rather than working from OCR text. On the
-bundled test receipts it reads the date, time and total correctly in **5–9 seconds** on
-CPU — slower than the native path, and it keeps about 1 GB resident in the Ollama
-container, but it runs on any platform.
-
-If a date can't be read from a receipt, Scandy falls back to the current date and time,
-and you confirm or correct the values in the UI before saving — so a partial reading is
-never a failed scan.
-
-### Your Data
-
-Everything lives in the `scandy-data` Docker volume — the SQLite database, accounts,
-subscriptions, and categories. It persists across restarts and image rebuilds.
-
-```bash
-# Back up
-docker run --rm -v scandy-data:/data -v "$PWD":/backup alpine \
-  tar czf /backup/scandy-backup.tar.gz -C /data .
-
-# Wipe everything and start fresh
-docker compose down -v
-```
-
-### Accessing From Your Phone
-
-The containers listen on all interfaces, so replace `localhost` with your machine's LAN
-or [Tailscale](https://tailscale.com/) IP — e.g. `http://192.168.1.20:8080`.
-
-### Troubleshooting
-
-| Symptom | Fix |
-| --- | --- |
-| Scanning returns "does not have the model" | The pull is still running or failed. Check `docker compose logs ollama-pull`, or pull manually: `docker compose exec ollama ollama pull qwen3.5:0.8b` |
-| "Could not reach Ollama … start it with --profile bundled" | You have no `.env`, so the bundled Ollama never started. Run `cp .env.example .env` and `docker compose up -d` |
-| "Could not reach Ollama" with your own Ollama | It's probably bound to `127.0.0.1`. See [Reuse an Ollama You Already Have](#reuse-an-ollama-you-already-have) |
-| Ollama still running after `docker compose down` | Profile services need the profile. Use a `.env`, or `docker compose --profile bundled down` |
-| `docker pull` hangs at "load metadata" | Docker is waiting on a credential prompt. On macOS this can be a keychain password dialog behind another window; run `docker pull python:3.13-slim` in a terminal to answer it |
-| Scans are slow or time out | Expected on CPU. Give Docker more RAM, or lower `OLLAMA_MAX_IMAGE_EDGE` |
-| Port 8080 already in use | Set `SCANDY_PORT` in `.env` |
+Do it before building the app — the app has nothing to talk to until the
+migrations are applied.
 
 ---
 
-## 💻 Native Setup (macOS)
-
-The fastest option, and the one used for development. Apple's Vision framework reads
-the receipt and deterministic parsing extracts the fields — about **80 ms per scan**
-while holding **~71 MB**, light enough to forget it is running on a machine you also use
-for other work. A 0.5B model is loaded only for the fields the rules cannot read, and
-released again once idle. Developed and measured on Apple Silicon.
-
-### Prerequisites
-- **Python 3.13+**
-- **[Flutter](https://docs.flutter.dev/get-started/install)** — builds the web UI (and the Android app)
-- **[uv](https://docs.astral.sh/uv/)** (recommended) — manages the Python environment
-- **nginx** (`brew install nginx`) — serves the web UI and proxies the API
-- **llama.cpp** (`brew install llama.cpp`) — only for the fallback extraction model
-- macOS — text recognition uses the built-in Vision framework
-
-The fallback model's weights (~491 MB) download themselves the first time the rules cannot
-read a field, and are cached in `~/.cache/huggingface`. Most scans never touch it.
-
----
-
-### Quick Start
-
-If you just want it running, these three commands do everything:
-
-```bash
-uv sync                   # install Python dependencies
-./deployment/deploy.sh    # build the web UI and configure nginx (asks for sudo)
-./deployment/start.sh     # start the backend
-```
-
-Then open <http://localhost>. Check on it any time with `./deployment/status.sh`,
-and stop it with `./deployment/stop.sh`.
-
-The sections below explain each part if you would rather do it by hand, or need
-to troubleshoot.
-
----
-
-### 1. Backend Setup
-
-`pyproject.toml` + `uv.lock` are the source of truth for Python dependencies.
-
-```bash
-# From the project root — creates .venv and installs the locked dependencies
-uv sync
-```
-
-<details>
-<summary>Alternative: plain pip</summary>
-
-`backend/requirements.txt` is a **generated** pinned export of `uv.lock`, kept for
-environments without uv. Regenerate it whenever `pyproject.toml` or `uv.lock` changes:
-
-```bash
-uv export --no-dev --no-hashes --no-emit-project -o backend/requirements.txt
-```
-
-To install from it:
-
-```bash
-pip install -r backend/requirements.txt
-```
-</details>
-
-#### Running the Backend
-
-##### Option A: Managed script (Recommended)
-Starts Waitress in the background with preflight checks and a real health check —
-see [Managing the Server](#4-managing-the-server) below.
-```bash
-./deployment/start.sh
-```
-
-##### Option B: Run Waitress directly
-Waitress is a production-ready WSGI server that is multi-threaded, highly performant, and stable.
-```bash
-cd backend
-python run_waitress.py
-```
-
-##### Option C: Development Server with Flask
-Use this only for local debugging (features auto-reload):
-```bash
-cd backend
-python app.py
-```
-
-- **Port:** `5001`
-- **Base URL:** `http://localhost:5001`
-- **API Endpoints:** `http://localhost:5001/api/`
-
----
-
-### 2. Frontend Setup
-
-The UI lives in `frontend_flutter/` and is a Flutter app. The same code builds
-the web UI and the Android app.
+### 2. The app
 
 ```bash
 cd frontend_flutter
@@ -323,31 +117,69 @@ flutter pub get
 
 #### Running it during development
 
+Every `flutter run` and `flutter build` needs the Supabase project passed in —
+see [Where the data lives](#where-the-data-lives) below.
+
 ```bash
-flutter run -d chrome          # web, with hot reload
-flutter run -d <device-id>     # a connected Android phone (flutter devices)
+flutter run -d chrome \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
+
+# A connected Android phone (flutter devices) — same two defines
+flutter run -d <device-id> --dart-define=... --dart-define=...
 ```
 
 #### Building for production
 
 ```bash
 # Web — output lands in frontend_flutter/build/web
-flutter build web --release --pwa-strategy=none
+flutter build web --release --pwa-strategy=none \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
 
 # Android
-flutter build apk --release
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon key>
 ```
 
 `--pwa-strategy=none` is deliberate: the generated service worker caches the
 whole app per origin and keeps serving it after a rebuild, so a redeploy looks
 like it did nothing until the browser decides to update.
 
-#### Where the API lives
+A release APK also needs signing secrets, which are gitignored — copy
+`android/key.properties.example` to `android/key.properties` and follow the
+notes in it.
 
-The app has no origin to infer the backend from, so the address is explicit and
-editable in **Settings → Server**. The first-run guess is the page's own host on
-port 5001 for the web build, and `10.0.2.2:5001` (the host machine) on the
-Android emulator. A physical phone needs the machine's Tailscale or LAN address.
+Building the web app by hand is rarely necessary: a push to `main` builds it in
+GitHub Actions and deploys it to Vercel, with both defines supplied from
+repository secrets. [DEPLOYING.md](DEPLOYING.md) covers that workflow, and the
+by-hand deploy if you need it.
+
+#### Where the data lives
+
+There is no application server to point the app at. The Flutter app talks to
+Supabase directly, and row level security is the only thing standing between
+one person's ledger and another's.
+
+Which project it talks to is fixed at build time, in two `--dart-define`s read by
+[`lib/services/supabase_config.dart`](frontend_flutter/lib/services/supabase_config.dart):
+
+| Define | Where to find it |
+| --- | --- |
+| `SUPABASE_URL` | Supabase dashboard → Settings → API → Project URL |
+| `SUPABASE_ANON_KEY` | the same page — the anon (or `sb_publishable_…`) key |
+
+Miss either one and nothing fails while building. The app compiles, installs,
+and then shows **"Scandy is not configured"** to everyone who opens it, with no
+in-app setting to repair it — the only fix is another build. So keep the defines
+in your IDE run configuration, not just in your shell history.
+
+The anon key is public by design: it identifies the project and nothing else,
+every request it makes is still subject to row level security, and it ships
+inside the bundle either way. The key that must never be built into the app —
+or written down in this repository — is `service_role`, which bypasses row
+level security entirely.
 
 #### Tests
 
@@ -356,111 +188,37 @@ flutter test
 ```
 
 Includes golden tests for Home in both themes, rendered with the bundled fonts.
+CI runs `flutter test --exclude-tags golden`, and
+[DEPLOYING.md](DEPLOYING.md) explains why the goldens stay a local check.
+
+The database has its own tests — `./supabase/tests/run.sh`, which is what proves
+one user cannot reach another's rows.
 
 ---
 
-### 3. Serving It (nginx)
+## 🗺️ Screens
 
-`flutter run` is for development only. To actually host the app — and to reach
-it from your phone's browser — nginx serves the built web UI on port 80 and
-forwards `/api/` to the backend on port 5001.
-
-```bash
-./deployment/deploy.sh
-```
-
-This builds `frontend_flutter/build/web`, generates the nginx site config from
-`deployment/nginx.conf.template` with your project's real path, validates it with
-`nginx -t`, and reloads nginx.
-
-> The config is installed into nginx's `servers/` directory, which only takes
-> effect if your main `nginx.conf` contains `include .../servers/*.conf;` inside
-> its `http { }` block. Stock installs have it; a hand-edited `nginx.conf` often
-> does not. `deploy.sh` checks and tells you if it is missing — without that
-> line, nginx ignores the config and the site never loads.
-
-Re-run `./deployment/deploy.sh` after pulling new code to rebuild the web UI.
-
----
-
-### 4. Managing the Server
-
-| Command | What it does |
+| Screen | What it is |
 | --- | --- |
-| `./deployment/start.sh` | Start the backend in the background, logging to `backend/waitress.log` |
-| `./deployment/start.sh --foreground` | Run it in the current terminal instead (Ctrl+C stops it) |
-| `./deployment/stop.sh` | Stop the backend gracefully |
-| `./deployment/stop.sh --nginx` | Also stop nginx |
-| `./deployment/status.sh` | Show what is running; exits non-zero if the API is down |
-| `./deployment/get-ip.sh` | Print your Tailscale IP for phone access |
+| Home | Log a transaction, current month overview |
+| Summary | All transactions and category breakdowns |
+| Accounts | Balances, and a drill-down per account |
+| Recurring | Subscription tracker |
+| Settings | Theme, language, categories, and the account |
 
-All of them accept `--help`.
-
-These scripts exist so failures are actionable rather than silent. `start.sh`
-verifies the Python environment, refuses to start a second copy on an occupied
-port, and then **waits until the API actually answers a request** before
-reporting success — if the server dies during startup it prints the last 20 log
-lines instead of leaving you to guess. `stop.sh` sends `SIGTERM` first so
-in-flight requests and open SQLite transactions finish cleanly, escalating to
-`SIGKILL` only after 10 seconds, then confirms the port was released.
-
-That last part matters: stopping the server with Ctrl+C can leave port 5001 held,
-which makes the next start fail with *"Address already in use."* Running
-`./deployment/stop.sh` clears it properly.
-
-**Restarting:**
-```bash
-./deployment/stop.sh && ./deployment/start.sh
-```
-
-**Accessing from your phone:** run `./deployment/get-ip.sh` and open the printed
-Tailscale IP in your phone's browser. Tailscale must be connected on both devices.
-
-See [deployment/README.md](deployment/README.md) for a troubleshooting table.
+The app navigates in-process rather than by URL; `/settings` is the one named
+route, so that the header's settings button works from anywhere.
 
 ---
 
-## 🗺️ App Routes
+## 📦 The pre-Supabase stack
 
-| Route | Page |
-| --- | --- |
-| `/` | Home — log a transaction, current month overview |
-| `/all` | Summary — all transactions and category breakdowns |
-| `/accounts` | Vault — accounts and balances |
-| `/accounts/:id` | Transactions for a single account |
-| `/subscriptions` | Recurring — subscription tracker |
-| `/settings` | Settings — theme and category management |
+`backend/`, `docker/`, `deployment/` and `compose.yaml` are the Flask + SQLite +
+nginx stack Scandy ran on before the migration, when it lived on a Mac mini and
+read receipts with Apple Vision or Ollama. They are kept for reference and are
+**not** a way to run Scandy today: the Flutter app has no code path to that API
+any more, and neither build passes the Supabase defines, so the web UI they
+produce comes up as "Scandy is not configured".
 
----
-
-## 🔌 API Endpoints Reference
-
-### Transactions
-- `GET /api/transactions` - Retrieve all transactions
-- `POST /api/transactions/manual` - Add a manual transaction
-- `POST /api/transactions/transfer` - Create a transfer between two accounts
-- `PUT /api/transactions/<id>` - Update an existing transaction
-- `DELETE /api/transactions/<id>` - Delete a transaction
-- `POST /api/upload` - Upload a receipt image and extract its date, time and total locally
-
-### Categories
-- `GET /api/categories` - Retrieve expense and income categories
-- `POST /api/categories` - Add a category (body: `type`, `name`)
-- `PUT /api/categories` - Rename a category (body: `type`, `old_name`, `new_name`) — cascades to transactions
-- `DELETE /api/categories` - Delete a category (body: `type`, `name`)
-
-### Accounts
-- `GET /api/accounts` - Retrieve all accounts and balances
-- `POST /api/accounts` - Create a new account
-- `PUT /api/accounts/<id>` - Update account details
-- `DELETE /api/accounts/<id>` - Delete an account
-
-### Subscriptions
-- `GET /api/subscriptions` - Retrieve all subscriptions
-- `POST /api/subscriptions` - Add a recurring subscription
-- `PUT /api/subscriptions/<id>` - Update subscription details
-- `DELETE /api/subscriptions/<id>` - Delete a subscription
-- `POST /api/subscriptions/check` - Record any subscription charges due this month
-
-### Misc
-- `POST /api/logs` - Sink for client-side logs (useful when debugging the mobile build)
+The history is worth keeping in one line: everything the Mac mini used to do now
+happens somewhere that does not need it awake.

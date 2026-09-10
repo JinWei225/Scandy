@@ -20,12 +20,13 @@ class Transaction {
 
   final String id;
 
-  /// Parsed from the API's DD/MM/YYYY display format. Null when the row's date
-  /// is malformed — the transaction still renders, it just can't be bucketed
-  /// into a month.
+  /// Parsed from `occurred_on`, a Postgres `date`, so it arrives ISO. Null when
+  /// the row's date is malformed — the transaction still renders, it just can't
+  /// be bucketed into a month.
   final DateTime? date;
 
-  /// "HH:MM:SS" as sent; only the HH:MM part is shown.
+  /// `occurred_at`, a Postgres `time`: "HH:MM:SS" as sent, of which only the
+  /// HH:MM part is shown.
   final String time;
 
   final String description;
