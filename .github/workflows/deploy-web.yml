@@ -1,0 +1,77 @@
+# Build the Flutter web app and ship it to Vercel.
+#
+# Vercel's build image has no Flutter toolchain, so the build happens here and
+# the finished directory is uploaded. See DEPLOYING.md for the reasoning and for
+# the five secrets this needs.
+
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    # Nothing outside the app changes what gets served, and a schema-only
+    # commit should not spend three minutes rebuilding an identical bundle.
+    paths:
+      - 'frontend_flutter/**'
+      - 'vercel.json'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  # A second push while the first is mid-deploy should win, not queue behind it.
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Before the build, not after: a deploy that fails its own tests should
+      # never reach anybody, and finding out afterwards means it already has.
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_ANON_KEY is not set."
+            echo "Without them the app builds fine and then shows"
+            echo "'Scandy is not configured' to everyone who opens it."
+            exit 1
+          fi
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # vercel.json has to sit at the root of what is deployed, and what is
+      # deployed is build/web.
+      - name: Add the Vercel config to the output
+        run: cp ../vercel.json build/web/vercel.json
+
+      - name: Deploy
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npx --yes vercel@latest deploy build/web \
+            --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
