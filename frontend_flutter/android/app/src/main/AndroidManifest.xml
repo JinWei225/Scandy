@@ -7,7 +7,7 @@
     <!-- No networkSecurityConfig, deliberately. One used to allow cleartext
          app-wide for a Flask backend reached over plain HTTP on the LAN; that
          backend is gone and everything now goes to Supabase over HTTPS, so
-         Android's default -- cleartext blocked since API 28 -- is the right one. -->
+         Android's default (cleartext blocked since API 28) is the right one. -->
     <application
         android:label="Scandy"
         android:name="${applicationName}"
