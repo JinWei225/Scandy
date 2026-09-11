@@ -130,11 +130,14 @@ class _TransactionDetail extends StatelessWidget {
               value: _accountName(l, state, transaction.accountId)),
         _Row(
           label: l.fieldType,
-          value: switch (transaction.type) {
-            TransactionType.income => l.kindIncome,
-            TransactionType.expense => l.kindExpense,
-            TransactionType.transfer => l.kindTransfer,
-          },
+          // A transfer leg is stored as an expense or an income row -- the
+          // pairing lives in transfer_group_id -- so `type` alone would call
+          // it whichever half was tapped.
+          value: transaction.isTransfer
+              ? l.kindTransfer
+              : transaction.isIncome
+                  ? l.kindIncome
+                  : l.kindExpense,
         ),
         if (transaction.isTransfer) ...[
           const SizedBox(height: 6),

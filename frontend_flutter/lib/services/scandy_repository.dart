@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/account.dart';
@@ -66,13 +67,33 @@ class SupabaseRepository implements ScandyRepository {
 
   // --- Reads ---------------------------------------------------------------
 
+  /// PostgREST caps any single select at the project's max_rows (1,000 by
+  /// default). Anything past that is silently dropped, not errored: the ledger
+  /// this replaced was already 1,018 rows when it was migrated, and the oldest
+  /// eighteen simply never arrived. So a request per page, until a short one.
+  ///
+  /// Must not exceed the project's max_rows (Settings > API on the dashboard,
+  /// `max_rows` in supabase/config.toml locally): a page the server trims
+  /// would read as the last one.
+  static const int _pageSize = 1000;
+
   @override
   Future<List<Transaction>> fetchTransactions() => _guard(() async {
-        final rows = await _db
-            .from('transactions')
-            .select()
-            .order('occurred_on', ascending: false)
-            .order('occurred_at', ascending: false);
+        final rows = <Map<String, dynamic>>[];
+        for (var from = 0;; from += _pageSize) {
+          final page = await _db
+              .from('transactions')
+              .select()
+              .order('occurred_on', ascending: false)
+              .order('occurred_at', ascending: false)
+              // A stable tiebreak: two rows with the same date and time could
+              // otherwise straddle a page boundary in either order and be
+              // fetched twice or not at all.
+              .order('id')
+              .range(from, from + _pageSize - 1);
+          rows.addAll(page);
+          if (page.length < _pageSize) break;
+        }
 
         // Resolve each transfer's two legs into From/To, which the edit form
         // needs and which no single row carries. Done here rather than in the
@@ -167,25 +188,24 @@ class SupabaseRepository implements ScandyRepository {
         final becomesTransfer = body['type'] == 'transfer';
 
         // A transfer is two rows, so "edit" cannot be an UPDATE: changing
-        // either side's account or amount has to move both legs together. The
-        // Flask version rebuilt the pair for the same reason.
+        // either side's account or amount has to move both legs together.
+        // replace_transaction() removes the old row or pair and writes the new
+        // one inside a single database transaction. This used to be a DELETE
+        // followed by a separate create, and a failure between the two left
+        // the person with an error toast and no transfer.
         if (becomesTransfer || group != null) {
-          if (group != null) {
-            await _db.from('transactions').delete().eq('transfer_group_id', group);
-          } else {
-            await _db.from('transactions').delete().eq('id', id);
-          }
-          if (becomesTransfer) {
-            await _createTransfer({
-              ...body,
-              'from_account_id': body['account_id'],
-            });
-          } else {
-            await _db.from('transactions').insert({
-              'user_id': _userId,
-              ..._transactionColumns(body),
-            });
-          }
+          final columns = _transactionColumns(body);
+          await _db.rpc('replace_transaction', params: {
+            'p_id': id,
+            'p_type': becomesTransfer ? 'transfer' : columns['type'],
+            'p_occurred_on': columns['occurred_on'],
+            'p_occurred_at': columns['occurred_at'],
+            'p_description': columns['description'],
+            'p_amount_cents': columns['amount_cents'],
+            'p_category': columns['category'],
+            'p_account_id': body['account_id'],
+            'p_to_account': body['to_account_id'],
+          });
           return;
         }
 
@@ -313,7 +333,9 @@ class SupabaseRepository implements ScandyRepository {
   Map<String, dynamic> _accountColumns(Map<String, dynamic> body) => {
         'name': (body['name'] as String? ?? '').trim(),
         'type': body['type'],
-        'initial_balance_cents': _cents(body['initial_balance']),
+        // Signed, unlike a transaction amount: a card that opens RM 1,200 in
+        // debt starts at -120000, and the sign is the whole point of it.
+        'initial_balance_cents': _signedCents(body['initial_balance']),
       };
 
   Map<String, dynamic> _subscriptionColumns(Map<String, dynamic> body) => {
@@ -331,9 +353,11 @@ class SupabaseRepository implements ScandyRepository {
   /// The rounding is load-bearing: RM 0.29 is 28.999999999999996 hundredths in
   /// binary, so truncating loses a cent on 573 of the 10,000 amounts between
   /// RM 0.01 and RM 100.00.
-  static int _cents(Object? amount) {
+  static int _cents(Object? amount) => _signedCents(amount).abs();
+
+  static int _signedCents(Object? amount) {
     final value = amount is num ? amount.toDouble() : double.tryParse('$amount');
-    return ((value ?? 0) * 100).round().abs();
+    return ((value ?? 0) * 100).round();
   }
 
   /// The forms speak DD/MM/YYYY; Postgres wants ISO.
@@ -379,8 +403,9 @@ class SupabaseRepository implements ScandyRepository {
   static String _readable(PostgrestException e) {
     final message = e.message;
     // Raised by name from the functions and triggers, so it is already written
-    // for a person: "Cannot delete the last expense category".
-    if (e.code == '23514' || message.startsWith('Cannot ') ||
+    // for a person: "Cannot delete the last expense category". P0002 is
+    // no_data_found, which only the functions raise, and always in a sentence.
+    if (e.code == '23514' || e.code == 'P0002' || message.startsWith('Cannot ') ||
         message.startsWith('Transfer ') || message.startsWith('Category ')) {
       return message;
     }
@@ -390,6 +415,18 @@ class SupabaseRepository implements ScandyRepository {
     if (e.code == '42501') {
       return 'You do not have access to that.';
     }
-    return message;
+    if (e.code == '23503') {
+      // The account (or other row) this points at was deleted -- most likely
+      // from another device while this form was open.
+      return 'That account no longer exists. Refresh and try again.';
+    }
+    if (e.code == 'PGRST301' || e.code == 'PGRST303') {
+      return 'Your session has expired. Sign in again.';
+    }
+    // Anything else is constraint names and column types, written for a
+    // developer. The comment on _guard is the promise: that never reaches a
+    // snackbar. It is still the only clue to what happened, so it is logged.
+    debugPrint('Unmapped PostgrestException ${e.code}: $message');
+    return 'Something went wrong. Try again.';
   }
 }

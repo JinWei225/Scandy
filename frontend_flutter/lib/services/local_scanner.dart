@@ -7,8 +7,9 @@
 ///
 /// The cloud path is the fallback: the `scan-receipt` Edge Function, which asks
 /// Gemini. It is reached only when the rules left a field empty, and its answer
-/// then supersedes the partial local one; when it cannot be reached, a partial
-/// local answer still beats failing the scan outright. That orchestration lives
+/// is merged with the partial local one field by field -- a null from the cloud
+/// never overwrites something the device read; when it cannot be reached, a
+/// partial local answer still beats failing the scan outright. That orchestration lives
 /// in `_ScanJob` in ui/shell/app_shell.dart, the call itself in
 /// receipt_scanner.dart.
 ///

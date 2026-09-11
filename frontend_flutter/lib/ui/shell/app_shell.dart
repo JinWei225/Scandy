@@ -351,7 +351,7 @@ class _ScanJob {
         // so it has to be checked in the success path too.
         final error = data['error'];
         if (error is String) return _ScanOutcome.failed(error);
-        return _ScanOutcome.fields(data);
+        return _ScanOutcome.fields(_merged(data, local));
       } on ReceiptScanException catch (e) {
         // Offline, or the cloud scanner is not wired up yet. A partial local
         // read is still worth opening the form with.
@@ -365,6 +365,24 @@ class _ScanJob {
     } finally {
       await scanner.dispose();
     }
+  }
+
+  /// The cloud answer, with any field it left null taken from the device.
+  ///
+  /// The cloud model is told to answer null rather than guess, and it does --
+  /// including for a field the rules had already read correctly a moment
+  /// earlier. Replacing the local result wholesale turned "amount right, date
+  /// missing" into "date right, amount missing". Field by field, both reads
+  /// count.
+  static Map<String, dynamic> _merged(
+      Map<String, dynamic> cloud, LocalScanResult? local) {
+    if (local == null) return cloud;
+    final device = prefillFrom(local.fields);
+    return {
+      ...cloud,
+      for (final key in device.keys)
+        if (cloud[key] == null && device[key] != null) key: device[key],
+    };
   }
 
   /// Never lets an on-device failure end the scan — the cloud path is next.

@@ -144,11 +144,19 @@ Deno.serve(async (req) => {
   }
 
   // --- the image -------------------------------------------------------------
-  const bytes = new Uint8Array(await req.arrayBuffer());
-  if (bytes.byteLength === 0) return json({ error: "No image was sent." }, 400);
-  if (bytes.byteLength > MAX_BYTES) {
+  // Checked before the body is read, not after: arrayBuffer() would happily
+  // hold a 150 MB upload in memory on the way to a 413, and the isolate has
+  // less than that. The header is the cheap check; the bounded read below is
+  // the one that holds when the header is missing or lying.
+  const declared = Number(req.headers.get("content-length") ?? "0");
+  if (declared > MAX_BYTES) {
     return json({ error: "That image is too large to scan." }, 413);
   }
+  const bytes = await readAtMost(req.body, MAX_BYTES);
+  if (bytes === null) {
+    return json({ error: "That image is too large to scan." }, 413);
+  }
+  if (bytes.byteLength === 0) return json({ error: "No image was sent." }, 400);
   const mime = req.headers.get("x-image-mime") ?? "image/jpeg";
 
   // btoa on a 10 MB string blows the stack if done in one call, so chunk it.
@@ -159,7 +167,7 @@ Deno.serve(async (req) => {
   const base64 = btoa(binary);
 
   // --- ask Gemini ------------------------------------------------------------
-  let extracted: Record<string, unknown>;
+  let modelText: string;
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
@@ -218,10 +226,21 @@ Deno.serve(async (req) => {
       console.error("gemini returned no text", JSON.stringify(payload).slice(0, 500));
       return json({ error: "Could not read anything from that image." }, 422);
     }
-    extracted = JSON.parse(text);
+    modelText = text;
   } catch (e) {
     console.error("gemini call failed", e);
     return json({ error: "The scanner timed out. Try again." }, 504);
+  }
+
+  // Outside the try above: a reply that is not JSON is not a timeout, and
+  // telling somebody to "try again" sends them into metered retries of a
+  // photo that will fail the same way every time.
+  let extracted: Record<string, unknown>;
+  try {
+    extracted = JSON.parse(modelText);
+  } catch {
+    console.error("gemini reply was not JSON", modelText.slice(0, 500));
+    return json({ error: "Could not read anything from that image." }, 422);
   }
 
   // --- record and answer -----------------------------------------------------
@@ -237,6 +256,41 @@ Deno.serve(async (req) => {
     amount: normaliseAmount(extracted.amount),
   });
 });
+
+// --- reading the body ----------------------------------------------------------
+
+/// Collects the request body, giving up -- with null -- the moment it passes
+/// `limit`. Nothing beyond the first chunk over the line is ever buffered.
+async function readAtMost(
+  body: ReadableStream<Uint8Array> | null,
+  limit: number,
+): Promise<Uint8Array | null> {
+  if (body === null) return new Uint8Array(0);
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const reader = body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
 
 // --- normalising -------------------------------------------------------------
 //

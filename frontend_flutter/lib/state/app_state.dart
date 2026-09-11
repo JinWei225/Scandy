@@ -171,5 +171,11 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+
+    // Balances are computed by the server, not from _transactions, so the
+    // optimistic removal above leaves every account still carrying the deleted
+    // amount. Revalidate the way every other mutation does; the list is
+    // already correct, so nothing visible flickers.
+    await refresh();
   }
 }

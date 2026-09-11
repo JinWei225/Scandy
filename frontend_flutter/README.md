@@ -211,14 +211,9 @@ Plus Jakarta Sans is bundled in `assets/fonts` rather than fetched at runtime.
 Scandy is expected to open offline, where a runtime fetch silently falls back to
 the system face and changes every metric the design specifies.
 
-## Known constraint
+## Network
 
-Cleartext HTTP is still permitted app-wide
-(`android/app/src/main/res/xml/network_security_config.xml`). It was there
-because the backend was self-hosted over plain HTTP at an address that could not
-be expressed as a rule — Android matches host *names*, not CIDR ranges.
-
-Nothing needs it now: the app talks to Supabase over HTTPS and there is no LAN
-backend left to reach. The file should be deleted along with the
-`android:networkSecurityConfig` attribute in `AndroidManifest.xml`, which is
-what its own comment says to do once the backend moves off the LAN.
+Every request goes to Supabase over HTTPS, and the Android build keeps the
+platform default of blocking cleartext. There used to be a
+`network_security_config.xml` allowing plain HTTP app-wide for a self-hosted
+backend on the LAN; that backend is gone, and the exemption went with it.

@@ -4,14 +4,14 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
-    <!-- networkSecurityConfig: the backend is self-hosted over plain HTTP on the
-         LAN, so cleartext has to be allowed. network_security_config.xml scopes
-         it to private address ranges rather than opening it up wholesale. -->
+    <!-- No networkSecurityConfig, deliberately. One used to allow cleartext
+         app-wide for a Flask backend reached over plain HTTP on the LAN; that
+         backend is gone and everything now goes to Supabase over HTTPS, so
+         Android's default -- cleartext blocked since API 28 -- is the right one. -->
     <application
         android:label="Scandy"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"
