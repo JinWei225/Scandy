@@ -33,13 +33,13 @@ seeing each other's transactions.
   never a failed scan.
 - **Manual Transaction Logging:** Quickly log expenses with custom details, accounts, and types (expense vs. income).
 - **Account Transfers:** Move money between accounts as a paired transaction.
-- **Category-Wise Summaries:** Monthly breakdowns per category, with a drill-down into the transactions behind each one.
+- **Category-Wise Summaries:** Monthly breakdowns per category; tap a category to see every transaction behind the figure.
 - **Custom Categories:** Add, rename, and delete expense/income categories from Settings. Renames cascade to existing transactions and subscriptions.
 - **Subscription Tracker:** Track recurring subscriptions with monthly cost
   summaries. Charges due in the current month are recorded on app start by
   `record_due_subscriptions()` in the database rather than by the client, so two
   devices opening at once cannot record the same charge twice.
-- **Multi-Account Balance Management:** Monitor balances across multiple accounts (e.g., Cash, Credit Cards, Bank Accounts), with a per-account transaction history.
+- **Multi-Account Balance Management:** Monitor balances across multiple accounts (e.g., Cash, Credit Cards, Bank Accounts). Each account has its own page with the same monthly category breakdown as Summary, scoped to that account.
 - **Search:** Every term must match somewhere in the transaction — description, category, account or amount.
 - **More than one person:** Everyone signs in, and row level security keeps the
   ledgers apart. Sign-up is closed to an allowlist — see *Adding someone* in
@@ -200,9 +200,9 @@ one user cannot reach another's rows.
 
 | Screen | What it is |
 | --- | --- |
-| Home | Log a transaction, current month overview |
-| Summary | All transactions and category breakdowns |
-| Accounts | Balances, and a drill-down per account |
+| Home | Current month overview, and the transactions of the last three days — or any date range |
+| Summary | Monthly category breakdowns, each opening the transactions behind it |
+| Accounts | Balances; each account opens to its own monthly breakdown, with editing behind a button |
 | Recurring | Subscription tracker |
 | Settings | Theme, language, categories, and the account |
 

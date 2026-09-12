@@ -10,13 +10,15 @@ import '../common/widgets.dart';
 import '../transactions/search_sheet.dart';
 import '../transactions/transaction_detail_sheet.dart';
 import '../shell/bottom_nav.dart';
+import 'date_range_chip.dart';
 import 'safe_to_spend_card.dart';
 import 'transaction_tile.dart';
 
 /// The redesigned Home screen, following the "Android · Light/Dark" frames of
 /// the handoff: 18px side padding, 16px between blocks, hero card, then the
-/// five most recent transactions.
-class HomeScreen extends StatelessWidget {
+/// recent transactions — the last three days by default, or whatever range
+/// the chip beside the title is set to.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.clock});
 
   /// Pinned by tests so the greeting, the date line and "N days left" are
@@ -24,9 +26,19 @@ class HomeScreen extends StatelessWidget {
   final DateTime? clock;
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  /// Screen-local, like Summary's month: switching tabs and coming back
+  /// starts from the default again, which is the range worth seeing first.
+  DateTimeRange? _range;
+
+  @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final now = clock ?? DateTime.now();
+    final now = widget.clock ?? DateTime.now();
+    final range = _range ?? defaultRecentRange(now);
 
     return RefreshIndicator(
       onRefresh: state.refresh,
@@ -46,7 +58,11 @@ class HomeScreen extends StatelessWidget {
           else ...[
             SafeToSpendCard(summary: state.summaryFor(now), now: now),
             const SizedBox(height: 16),
-            _RecentSection(now: now),
+            _RecentSection(
+              now: now,
+              range: range,
+              onRangeChanged: (r) => setState(() => _range = r),
+            ),
           ],
         ],
       ),
@@ -94,22 +110,35 @@ class _Header extends StatelessWidget {
 }
 
 class _RecentSection extends StatelessWidget {
-  const _RecentSection({required this.now});
+  const _RecentSection({
+    required this.now,
+    required this.range,
+    required this.onRangeChanged,
+  });
 
   final DateTime now;
+  final DateTimeRange range;
+  final ValueChanged<DateTimeRange> onRangeChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
     final state = context.watch<AppState>();
-    final recent = state.recentTransactions;
+    final recent = state.transactionsBetween(range);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          context.l.recent,
-          style: ScandyText.sectionTitle.copyWith(color: c.textPrimary),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.l.recent,
+                style: ScandyText.sectionTitle.copyWith(color: c.textPrimary),
+              ),
+            ),
+            DateRangeChip(range: range, now: now, onChanged: onRangeChanged),
+          ],
         ),
         const SizedBox(height: 10),
         Container(
@@ -120,7 +149,15 @@ class _RecentSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(ScandyRadius.list),
           ),
           child: recent.isEmpty
-              ? _EmptyRecent()
+              // Two different silences: a ledger with nothing in it at all,
+              // and a quiet few days in a ledger that has plenty.
+              ? (state.transactions.isEmpty
+                  ? _EmptyRecent()
+                  : EmptyState(
+                      icon: Icons.event_busy,
+                      title: context.l.nothingInTheseDays,
+                      message: context.l.nothingInTheseDaysBody,
+                    ))
               : Column(
                   children: [
                     for (var i = 0; i < recent.length; i++)

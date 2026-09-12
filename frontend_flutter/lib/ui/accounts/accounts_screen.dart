@@ -10,6 +10,7 @@ import '../../util/formatting.dart';
 import '../common/widgets.dart';
 import '../shell/bottom_nav.dart';
 import 'account_form_sheet.dart';
+import 'account_page.dart';
 import '../transactions/search_sheet.dart';
 
 /// "Accounts" — total balance, then one card per account.
@@ -101,16 +102,6 @@ class _AccountCard extends StatelessWidget {
   final Account account;
   final int transactionCount;
 
-  /// The design tiles a bank, a wallet, cash and a card differently; anything
-  /// unrecognised falls back to the wallet glyph.
-  IconData get _icon => switch (account.type.toLowerCase()) {
-        'bank' => Icons.account_balance,
-        'e-wallet' || 'ewallet' || 'wallet' => Icons.account_balance_wallet,
-        'cash' => Icons.payments,
-        'card' || 'credit' => Icons.credit_card,
-        _ => Icons.account_balance_wallet,
-      };
-
   @override
   Widget build(BuildContext context) {
     final c = context.scandy;
@@ -126,7 +117,9 @@ class _AccountCard extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(ScandyRadius.list),
       child: InkWell(
-        onTap: () => showAccountFormSheet(context, account: account),
+        // The page, not the form: editing moved behind a button there, so a
+        // tap on the card is a look at the account rather than a change to it.
+        onTap: () => AccountPage.open(context, account),
         borderRadius: BorderRadius.circular(ScandyRadius.list),
         child: Container(
           constraints: const BoxConstraints(minHeight: 72),
@@ -145,7 +138,7 @@ class _AccountCard extends StatelessWidget {
                   color: tile,
                   borderRadius: BorderRadius.circular(ScandyRadius.tileLarge),
                 ),
-                child: Icon(_icon, size: 22, color: glyph),
+                child: Icon(accountIcon(account.type), size: 22, color: glyph),
               ),
               const SizedBox(width: 13),
               Expanded(

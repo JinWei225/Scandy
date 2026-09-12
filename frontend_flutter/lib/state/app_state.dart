@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../models/account.dart';
 import '../models/month_summary.dart';
@@ -39,10 +39,29 @@ class AppState extends ChangeNotifier {
 
   ScandyRepository get repo => _repo;
 
-  /// The five most recent rows, as the design's "Recent" card shows. The API
-  /// already orders newest-first, so this is a plain prefix.
-  List<Transaction> get recentTransactions =>
-      _transactions.take(5).toList(growable: false);
+  /// Every row dated within [range], inclusive at both ends — Home's "Recent"
+  /// card. The repository orders newest-first, so this keeps that order.
+  ///
+  /// Only the calendar date matters: the range's times are ignored, so a
+  /// picker that hands back midnight-to-midnight still includes the last day.
+  List<Transaction> transactionsBetween(DateTimeRange range) {
+    final start = DateUtils.dateOnly(range.start);
+    final end = DateUtils.dateOnly(range.end);
+    return _transactions.where((t) {
+      final date = t.date;
+      if (date == null) return false;
+      final day = DateUtils.dateOnly(date);
+      return !day.isBefore(start) && !day.isAfter(end);
+    }).toList(growable: false);
+  }
+
+  /// The account behind [id], or null once it has been deleted.
+  Account? accountById(String id) {
+    for (final a in _accounts) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
 
   /// "Bank · 32 transactions" on the Accounts screen. Both legs of a transfer
   /// are real rows against their own accounts, so they are counted here —
@@ -52,11 +71,14 @@ class AppState extends ChangeNotifier {
 
   /// Every month that has at least one transaction, newest first, with the
   /// current month always included so Summary opens somewhere sensible on a
-  /// fresh install. Drives the month picker.
-  List<DateTime> availableMonths({DateTime? now}) {
+  /// fresh install. Drives the month picker. With [accountId] only that
+  /// account's rows count, so an Account page's chevrons skip the months it
+  /// sat idle.
+  List<DateTime> availableMonths({DateTime? now, String? accountId}) {
     final today = now ?? DateTime.now();
     final months = <DateTime>{DateTime(today.year, today.month)};
     for (final t in _transactions) {
+      if (accountId != null && t.accountId != accountId) continue;
       final date = t.date;
       if (date != null) months.add(DateTime(date.year, date.month));
     }

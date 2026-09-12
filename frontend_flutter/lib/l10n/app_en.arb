@@ -497,5 +497,12 @@
   "datePatternMonthYear": "MMMM yyyy",
   "datePatternMonthOnly": "MMMM",
   "datePatternFull": "EEEE, d MMMM yyyy",
-  "datePatternMedium": "d MMM yyyy"
+  "datePatternMedium": "d MMM yyyy",
+  "chooseADateRange": "Choose a date range",
+  "resetDateRange": "Back to the last 3 days",
+  "nothingInTheseDays": "Nothing in these days",
+  "nothingInTheseDaysBody": "Widen the range, or log something new.",
+  "nothingInThisCategory": "Nothing in this category",
+  "nothingInThisCategoryBody": "Everything filed here this month has been moved or deleted.",
+  "accountActivity": "Activity"
 }

@@ -292,5 +292,12 @@
   "datePatternMonthYear": "yyyy年M月",
   "datePatternMonthOnly": "M月",
   "datePatternFull": "yyyy年M月d日 EEEE",
-  "datePatternMedium": "yyyy年M月d日"
+  "datePatternMedium": "yyyy年M月d日",
+  "chooseADateRange": "选择日期范围",
+  "resetDateRange": "回到最近 3 天",
+  "nothingInTheseDays": "这几天没有记录",
+  "nothingInTheseDaysBody": "扩大日期范围，或者记一笔新的。",
+  "nothingInThisCategory": "这个分类没有记录",
+  "nothingInThisCategoryBody": "这个月记在这里的交易都已移走或删除。",
+  "accountActivity": "账户动态"
 }

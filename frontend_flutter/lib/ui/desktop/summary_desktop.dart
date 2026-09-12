@@ -10,6 +10,7 @@ import '../../util/category_icons.dart';
 import '../../util/formatting.dart';
 import '../common/sheets.dart';
 import '../common/widgets.dart';
+import '../transactions/category_transactions_page.dart';
 import '../transactions/search_sheet.dart';
 import 'desktop_widgets.dart';
 
@@ -63,10 +64,12 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
 
     // Same rule as the phone's chevrons: hop between months that have data.
     final months = state.availableMonths(now: now);
-    final index = months
-        .indexWhere((m) => m.year == month.year && m.month == month.month);
-    final older =
-        index >= 0 && index + 1 < months.length ? months[index + 1] : null;
+    final index = months.indexWhere(
+      (m) => m.year == month.year && m.month == month.month,
+    );
+    final older = index >= 0 && index + 1 < months.length
+        ? months[index + 1]
+        : null;
     final newer = index > 0 ? months[index - 1] : null;
 
     final avg = stats.dailyAverage;
@@ -87,41 +90,45 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
               const SizedBox(width: 10),
               _MonthStepper(
                 month: month,
-                onOlder:
-                    older == null ? null : () => setState(() => _month = older),
-                onNewer:
-                    newer == null ? null : () => setState(() => _month = newer),
+                onOlder: older == null
+                    ? null
+                    : () => setState(() => _month = older),
+                onNewer: newer == null
+                    ? null
+                    : () => setState(() => _month = newer),
                 onPick: () => _pickMonth(month, now),
               ),
             ],
           ),
         ),
         const SizedBox(height: desktopGap),
-        DesktopCardRow(children: [
-          DesktopStatCard(
-            label: l.moneyIn,
-            value: formatRinggit(stats.moneyInCents / 100),
-            valueColor: c.positive,
-            meta: l.nDeposits(incomeCount),
-          ),
-          DesktopStatCard(
-            label: l.spentLabel,
-            value: formatRinggit(stats.spentCents / 100),
-            valueColor: c.negative,
-            meta: l.nTransactions(expenseCount),
-          ),
-          DesktopStatCard(
-            label: l.netLabel,
-            value: formatRinggit(stats.netCents / 100),
-            valueColor: stats.netCents < 0 ? c.negative : c.textPrimary,
-            meta: stats.netCents < 0 ? l.overspentMeta : l.savedThisMonth,
-          ),
-          DesktopStatCard(
-            label: l.dailyAverage,
-            value: avg == null ? l.emDash : formatRinggit(avg),
-            meta: l.overNDays(stats.daysElapsed),
-          ),
-        ]),
+        DesktopCardRow(
+          children: [
+            DesktopStatCard(
+              label: l.moneyIn,
+              value: formatRinggit(stats.moneyInCents / 100),
+              valueColor: c.positive,
+              meta: l.nDeposits(incomeCount),
+            ),
+            DesktopStatCard(
+              label: l.spentLabel,
+              value: formatRinggit(stats.spentCents / 100),
+              valueColor: c.negative,
+              meta: l.nTransactions(expenseCount),
+            ),
+            DesktopStatCard(
+              label: l.netLabel,
+              value: formatRinggit(stats.netCents / 100),
+              valueColor: stats.netCents < 0 ? c.negative : c.textPrimary,
+              meta: stats.netCents < 0 ? l.overspentMeta : l.savedThisMonth,
+            ),
+            DesktopStatCard(
+              label: l.dailyAverage,
+              value: avg == null ? l.emDash : formatRinggit(avg),
+              meta: l.overNDays(stats.daysElapsed),
+            ),
+          ],
+        ),
         const SizedBox(height: desktopGap),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,6 +151,7 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
                   color: c.negative,
                   emptyTitle: l.nothingSpentThisMonth,
                   emptyMessage: l.nothingSpentThisMonthBody,
+                  onOpen: (category) => _open(stats.month, category, false),
                 ),
               ),
             ),
@@ -155,12 +163,24 @@ class _SummaryDesktopState extends State<SummaryDesktop> {
                 child: _IncomeList(
                   categories: stats.incomeCategories,
                   counts: counts,
+                  onOpen: (category) => _open(stats.month, category, true),
                 ),
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  /// The drill-down. Pushed over the sidebar as a page of its own — a list
+  /// of rows with a back arrow, the same as on the phone.
+  void _open(DateTime month, CategorySpend category, bool income) {
+    CategoryTransactionsPage.open(
+      context,
+      month: month,
+      category: category.category,
+      income: income,
     );
   }
 
@@ -216,8 +236,9 @@ class _MonthStepper extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 context.dates.monthYear(month),
-                style: ScandyDesktopText.monthLabel
-                    .copyWith(color: c.textPrimary),
+                style: ScandyDesktopText.monthLabel.copyWith(
+                  color: c.textPrimary,
+                ),
               ),
             ),
           ),
@@ -254,9 +275,11 @@ class _Chevron extends StatelessWidget {
         child: SizedBox(
           width: 34,
           height: 34,
-          child: Icon(icon,
-              size: 20,
-              color: onPressed == null ? c.disabled : c.textTertiary),
+          child: Icon(
+            icon,
+            size: 20,
+            color: onPressed == null ? c.disabled : c.textTertiary,
+          ),
         ),
       ),
     );
@@ -271,6 +294,7 @@ class _CategoryTable extends StatelessWidget {
     required this.color,
     required this.emptyTitle,
     required this.emptyMessage,
+    required this.onOpen,
   });
 
   final List<CategorySpend> categories;
@@ -278,6 +302,7 @@ class _CategoryTable extends StatelessWidget {
   final Color color;
   final String emptyTitle;
   final String emptyMessage;
+  final ValueChanged<CategorySpend> onOpen;
 
   static const TableColumns columns = [null, 92, 152];
 
@@ -299,20 +324,27 @@ class _CategoryTable extends StatelessWidget {
           DesktopTableRow(
             columns: columns,
             showDivider: i != categories.length - 1,
+            onTap: () => onOpen(categories[i]),
             cells: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(displayCategory(context.l, categories[i].category),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: ScandyDesktopText.cellTitle
-                          .copyWith(color: c.textPrimary)),
+                  Text(
+                    displayCategory(context.l, categories[i].category),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ScandyDesktopText.cellTitle.copyWith(
+                      color: c.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(_countLabel(context.l, categories[i].category),
-                      style: ScandyDesktopText.cellMeta
-                          .copyWith(color: c.textSecondary)),
+                  Text(
+                    _countLabel(context.l, categories[i].category),
+                    style: ScandyDesktopText.cellMeta.copyWith(
+                      color: c.textSecondary,
+                    ),
+                  ),
                 ],
               ),
               DesktopAmountCell(
@@ -334,8 +366,9 @@ class _CategoryTable extends StatelessWidget {
                     child: Text(
                       '${(categories[i].fractionOfSpend * 100).round()}%',
                       textAlign: TextAlign.right,
-                      style: ScandyText.percentLabel
-                          .copyWith(color: c.textTertiary),
+                      style: ScandyText.percentLabel.copyWith(
+                        color: c.textTertiary,
+                      ),
                     ),
                   ),
                 ],
@@ -354,10 +387,15 @@ class _CategoryTable extends StatelessWidget {
 
 /// The income panel: one row per source, then a total strip.
 class _IncomeList extends StatelessWidget {
-  const _IncomeList({required this.categories, required this.counts});
+  const _IncomeList({
+    required this.categories,
+    required this.counts,
+    required this.onOpen,
+  });
 
   final List<CategorySpend> categories;
   final Map<String, int> counts;
+  final ValueChanged<CategorySpend> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -375,49 +413,63 @@ class _IncomeList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final category in categories)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: c.divider)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: c.positiveSoft,
-                    borderRadius: BorderRadius.circular(12),
+          InkWell(
+            onTap: () => onOpen(category),
+            hoverColor: c.page.withValues(alpha: 0.6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: c.divider)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: c.positiveSoft,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      iconForCategory(category.category),
+                      size: 19,
+                      color: c.positive,
+                    ),
                   ),
-                  child: Icon(iconForCategory(category.category),
-                      size: 19, color: c.positive),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(displayCategory(l, category.category),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayCategory(l, category.category),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: ScandyDesktopText.cellTitle
-                              .copyWith(color: c.textPrimary)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${_count(l, category.category)} · '
-                        '${(category.fractionOfSpend * 100).round()}%',
-                        style: ScandyDesktopText.cellMeta
-                            .copyWith(color: c.textSecondary),
-                      ),
-                    ],
+                          style: ScandyDesktopText.cellTitle.copyWith(
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_count(l, category.category)} · '
+                          '${(category.fractionOfSpend * 100).round()}%',
+                          style: ScandyDesktopText.cellMeta.copyWith(
+                            color: c.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Text(formatBare(category.cents / 100),
-                    style: ScandyDesktopText.cellAmount
-                        .copyWith(color: c.positive)),
-              ],
+                  const SizedBox(width: 12),
+                  Text(
+                    formatBare(category.cents / 100),
+                    style: ScandyDesktopText.cellAmount.copyWith(
+                      color: c.positive,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -453,8 +505,10 @@ class _MonthGrid extends StatelessWidget {
         for (final year in years) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: Text('$year',
-                style: ScandyText.statLabel.copyWith(color: c.textSecondary)),
+            child: Text(
+              '$year',
+              style: ScandyText.statLabel.copyWith(color: c.textSecondary),
+            ),
           ),
           Wrap(
             spacing: 8,
@@ -463,7 +517,8 @@ class _MonthGrid extends StatelessWidget {
               for (final month in byYear[year]!)
                 _MonthChip(
                   month: month,
-                  selected: month.year == selected.year &&
+                  selected:
+                      month.year == selected.year &&
                       month.month == selected.month,
                 ),
             ],
@@ -496,10 +551,13 @@ class _MonthChip extends StatelessWidget {
           alignment: Alignment.center,
           child: Text(
             context.dates.shortMonth(month),
-            style: (selected
-                    ? ScandyText.segmentLabelActive
-                    : ScandyText.segmentLabel)
-                .copyWith(color: selected ? c.onAccentSoft : c.textTertiary),
+            style:
+                (selected
+                        ? ScandyText.segmentLabelActive
+                        : ScandyText.segmentLabel)
+                    .copyWith(
+                      color: selected ? c.onAccentSoft : c.textTertiary,
+                    ),
           ),
         ),
       ),

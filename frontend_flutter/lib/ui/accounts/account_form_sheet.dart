@@ -27,6 +27,16 @@ String accountTypeLabel(L l, String type) => switch (type.toLowerCase()) {
       _ => type.isEmpty ? l.accountTypeOther : type,
     };
 
+/// The design tiles a bank, a wallet, cash and a card differently; anything
+/// unrecognised falls back to the wallet glyph.
+IconData accountIcon(String type) => switch (type.toLowerCase()) {
+      'bank' => Icons.account_balance,
+      'e-wallet' || 'ewallet' || 'wallet' => Icons.account_balance_wallet,
+      'cash' => Icons.payments,
+      'card' || 'credit' => Icons.credit_card,
+      _ => Icons.account_balance_wallet,
+    };
+
 /// Add or edit an account. [account] null means add.
 Future<void> showAccountFormSheet(
   BuildContext context, {

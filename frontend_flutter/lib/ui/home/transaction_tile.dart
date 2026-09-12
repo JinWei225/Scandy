@@ -16,6 +16,7 @@ class TransactionTile extends StatelessWidget {
     required this.now,
     this.onTap,
     this.showDivider = true,
+    this.showCategory = true,
   });
 
   final Transaction transaction;
@@ -24,6 +25,10 @@ class TransactionTile extends StatelessWidget {
 
   /// The last row in the card has no rule under it.
   final bool showDivider;
+
+  /// Off on a page that is already one category, where repeating the name on
+  /// every row says nothing; the meta line carries date and time instead.
+  final bool showCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -78,14 +83,16 @@ class TransactionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    transactionMeta(
-                      l: l,
-                      dates: context.dates,
-                      category: transaction.category,
-                      date: transaction.date,
-                      shortTime: transaction.shortTime,
-                      now: now,
-                    ),
+                    showCategory
+                        ? transactionMeta(
+                            l: l,
+                            dates: context.dates,
+                            category: transaction.category,
+                            date: transaction.date,
+                            shortTime: transaction.shortTime,
+                            now: now,
+                          )
+                        : _whenOnly(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: ScandyText.rowMeta.copyWith(color: c.textSecondary),
@@ -102,5 +109,15 @@ class TransactionTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// "6 Sep · 14:22" — both, since a month of one category needs the day to
+  /// tell rows apart and the time to order the ones on the same day.
+  String _whenOnly(BuildContext context) {
+    final parts = <String>[];
+    final date = transaction.date;
+    if (date != null) parts.add(context.dates.dayMonth(date));
+    if (transaction.shortTime.isNotEmpty) parts.add(transaction.shortTime);
+    return parts.join(' · ');
   }
 }

@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../util/category_icons.dart';
 import '../../util/formatting.dart';
+import '../home/date_range_chip.dart';
 import '../transactions/add_transaction_sheet.dart';
 import '../transactions/search_sheet.dart';
 import '../transactions/transaction_detail_sheet.dart';
@@ -428,7 +429,7 @@ class _ActionCard extends StatelessWidget {
 }
 
 /// Description / Category / Amount / Actions.
-class _RecentPanel extends StatelessWidget {
+class _RecentPanel extends StatefulWidget {
   const _RecentPanel({required this.now});
 
   final DateTime now;
@@ -437,24 +438,47 @@ class _RecentPanel extends StatelessWidget {
   static const TableColumns columns = [null, 168, 132, 84];
 
   @override
+  State<_RecentPanel> createState() => _RecentPanelState();
+}
+
+class _RecentPanelState extends State<_RecentPanel> {
+  /// Panel-local, as on the phone: the default is the range worth seeing
+  /// first, and a widened one is not carried to the next visit.
+  DateTimeRange? _range;
+
+  @override
   Widget build(BuildContext context) {
     final c = context.scandy;
     final l = context.l;
-    final recent = context.watch<AppState>().recentTransactions;
+    final now = widget.now;
+    final state = context.watch<AppState>();
+    final range = _range ?? defaultRecentRange(now);
+    final recent = state.transactionsBetween(range);
 
     return DesktopPanel(
       title: l.recentTransactions,
+      trailing: DateRangeChip(
+        range: range,
+        now: now,
+        onChanged: (r) => setState(() => _range = r),
+      ),
       child: recent.isEmpty
-          ? DesktopEmpty(
-              icon: Icons.receipt_long,
-              title: l.nothingLoggedYet,
-              message: l.nothingLoggedYetBody,
-            )
+          ? (state.transactions.isEmpty
+              ? DesktopEmpty(
+                  icon: Icons.receipt_long,
+                  title: l.nothingLoggedYet,
+                  message: l.nothingLoggedYetBody,
+                )
+              : DesktopEmpty(
+                  icon: Icons.event_busy,
+                  title: l.nothingInTheseDays,
+                  message: l.nothingInTheseDaysBody,
+                ))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DesktopTableHeader(
-                  columns: columns,
+                  columns: _RecentPanel.columns,
                   labels: [
                     l.tableDescription,
                     l.tableCategory,
@@ -479,7 +503,7 @@ class _RecentPanel extends StatelessWidget {
     final income = t.isIncome;
     final l = context.l;
     return DesktopTableRow(
-      columns: columns,
+      columns: _RecentPanel.columns,
       showDivider: !last,
       onTap: () => showTransactionDetailSheet(context, t),
       cells: [

@@ -31,10 +31,15 @@ class MonthStats {
     required this.categories,
     required this.incomeCategories,
     required this.daysElapsed,
+    this.accountId,
   });
 
   /// First day of the month these figures cover.
   final DateTime month;
+
+  /// When set, only that account's rows were counted — the Account page.
+  /// Null on Summary, which covers every account.
+  final String? accountId;
 
   final int moneyInCents;
   final int spentCents;
@@ -60,10 +65,54 @@ class MonthStats {
   static int _daysInMonth(int year, int month) =>
       DateTime(year, month + 1, 0).day;
 
+  /// The category a row is filed under for these figures. Rows saved with no
+  /// category share one bucket rather than each becoming a category of "".
+  static String categoryKey(Transaction t) =>
+      t.category.isEmpty ? 'Uncategorised' : t.category;
+
+  /// Whether [t] is one of the rows behind these figures: in [month], not a
+  /// transfer, and — when [accountId] is set — against that account.
+  ///
+  /// One predicate for the totals, the category shares and the drill-down
+  /// list, so the rows a category page shows always add up to the figure the
+  /// row was tapped on.
+  static bool counts(
+    Transaction t, {
+    required DateTime month,
+    String? accountId,
+  }) {
+    final date = t.date;
+    if (date == null) return false;
+    if (date.year != month.year || date.month != month.month) return false;
+    // Transfers move money between your own accounts — neither income nor
+    // spending, and they would distort every category share.
+    if (t.isTransfer) return false;
+    if (accountId != null && t.accountId != accountId) return false;
+    return true;
+  }
+
+  /// The rows behind one category row, newest first as [transactions] comes
+  /// ordered. [income] picks the "Where it came from" list over "Where it
+  /// went": the same category name can appear in both.
+  static List<Transaction> transactionsFor(
+    List<Transaction> transactions, {
+    required DateTime month,
+    required String category,
+    required bool income,
+    String? accountId,
+  }) =>
+      transactions
+          .where((t) =>
+              counts(t, month: month, accountId: accountId) &&
+              t.isIncome == income &&
+              categoryKey(t) == category)
+          .toList(growable: false);
+
   factory MonthStats.forMonth(
     DateTime month, {
     required List<Transaction> transactions,
     required DateTime now,
+    String? accountId,
   }) {
     var moneyIn = 0;
     var spent = 0;
@@ -71,15 +120,10 @@ class MonthStats {
     final incomeByCategory = <String, int>{};
 
     for (final t in transactions) {
-      final date = t.date;
-      if (date == null) continue;
-      if (date.year != month.year || date.month != month.month) continue;
-      // Transfers move money between your own accounts — neither income nor
-      // spending, and they would distort every category share.
-      if (t.isTransfer) continue;
+      if (!counts(t, month: month, accountId: accountId)) continue;
 
       final magnitude = t.amountCents.abs();
-      final key = t.category.isEmpty ? 'Uncategorised' : t.category;
+      final key = categoryKey(t);
       if (t.isIncome) {
         moneyIn += magnitude;
         incomeByCategory[key] = (incomeByCategory[key] ?? 0) + magnitude;
@@ -116,6 +160,7 @@ class MonthStats {
       categories: categories,
       incomeCategories: incomeCategories,
       daysElapsed: daysElapsed,
+      accountId: accountId,
     );
   }
 }

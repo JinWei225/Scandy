@@ -52,3 +52,6 @@ app.*.map.json
 # derived, and a tracked copy invites someone to edit the Dart instead of the
 # .arb it comes from.
 lib/l10n/app_localizations*.dart
+
+# Local Supabase defines for `flutter run --dart-define-from-file=.dart-defines.json`
+.dart-defines.json

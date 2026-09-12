@@ -32,8 +32,9 @@ import 'package:scandy/ui/shell/bottom_nav.dart';
 ///
 /// The five rows below are the ones the design shows. The last makes the
 /// month's spending add up to RM 2,914.40 without appearing in the "Recent"
-/// card -- that card takes the first five of a newest-first list, so it sits
-/// last.
+/// card -- that card covers the last three days (4–6 September, with the
+/// clock pinned to the 6th), so the rows dated the 3rd and the 2nd stay out
+/// of it while still counting towards the month.
 List<Transaction> _transactions() {
   Transaction tx({
     required String desc,
@@ -169,8 +170,13 @@ void main() {
       expect(find.text('Jaya Grocer'), findsOneWidget);
       expect(find.text('−86.40'), findsOneWidget);
       expect(find.text('+4,850.00'), findsOneWidget);
-      // The filler row must not reach the five-row Recent card.
+      // The default range is the last three days, so the row dated the 3rd
+      // and the filler on the 2nd must not reach the Recent card, and the
+      // chip beside the title must say which days it covers.
+      expect(find.text('Spotify Family'), findsOneWidget);
+      expect(find.text('Kopi Kenangan'), findsNothing);
       expect(find.text('Earlier spending'), findsNothing);
+      expect(find.text('4 Sep – 6 Sep'), findsOneWidget);
 
       // Regression, twice over. The bar collapsed to zero width because its
       // SizedBox declared no width under the Column's loose constraints; then

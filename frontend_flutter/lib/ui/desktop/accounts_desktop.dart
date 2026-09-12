@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../util/formatting.dart';
 import '../accounts/account_form_sheet.dart';
+import '../accounts/account_page.dart';
 import '../transactions/search_sheet.dart';
 import 'desktop_actions.dart';
 import 'desktop_widgets.dart';
@@ -105,10 +106,10 @@ class AccountsDesktop extends StatelessWidget {
       columns: columns,
       showDivider: !last,
       verticalPadding: 15,
-      onTap: () => showAccountFormSheet(context, account: account),
+      onTap: () => AccountPage.open(context, account),
       cells: [
         DesktopRowIdentity(
-          icon: _iconFor(account.type),
+          icon: accountIcon(account.type),
           large: true,
           size: 40,
           title: account.name,
@@ -135,11 +136,4 @@ class AccountsDesktop extends StatelessWidget {
     );
   }
 
-  static IconData _iconFor(String type) => switch (type.toLowerCase()) {
-        'bank' => Icons.account_balance,
-        'e-wallet' || 'ewallet' || 'wallet' => Icons.account_balance_wallet,
-        'cash' => Icons.payments,
-        'card' || 'credit' => Icons.credit_card,
-        _ => Icons.account_balance_wallet,
-      };
 }
