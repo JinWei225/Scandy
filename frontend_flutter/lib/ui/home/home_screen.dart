@@ -142,6 +142,9 @@ class _RecentSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Container(
+          // The rows stretch the card on their own; an empty state does not,
+          // and in this start-aligned column it would shrink to its text.
+          width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: c.surface,
