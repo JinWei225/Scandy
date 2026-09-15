@@ -19,7 +19,7 @@ seeing each other's transactions.
 | --- | --- |
 | To build and run the app | [Setup](#-setup) below |
 | The schema, the policies, the Edge Function, adding a user | [supabase/README.md](supabase/README.md) |
-| How the web app is built and shipped | [DEPLOYING.md](DEPLOYING.md) |
+| How the web app is built and shipped, and how an Android release is cut | [DEPLOYING.md](DEPLOYING.md) |
 
 ---
 
@@ -151,10 +151,13 @@ A release APK also needs signing secrets, which are gitignored — copy
 `android/key.properties.example` to `android/key.properties` and follow the
 notes in it.
 
-Building the web app by hand is rarely necessary: a push to `main` builds it in
-GitHub Actions and deploys it to Vercel, with both defines supplied from
-repository secrets. [DEPLOYING.md](DEPLOYING.md) covers that workflow, and the
-by-hand deploy if you need it.
+Building either by hand is rarely necessary: a push to `main` builds the web
+app in GitHub Actions and deploys it to Vercel, and pushing a tag such as
+`v1.1.0` builds a signed APK and publishes it as a GitHub release that
+[Obtainium](https://github.com/ImranR98/Obtainium) installs and keeps up to
+date on the phone. Both defines come from repository secrets.
+[DEPLOYING.md](DEPLOYING.md) covers both workflows, and the by-hand deploy if
+you need it.
 
 #### Where the data lives
 

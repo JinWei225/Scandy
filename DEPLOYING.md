@@ -135,3 +135,74 @@ Rarely needed, but there is no CI dependency in the app itself:
     cp vercel-output-config.json .vercel/output/config.json
     cp -r frontend_flutter/build/web .vercel/output/static
     npx vercel deploy --prebuilt --prod --token=...
+
+# Releasing the Android app
+
+The APK is built by GitHub Actions and attached to a GitHub release. Obtainium
+on the phone watches the repository's releases and offers each new one as an
+update, so nothing is ever copied to the phone by hand.
+
+## A tag is a release
+
+    git tag v1.1.0
+    git push origin v1.1.0
+
+That is the whole procedure. `release-android.yml` runs the analyzer and the
+tests, builds a signed arm64 APK, and publishes it as the release `v1.1.0`
+with one asset, `Scandy-1.1.0-arm64-v8a.apk`, and release notes generated from
+the commit subjects since the previous tag.
+
+The tag *is* the version: `v1.2.3` becomes `versionName 1.2.3` and
+`versionCode 10203`. The version line in `pubspec.yaml` is not consulted, so
+there is one place to bump and it is the one that has to exist anyway. Two
+things follow from the scheme:
+
+- Tags must be exactly `vMAJOR.MINOR.PATCH`, each part at most 99. Anything
+  else does not trigger the workflow, and a part over 99 fails it.
+- Versions must only go up. Android refuses to install a lower version code
+  over a higher one, so a `v1.0.9` cut after `v1.1.0` would build fine and then
+  be uninstallable on any phone that already took `v1.1.0`.
+
+## The key has to be the same key
+
+Android will not install an APK over an existing copy of the app unless both
+are signed by the same key. So the workflow signs with the *same* keystore the
+by-hand builds use -- the one `android/key.properties` points at -- and refuses
+to build without it rather than fall back to the debug key, which would produce
+a release Obtainium shows forever and can never apply. Lose that keystore and
+every phone has to uninstall and start over; it is worth backing up.
+
+## First-time setup
+
+1. Encode the keystore and put it on the clipboard:
+
+       base64 -i /path/to/scandy-upload.jks | pbcopy
+
+2. Add four secrets under GitHub > Settings > Secrets and variables > Actions,
+   alongside the Supabase ones the web deploy already has:
+
+       ANDROID_KEYSTORE_BASE64      what is on the clipboard
+       ANDROID_KEYSTORE_PASSWORD    storePassword from android/key.properties
+       ANDROID_KEY_PASSWORD         keyPassword from the same file
+       ANDROID_KEY_ALIAS            keyAlias from the same file (scandy-upload)
+
+3. Push a tag, as above, and watch the Actions tab. The release appears under
+   the repository's Releases once the run is green.
+
+4. On the phone, in Obtainium: **Add App**, paste
+   `https://github.com/JinWei225/Scandy`, and add. It picks up the latest
+   release, installs it, and from then on checks for new ones on its own.
+
+   If a copy of Scandy built by hand is already installed, Obtainium will
+   offer the release as an update. It installs cleanly as long as the tag is
+   higher than the version on the phone (any tag is higher than a `1.0.0+1`
+   local build) and the same keystore signed both.
+
+## Only arm64
+
+`--split-per-abi --target-platform android-arm64`: one APK for the one ABI
+the phones this is for actually have. A fat APK carrying armeabi-v7a and
+x86_64 as well is nearly three times the size for the sake of ABIs nobody
+installs. If another ABI is ever needed, add it to `--target-platform`, and
+name the second asset by its ABI too; Obtainium can be told which to prefer
+with a filename filter in the app's settings.

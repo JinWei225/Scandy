@@ -1,0 +1,162 @@
+# Build the Android APK and publish it as a GitHub release, for Obtainium.
+#
+# Pushing a tag such as v1.2.0 produces a release of the same name with one
+# signed arm64 APK attached. Obtainium watches the repository's releases and
+# offers the update on the phone. See DEPLOYING.md, "Releasing the Android
+# app", for the secrets this needs and how to cut a release.
+
+name: Release Android
+
+on:
+  push:
+    tags:
+      # Strict: vMAJOR.MINOR.PATCH. The version code is computed from these
+      # three numbers, so a suffix like -beta would have nowhere to go.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  # To create the release and upload the APK to it.
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, as in deploy-web.yml: bump deliberately, in a commit.
+          flutter-version: 3.47.2
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # Goldens excluded, as in deploy-web.yml; DEPLOYING.md explains why.
+      - run: flutter test --exclude-tags golden
+
+  release:
+    # An APK that fails its own tests should never reach a phone.
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # What the local builds use (the Android Studio JBR). Gradle 9 does
+          # not run on the runner's newest preinstalled JDK either, which is
+          # the same problem improvements.md records for Homebrew's.
+          java-version: 21
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The tag is the version. v1.2.3 becomes versionName 1.2.3 and
+      # versionCode 10203, so the code climbs with the version and Android
+      # accepts each release as an upgrade over the last. pubspec.yaml's own
+      # version line is not consulted: one place to bump is enough, and a tag
+      # is the one that has to exist anyway.
+      - name: Work out the version from the tag
+        id: version
+        run: |
+          name="${GITHUB_REF_NAME#v}"
+          IFS=. read -r major minor patch <<< "$name"
+          if [ "$major" -gt 99 ] || [ "$minor" -gt 99 ] || [ "$patch" -gt 99 ]; then
+            echo "::error::Each part of the version must be at most 99 for the version code to stay ordered."
+            exit 1
+          fi
+          code=$((major * 10000 + minor * 100 + patch))
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Building $name (version code $code)"
+
+      # Written, not committed: the keystore and key.properties are both
+      # gitignored for a reason. Failing here rather than falling through to
+      # the debug key matters more than usual -- an APK signed with the wrong
+      # key is one Android refuses to install over the copy already on the
+      # phone, so Obtainium would show an update that can never be applied.
+      - name: Restore the signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD \
+                      ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The $name secret is not set. See DEPLOYING.md."
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/upload.jks"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          cat > android/key.properties <<PROPS
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=$keystore
+          PROPS
+
+      - name: Build
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_ANON_KEY is not set."
+            echo "Without them the app builds fine and then shows"
+            echo "'Scandy is not configured' to everyone who opens it."
+            exit 1
+          fi
+          # arm64 only: every phone this is for is arm64, and the fat APK is
+          # nearly three times the size for the sake of ABIs nobody installs.
+          flutter build apk --release \
+            --split-per-abi --target-platform android-arm64 \
+            --build-name="${{ steps.version.outputs.name }}" \
+            --build-number="${{ steps.version.outputs.code }}" \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # A name that says what it is once it is sitting in a Downloads folder,
+      # and that Obtainium can match on if a second ABI is ever added.
+      - name: Name the APK
+        id: apk
+        run: |
+          apk="Scandy-${{ steps.version.outputs.name }}-arm64-v8a.apk"
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$apk"
+          echo "path=frontend_flutter/$apk" >> "$GITHUB_OUTPUT"
+          ls -l "$apk"
+
+      # The signing is checked after the build, not trusted: build.gradle.kts
+      # falls back to the debug key with only a warning if key.properties is
+      # somehow unreadable, and the warning would scroll past in the log.
+      - name: Confirm the release key signed it
+        run: |
+          tool="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 | sort -V | tail -1)/apksigner"
+          "$tool" verify --print-certs "${{ steps.apk.outputs.path }}" | tee certs.txt
+          if grep -q "CN=Android Debug" certs.txt; then
+            echo "::error::The APK is signed with the debug key. Check the ANDROID_* secrets."
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Scandy ${{ steps.version.outputs.name }}
+          files: ${{ steps.apk.outputs.path }}
+          # The commit subjects since the previous tag, so the release page
+          # says what changed without anyone writing it up.
+          generate_release_notes: true
