@@ -65,7 +65,7 @@ class _FakeRepository implements ScandyRepository {
       };
 
   @override
-  Future<void> checkSubscriptions() async {}
+  Future<int> checkSubscriptions() async => 0;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

@@ -54,11 +54,15 @@ class HomeDesktop extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 22),
-        if (state.status == LoadStatus.failed)
-          _ErrorPanel(message: state.error ?? l.somethingWentWrong)
-        else if (state.status == LoadStatus.loading)
+        // As on the phone: a failed load goes above the ledger it could not
+        // refresh, and the spinner only stands in for nothing at all.
+        if (state.status == LoadStatus.failed) ...[
+          _ErrorPanel(message: state.error ?? l.somethingWentWrong),
+          if (state.hasData) const SizedBox(height: 22),
+        ],
+        if (state.status == LoadStatus.loading && !state.hasData)
           const _LoadingPanel()
-        else ...[
+        else if (state.hasData || state.status != LoadStatus.failed) ...[
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,

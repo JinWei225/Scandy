@@ -51,11 +51,18 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _Header(now: now),
           const SizedBox(height: 16),
-          if (state.status == LoadStatus.failed)
-            _ErrorCard(message: state.error ?? context.l.somethingWentWrong)
-          else if (state.status == LoadStatus.loading)
+          // A failed load sits above whatever is already on screen rather
+          // than replacing it: a ledger restored from the last launch, or the
+          // one that was here before pull-to-refresh, is still worth reading
+          // while the phone has no signal. The spinner only ever stands in for
+          // nothing.
+          if (state.status == LoadStatus.failed) ...[
+            _ErrorCard(message: state.error ?? context.l.somethingWentWrong),
+            if (state.hasData) const SizedBox(height: 16),
+          ],
+          if (state.status == LoadStatus.loading && !state.hasData)
             const _LoadingCard()
-          else ...[
+          else if (state.hasData || state.status != LoadStatus.failed) ...[
             SafeToSpendCard(summary: state.summaryFor(now), now: now),
             const SizedBox(height: 16),
             _RecentSection(

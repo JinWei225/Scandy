@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'l10n/l10n.dart';
 import 'services/scandy_repository.dart';
 import 'services/share_intent_service.dart';
+import 'services/snapshot_cache.dart';
 import 'services/supabase_config.dart';
 import 'state/app_state.dart';
 import 'state/locale_controller.dart';
@@ -67,7 +68,10 @@ class ScandyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider.value(value: locale),
-        ChangeNotifierProvider(create: (_) => AppState(SupabaseRepository())),
+        ChangeNotifierProvider(
+          create: (_) =>
+              AppState(SupabaseRepository(), cache: SnapshotCache()),
+        ),
       ],
       child: Consumer2<ThemeController, LocaleController>(
         builder: (context, theme, locale, _) => MaterialApp(

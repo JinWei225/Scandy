@@ -73,6 +73,37 @@ class Transaction {
     );
   }
 
+  /// The on-disk shape, for the snapshot cache. Nothing is derived here: the
+  /// signed amount and the resolved transfer legs are stored as they are, so
+  /// reading back needs no second look at the other rows.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'date': date?.toIso8601String(),
+        'time': time,
+        'description': description,
+        'amount_cents': amountCents,
+        'category': category,
+        'account_id': accountId,
+        'type': type.name,
+        'transfer_group_id': transferGroupId,
+        'from_account_id': fromAccountId,
+        'to_account_id': toAccountId,
+      };
+
+  factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
+        id: json['id'] as String? ?? '',
+        date: DateTime.tryParse(json['date'] as String? ?? ''),
+        time: json['time'] as String? ?? '00:00:00',
+        description: json['description'] as String? ?? '',
+        amountCents: (json['amount_cents'] as num?)?.toInt() ?? 0,
+        category: json['category'] as String? ?? '',
+        accountId: json['account_id'] as String?,
+        type: TransactionType.parse(json['type'] as String?),
+        transferGroupId: json['transfer_group_id'] as String?,
+        fromAccountId: json['from_account_id'] as String?,
+        toAccountId: json['to_account_id'] as String?,
+      );
+
   /// "14:22" — the design shows hours and minutes only.
   String get shortTime => time.length >= 5 ? time.substring(0, 5) : time;
 

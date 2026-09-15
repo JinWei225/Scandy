@@ -96,7 +96,7 @@ class _FakeRepository implements ScandyRepository {
   @override
   Future<Map<String, List<String>>> fetchCategories() async => const {};
   @override
-  Future<void> checkSubscriptions() async {}
+  Future<int> checkSubscriptions() async => 0;
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnsupportedError('read-only fixture: ${invocation.memberName}');

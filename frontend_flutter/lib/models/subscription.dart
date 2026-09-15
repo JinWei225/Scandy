@@ -40,6 +40,18 @@ class Subscription {
             DateTime.tryParse(row['last_recorded_date'] as String? ?? ''),
       );
 
+  /// The on-disk shape, for the snapshot cache. Same column names as the
+  /// row, so it reads back through [fromRow].
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'amount_cents': (amount * 100).round(),
+        'category': category,
+        'day_of_month': dayOfMonth,
+        'account_id': accountId,
+        'last_recorded_date': lastRecordedDate?.toIso8601String(),
+      };
+
   /// The day the charge lands in [month], clamped to that month's length.
   ///
   /// record_due_subscriptions() clamps the same way, so a day-31 charge lands

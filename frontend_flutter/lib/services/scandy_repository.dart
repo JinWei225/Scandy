@@ -30,8 +30,10 @@ abstract class ScandyRepository {
   Future<List<Subscription>> fetchSubscriptions();
   Future<Map<String, List<String>>> fetchCategories();
 
-  /// Records any recurring charges that have come due. Idempotent.
-  Future<void> checkSubscriptions();
+  /// Records any recurring charges that have come due, and returns how many
+  /// it wrote. Idempotent: zero means the ledger is already up to date, so a
+  /// caller reading alongside it knows whether anything needs reading again.
+  Future<int> checkSubscriptions();
 
   Future<void> createManualTransaction(Map<String, dynamic> body);
   Future<void> updateTransaction(String id, Map<String, dynamic> body);
@@ -124,10 +126,14 @@ class SupabaseRepository implements ScandyRepository {
   Future<List<Account>> fetchAccounts() => _guard(() async {
         // Two queries rather than an embedded join: account_balances is a view
         // keyed by account_id, and PostgREST will not embed a view that has no
-        // declared foreign key back to the table.
-        final rows = await _db.from('accounts').select().order('created_at');
-        final balances =
-            await _db.from('account_balances').select('account_id, balance_cents');
+        // declared foreign key back to the table. Independent, so they go out
+        // together rather than one after the other.
+        final results = await Future.wait([
+          _db.from('accounts').select().order('created_at'),
+          _db.from('account_balances').select('account_id, balance_cents'),
+        ]);
+        final rows = results[0];
+        final balances = results[1];
 
         final byId = <String, int>{
           for (final b in balances)
@@ -161,8 +167,12 @@ class SupabaseRepository implements ScandyRepository {
       });
 
   @override
-  Future<void> checkSubscriptions() =>
-      _guard(() => _db.rpc('record_due_subscriptions'));
+  Future<int> checkSubscriptions() => _guard(() async {
+        // The function returns the rows it inserted, so their count is the
+        // answer; nothing else about them is needed here.
+        final recorded = await _db.rpc('record_due_subscriptions');
+        return recorded is List ? recorded.length : 0;
+      });
 
   // --- Transactions --------------------------------------------------------
 

@@ -121,10 +121,12 @@ class _AuthGateState extends State<AuthGate> {
     if (_session == null) {
       return const SignInScreen();
     }
+    final userId = _session!.user.id;
     return _SignedIn(
       // Keyed by user so that switching account rebuilds the whole subtree
       // rather than reusing widgets holding the previous person's data.
-      key: ValueKey(_session!.user.id),
+      key: ValueKey(userId),
+      userId: userId,
       shareIntent: widget.shareIntent,
     );
   }
@@ -132,8 +134,13 @@ class _AuthGateState extends State<AuthGate> {
 
 /// The app itself, plus the first data load for whoever just signed in.
 class _SignedIn extends StatefulWidget {
-  const _SignedIn({super.key, required this.shareIntent});
+  const _SignedIn({
+    super.key,
+    required this.userId,
+    required this.shareIntent,
+  });
 
+  final String userId;
   final ShareIntentService shareIntent;
 
   @override
@@ -144,10 +151,10 @@ class _SignedInState extends State<_SignedIn> {
   @override
   void initState() {
     super.initState();
-    // After the first frame: loadAll() notifies listeners, and doing that
+    // After the first frame: start() notifies listeners, and doing that
     // during a build is an error.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<AppState>().loadAll();
+      if (mounted) context.read<AppState>().start(widget.userId);
     });
   }
 

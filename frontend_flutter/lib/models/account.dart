@@ -35,4 +35,24 @@ class Account {
       balance: (balanceCents ?? initialCents) / 100,
     );
   }
+
+  /// The on-disk shape, for the snapshot cache. Cents, not ringgit: a double
+  /// written and read back is the same double, but cents are what the figure
+  /// actually is.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'type': type,
+        'initial_balance_cents': (initialBalance * 100).round(),
+        'balance_cents': (balance * 100).round(),
+      };
+
+  factory Account.fromJson(Map<String, dynamic> json) => Account(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        type: json['type'] as String? ?? '',
+        initialBalance:
+            ((json['initial_balance_cents'] as num?)?.toInt() ?? 0) / 100,
+        balance: ((json['balance_cents'] as num?)?.toInt() ?? 0) / 100,
+      );
 }
