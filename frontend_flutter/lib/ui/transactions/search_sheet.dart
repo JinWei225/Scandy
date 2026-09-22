@@ -97,7 +97,15 @@ class _SearchBodyState extends State<_SearchBody> {
           decoration: InputDecoration(
             hintText: l.searchHint,
             hintStyle: ScandyText.rowTitle.copyWith(color: c.iconMuted),
+            // Width only -- height stays kMinInteractiveDimension, the same
+            // box Flutter's default prefixIcon uses, so the icon keeps its
+            // normal vertical centering and only the reserved width (and so
+            // its distance from the hint) shrinks.
             prefixIcon: Icon(Icons.search, size: 20, color: c.iconMuted),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 34,
+              minHeight: kMinInteractiveDimension,
+            ),
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(

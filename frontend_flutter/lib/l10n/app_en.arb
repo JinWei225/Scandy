@@ -414,7 +414,7 @@
   "deleteTransferBody": "Both legs of the transfer are removed, and the account balances go back to what they were.",
   "deleteTransactionBody": "It is removed for good and the account balance goes back to what it was.",
   "transferTag": "transfer",
-  "searchHint": "Description, category, account or amount",
+  "searchHint": "Description, date, amount",
   "startTypingToSearch": "Start typing to search all {count} transactions.",
   "@startTypingToSearch": {
     "placeholders": {

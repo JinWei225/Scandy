@@ -129,7 +129,9 @@ class SupabaseRepository implements ScandyRepository {
         // declared foreign key back to the table. Independent, so they go out
         // together rather than one after the other.
         final results = await Future.wait([
-          _db.from('accounts').select().order('created_at'),
+          // postgrest-dart's order() defaults to descending, unlike the JS
+          // client -- explicit here so new accounts land at the bottom.
+          _db.from('accounts').select().order('created_at', ascending: true),
           _db.from('account_balances').select('account_id, balance_cents'),
         ]);
         final rows = results[0];
@@ -148,14 +150,19 @@ class SupabaseRepository implements ScandyRepository {
 
   @override
   Future<List<Subscription>> fetchSubscriptions() => _guard(() async {
-        final rows = await _db.from('subscriptions').select().order('name');
+        final rows = await _db
+            .from('subscriptions')
+            .select()
+            .order('name', ascending: true);
         return rows.map(Subscription.fromRow).toList(growable: false);
       });
 
   @override
   Future<Map<String, List<String>>> fetchCategories() => _guard(() async {
-        final rows =
-            await _db.from('categories').select('kind, name').order('name');
+        final rows = await _db
+            .from('categories')
+            .select('kind, name')
+            .order('name', ascending: true);
         final result = <String, List<String>>{'expense': [], 'income': []};
         for (final row in rows) {
           (result[row['kind'] as String] ??= []).add(row['name'] as String);

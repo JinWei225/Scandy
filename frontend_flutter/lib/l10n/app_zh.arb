@@ -244,7 +244,7 @@
   "deleteTransferBody": "转账的两条记录都会被删除，账户余额会恢复原样。",
   "deleteTransactionBody": "记录会被彻底删除，账户余额会恢复原样。",
   "transferTag": "转账",
-  "searchHint": "说明、分类、账户或金额",
+  "searchHint": "说明、日期、金额",
   "startTypingToSearch": "开始输入，即可在全部 {count} 笔交易中搜索。",
   "noMatches": "没有匹配",
   "nMatches": "{count, plural, other{{count} 笔匹配}}",
