@@ -101,11 +101,11 @@ class _SubscriptionFormState extends State<_SubscriptionForm> {
           (expenseCategories.isEmpty ? 'Other' : expenseCategories.first),
       'day_of_month': int.parse(_day.text.trim()),
       'account_id': _accountId,
-      // Preserved so editing does not make an already-charged month look due
-      // again — the backend replaces the whole record.
-      if (existing?.lastRecordedDate != null)
-        'last_recorded_date':
-            existing!.lastRecordedDate!.toIso8601String().split('T').first,
+      // last_recorded_date is deliberately not sent. The update only touches
+      // the columns it is given, so leaving it out preserves the server's
+      // value -- whereas sending the copy this form opened with could write
+      // back a date the catch-up has since moved on from, and the month it
+      // just recorded would be charged a second time.
     };
 
     try {

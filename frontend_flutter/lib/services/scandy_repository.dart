@@ -90,8 +90,9 @@ class SupabaseRepository implements ScandyRepository {
               .order('occurred_at', ascending: false)
               // A stable tiebreak: two rows with the same date and time could
               // otherwise straddle a page boundary in either order and be
-              // fetched twice or not at all.
-              .order('id')
+              // fetched twice or not at all. Direction spelled out because
+              // postgrest-dart defaults to descending.
+              .order('id', ascending: true)
               .range(from, from + _pageSize - 1);
           rows.addAll(page);
           if (page.length < _pageSize) break;
@@ -130,8 +131,15 @@ class SupabaseRepository implements ScandyRepository {
         // together rather than one after the other.
         final results = await Future.wait([
           // postgrest-dart's order() defaults to descending, unlike the JS
-          // client -- explicit here so new accounts land at the bottom.
-          _db.from('accounts').select().order('created_at', ascending: true),
+          // client -- explicit here so new accounts land at the bottom. The id
+          // breaks ties: accounts sharing a created_at (the original import
+          // batch) otherwise come back in whatever order Postgres likes, and
+          // swap places between refreshes.
+          _db
+              .from('accounts')
+              .select()
+              .order('created_at', ascending: true)
+              .order('id', ascending: true),
           _db.from('account_balances').select('account_id, balance_cents'),
         ]);
         final rows = results[0];
@@ -162,7 +170,11 @@ class SupabaseRepository implements ScandyRepository {
         final rows = await _db
             .from('categories')
             .select('kind, name')
-            .order('name', ascending: true);
+            // Creation order, the way the lists always read: the starter set
+            // as seeded, then each addition at the bottom. Sorting by name
+            // left it to the database's collation, which filed capitals before
+            // lowercase and Chinese by code point.
+            .order('sort_order', ascending: true);
         final result = <String, List<String>>{'expense': [], 'income': []};
         for (final row in rows) {
           (result[row['kind'] as String] ??= []).add(row['name'] as String);

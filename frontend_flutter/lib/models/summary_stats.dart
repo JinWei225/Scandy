@@ -200,8 +200,22 @@ class RecurringStats {
       (s.isDueThisMonth(now) ? toCome : charged).add(s);
     }
 
-    toCome.sort((a, b) => a.dueDayIn(now).compareTo(b.dueDayIn(now)));
-    charged.sort((a, b) => b.dueDayIn(now).compareTo(a.dueDayIn(now)));
+    // Charges on the same day go by name, then id. Dart's sort is not stable,
+    // so without a tiebreak they could swap places from one build to the next
+    // -- and the order they arrived in was the database's collation anyway.
+    int byName(Subscription a, Subscription b) {
+      final named = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      return named != 0 ? named : a.id.compareTo(b.id);
+    }
+
+    toCome.sort((a, b) {
+      final day = a.dueDayIn(now).compareTo(b.dueDayIn(now));
+      return day != 0 ? day : byName(a, b);
+    });
+    charged.sort((a, b) {
+      final day = b.dueDayIn(now).compareTo(a.dueDayIn(now));
+      return day != 0 ? day : byName(a, b);
+    });
 
     return RecurringStats(stillToCome: toCome, alreadyCharged: charged);
   }

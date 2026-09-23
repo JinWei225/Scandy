@@ -124,6 +124,32 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Claim a slot first, then count -- never the other way round. Counting and
+  // logging as two separate steps let every request that arrived together see
+  // the same "29 so far" and all go through to Gemini. With the row written
+  // first, each request's count includes every other request in flight, so
+  // the cap holds. Simultaneous requests at the limit may all be turned away
+  // rather than exactly one admitted; erring that way is what a cap is for.
+  const { data: slot, error: slotError } = await admin
+    .from("receipt_scans")
+    .insert({ user_id: user.id })
+    .select("id")
+    .single();
+  if (slotError || !slot) {
+    console.error("could not reserve a scan", slotError);
+    return json({ error: "Could not scan just now. Try again." }, 500);
+  }
+
+  // Gives the slot back, for the requests that end before Gemini is asked and
+  // so cost nothing. Once the call has gone out the slot is kept whatever the
+  // outcome: a failed read is still a metered call, and not counting those let
+  // one bad photo be retried against the bill without limit.
+  const release = async () => {
+    const { error } = await admin.from("receipt_scans").delete().eq("id", slot.id);
+    if (error) console.error("could not release scan slot", error);
+  };
+
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error: countError } = await admin
     .from("receipt_scans")
@@ -133,9 +159,12 @@ Deno.serve(async (req) => {
 
   if (countError) {
     console.error("rate-limit check failed", countError);
+    await release();
     return json({ error: "Could not scan just now. Try again." }, 500);
   }
-  if ((count ?? 0) >= SCANS_PER_DAY) {
+  // `>` rather than `>=`: the count includes the slot just claimed.
+  if ((count ?? 0) > SCANS_PER_DAY) {
+    await release();
     return json({
       error:
         `That is ${SCANS_PER_DAY} scans today, which is the limit. You can ` +
@@ -150,13 +179,26 @@ Deno.serve(async (req) => {
   // the one that holds when the header is missing or lying.
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (declared > MAX_BYTES) {
+    await release();
     return json({ error: "That image is too large to scan." }, 413);
   }
-  const bytes = await readAtMost(req.body, MAX_BYTES);
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await readAtMost(req.body, MAX_BYTES);
+  } catch (e) {
+    // A dropped upload, which would otherwise keep the slot it never used.
+    console.error("could not read the upload", e);
+    await release();
+    return json({ error: "The image did not arrive. Try again." }, 400);
+  }
   if (bytes === null) {
+    await release();
     return json({ error: "That image is too large to scan." }, 413);
   }
-  if (bytes.byteLength === 0) return json({ error: "No image was sent." }, 400);
+  if (bytes.byteLength === 0) {
+    await release();
+    return json({ error: "No image was sent." }, 400);
+  }
   const mime = req.headers.get("x-image-mime") ?? "image/jpeg";
 
   // btoa on a 10 MB string blows the stack if done in one call, so chunk it.
@@ -243,13 +285,8 @@ Deno.serve(async (req) => {
     return json({ error: "Could not read anything from that image." }, 422);
   }
 
-  // --- record and answer -----------------------------------------------------
-  // After the call, so a failed scan is not charged against the cap.
-  const { error: logError } = await admin
-    .from("receipt_scans")
-    .insert({ user_id: user.id });
-  if (logError) console.error("could not log scan", logError);
-
+  // --- answer ----------------------------------------------------------------
+  // Already counted: the slot claimed above stands for this scan.
   return json({
     date: normaliseDate(extracted.date),
     time: normaliseTime(extracted.time),

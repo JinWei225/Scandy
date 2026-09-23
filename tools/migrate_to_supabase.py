@@ -46,6 +46,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backend")
 
@@ -83,6 +84,9 @@ class Api:
         self._call("POST", f"/rest/v1/{table}", rows,
                    {"Prefer": "return=minimal"})
 
+    def patch(self, path, body):
+        return self._call("PATCH", f"/rest/v1/{path}", body)
+
     def delete(self, path):
         return self._call("DELETE", f"/rest/v1/{path}")
 
@@ -115,6 +119,30 @@ def read_source():
         with open(os.path.join(BASE, name)) as f:
             return json.load(f)
     return transactions, load("accounts.json"), load("subscriptions.json"), load("categories.json")
+
+
+def account_created_at(accounts):
+    """One created_at per account, in the order they were really created.
+
+    The app lists accounts by created_at, so leaving it to the column's
+    `default now()` gives the whole batch one timestamp and an undefined
+    order. Most old ids are the ISO timestamp the account was made at, so
+    those are carried over (as UTC, the same reading
+    20260922000000_backfill_account_created_at.sql gives them). Any other id
+    -- "Cash", a uuid -- belongs to an account added after that scheme, so it
+    sorts after all of them, a millisecond apart in file order.
+    """
+    now = datetime.now(timezone.utc)
+    stamps = []
+    for i, a in enumerate(accounts):
+        try:
+            ts = datetime.fromisoformat(str(a["id"]))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except ValueError:
+            ts = now + timedelta(milliseconds=i)
+        stamps.append(ts.isoformat())
+    return stamps
 
 
 def cents(value):
@@ -232,6 +260,19 @@ def main():
     for kind, name in to_drop:
         api.delete(f"categories?user_id=eq.{user_id}&kind=eq.{kind}"
                    f"&name=eq.{urllib.parse.quote(name)}")
+    # Then match categories.json's order, which the app shows by sort_order.
+    # The trigger seeded its own list in its own order and the additions went
+    # in after it, so the set of names is right but not their sequence. Handing
+    # the same sort_order values back out in source order fixes the sequence
+    # without touching the values new categories will be numbered past.
+    rows = api.get(
+        f"/rest/v1/categories?user_id=eq.{user_id}&select=id,kind,name,sort_order")
+    for kind in ("expense", "income"):
+        mine = {r["name"]: r for r in rows if r["kind"] == kind}
+        slots = sorted(r["sort_order"] for r in mine.values())
+        for slot, name in zip(slots, categories.get(kind, [])):
+            if mine[name]["sort_order"] != slot:
+                api.patch(f"categories?id=eq.{mine[name]['id']}", {"sort_order": slot})
     print("Categories reconciled.")
 
     api.insert("accounts", [{
@@ -239,7 +280,8 @@ def main():
         "name": a["name"],
         "type": a["type"],
         "initial_balance_cents": ringgit_to_cents(a.get("initial_balance")),
-    } for a in accounts])
+        "created_at": created_at,
+    } for a, created_at in zip(accounts, account_created_at(accounts))])
     written = api.get(f"/rest/v1/accounts?user_id=eq.{user_id}&select=id,name")
     new_id_by_name = {a["name"]: a["id"] for a in written}
     account_map = {old["id"]: new_id_by_name[old["name"]] for old in accounts}
