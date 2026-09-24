@@ -5,6 +5,9 @@
 // Chinese character would rasterise as a placeholder box. What matters here is
 // the text, which the widget tree carries whether or not there is a glyph for
 // it.
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -154,5 +157,36 @@ void main() {
     expect(cn.deleteAccountBody, isNot(en.deleteAccountBody));
     expect(cn.datePatternFull, isNot(en.datePatternFull));
     expect(cn.nTransactions(3), isNot(en.nTransactions(3)));
+  });
+
+  test('the .arb files have the same keys and the same placeholders', () {
+    // gen-l10n falls back to English for a key missing from app_zh.arb with no
+    // more than a warning, and a translation that drops a placeholder -- the
+    // count, the name -- compiles and simply never shows it. Both are checked
+    // across every string, not a sample.
+    Map<String, String> strings(String path) {
+      final raw = jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+      return {
+        for (final e in raw.entries)
+          if (!e.key.startsWith('@')) e.key: e.value as String,
+      };
+    }
+
+    final en = strings('lib/l10n/app_en.arb');
+    final zh = strings('lib/l10n/app_zh.arb');
+
+    expect(zh.keys.toSet().difference(en.keys.toSet()), isEmpty,
+        reason: 'keys only in Chinese');
+    expect(en.keys.toSet().difference(zh.keys.toSet()), isEmpty,
+        reason: 'keys with no Chinese');
+
+    // `{name}` and the argument of `{count, plural, ...}`.
+    final placeholder = RegExp(r'\{(\w+)[,}]');
+    Set<String> used(String text) =>
+        placeholder.allMatches(text).map((m) => m.group(1)!).toSet();
+
+    for (final key in en.keys) {
+      expect(used(zh[key]!), used(en[key]!), reason: key);
+    }
   });
 }

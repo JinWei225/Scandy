@@ -55,6 +55,9 @@ dev_dependencies:
   # where ML Kit actually exists.
   integration_test:
     sdk: flutter
+  # MockClient, so SupabaseRepository's queries can be checked against a fake
+  # PostgREST without a network. Already in the lockfile via supabase_flutter.
+  http: ^1.6.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
