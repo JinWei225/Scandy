@@ -48,6 +48,13 @@ String friendlyAuthError(L l, Object error) {
       return l.authCouldNotCreate;
     }
 
+    // Before the domain check below: GoTrue's malformed-address message is
+    // "Unable to validate email address: invalid format", which contains both
+    // of the words that check looks for.
+    if (message.contains('unable to validate email') ||
+        message.contains('invalid email')) {
+      return l.authNotAnEmail;
+    }
     // GoTrue rejects addresses whose domain it does not believe in, which
     // includes the reserved test TLDs.
     if (message.contains('email address') && message.contains('invalid')) {
@@ -62,10 +69,6 @@ String friendlyAuthError(L l, Object error) {
     }
     if (message.contains('weak password') || message.contains('pwned')) {
       return l.authWeakPassword;
-    }
-    if (message.contains('unable to validate email') ||
-        message.contains('invalid email')) {
-      return l.authNotAnEmail;
     }
     if (message.contains('for security purposes') ||
         message.contains('rate limit') ||
