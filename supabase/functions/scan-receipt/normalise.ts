@@ -85,9 +85,22 @@ export function normaliseTime(raw: unknown): string | null {
 
 export function normaliseAmount(raw: unknown): string | null {
   if (raw == null) return null;
-  // Strip any currency the model included despite being asked not to, and
-  // thousands separators.
-  const text = String(raw).replace(/[^\d.,-]/g, "").replace(/,/g, "");
+  // Strip any currency the model included despite being asked not to, and the
+  // sign: e-wallets print a payment as a debit ("-RM10.60") and the form wants
+  // the magnitude. The separator handling below is normaliseAmount in
+  // receipt_rules.dart, so the device and cloud paths read a figure alike.
+  let text = String(raw).replace(/[^\d.,]/g, "");
+  // Whichever separator comes last is the decimal mark; the other groups digits.
+  if (text.includes(",") && text.includes(".")) {
+    text = text.lastIndexOf(".") > text.lastIndexOf(",")
+      ? text.replace(/,/g, "")
+      : text.replace(/\./g, "").replace(/,/g, ".");
+  } else if (text.includes(",")) {
+    const tail = text.slice(text.lastIndexOf(",") + 1);
+    text = tail.length === 2 ? text.replace(/,/g, ".") : text.replace(/,/g, "");
+  }
+  // "1.234.567" has no decimal mark to trust; parseFloat would read 1.234.
+  if (text.split(".").length > 2) return null;
   const value = parseFloat(text);
   if (!isFinite(value) || value <= 0) return null;
   // The app's own currency prefix, matching prefillFrom() on the device path.

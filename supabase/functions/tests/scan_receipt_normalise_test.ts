@@ -74,10 +74,26 @@ Deno.test("normaliseAmount: two decimals with the app's currency prefix", () => 
   assertEquals(normaliseAmount("68.44 MYR"), "RM 68.44");
 });
 
+// Both cases below are pinned the same way in receipt_rules_test.dart.
+Deno.test("normaliseAmount: a debit's sign is dropped", () => {
+  assertEquals(normaliseAmount("-10.60"), "RM 10.60");
+  assertEquals(normaliseAmount("-RM10.60"), "RM 10.60");
+  assertEquals(normaliseAmount(-10.6), "RM 10.60");
+});
+
+Deno.test("normaliseAmount: the last separator is the decimal mark", () => {
+  assertEquals(normaliseAmount("1.234,56"), "RM 1234.56");
+  assertEquals(normaliseAmount("12,50"), "RM 12.50");
+  // Three digits after a lone comma: grouping, not a decimal mark.
+  assertEquals(normaliseAmount("1,500"), "RM 1500.00");
+});
+
 Deno.test("normaliseAmount: nothing, zero and garbage are null", () => {
-  for (const raw of [null, undefined, "", "0", "0.00", "RM", "n/a"]) {
+  for (const raw of [null, undefined, "", "0", "0.00", "-0.00", "RM", "n/a"]) {
     assertEquals(normaliseAmount(raw), null, String(raw));
   }
+  // Two dots leave no decimal mark to trust; parseFloat alone reads 1.234.
+  assertEquals(normaliseAmount("1.234.567"), null);
 });
 
 function streamOf(...chunks: number[]): ReadableStream<Uint8Array> {
