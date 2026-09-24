@@ -195,7 +195,11 @@ CI runs `flutter test --exclude-tags golden`, and
 [DEPLOYING.md](DEPLOYING.md) explains why the goldens stay a local check.
 
 The database has its own tests — `./supabase/tests/run.sh`, which is what proves
-one user cannot reach another's rows.
+one user cannot reach another's rows — and so does the Edge Function's parsing,
+`deno test supabase/functions/tests/`. All three suites run on every pull
+request (`.github/workflows/test.yml`); see
+[supabase/README.md](supabase/README.md#running-the-tests) for the database
+ones.
 
 ---
 

@@ -69,7 +69,7 @@ artifact to do that. Before pushing a change to the UI:
 
     cd frontend_flutter && flutter test          # everything, goldens included
 
-CI runs `flutter test --exclude-tags golden`, which is the other 141.
+CI runs `flutter test --exclude-tags golden`, which is everything else.
 
 If a change to the design was intended, re-record and commit the new PNGs:
 

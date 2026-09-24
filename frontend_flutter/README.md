@@ -181,6 +181,11 @@ read from the clock, or "24 days left" would break at midnight.
 `test/flutter_test_config.dart` registers the bundled fonts so the goldens show
 real type instead of Ahem boxes.
 
+`supabase_repository_test.dart` runs the real `SupabaseRepository` over an
+`http.MockClient`, so the requests the app sends — paging, transfer legs,
+ringgit-to-cents rounding, which Postgres errors become which sentences — are
+checked without a network. Everything else swaps the repository for a fixture.
+
 The goldens are tagged, and CI runs `flutter test --exclude-tags golden`
 because pixels differ across platforms and Flutter versions; run the full suite
 locally before pushing a UI change. [DEPLOYING.md](../DEPLOYING.md) has the

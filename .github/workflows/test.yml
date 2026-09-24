@@ -1,0 +1,63 @@
+# Every test suite, on every pull request.
+#
+# deploy-web.yml and release-android.yml already refuse to ship a build that
+# fails the Flutter tests, but they only run once a change has reached main or
+# been tagged -- too late to be review feedback. And neither runs the database
+# tests or the Edge Function's, so a migration that opened one user's ledger to
+# another could merge without anything going red.
+
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, as in deploy-web.yml: bump deliberately, in a commit.
+          flutter-version: 3.47.2
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # Goldens excluded, as in deploy-web.yml; DEPLOYING.md explains why.
+      - run: flutter test --exclude-tags golden
+
+  database:
+    # Row level security is the only thing separating one person's ledger from
+    # another's, and supabase/tests/ is what proves it holds.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      # Only the database container, not the whole stack: the tests talk to
+      # Postgres and nothing else. Applies every migration on the way up, so a
+      # migration that does not apply cleanly fails here too.
+      - run: supabase db start
+      - run: ./supabase/tests/run.sh
+
+  edge-function:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # Type-checks the whole function, not just the module the tests import.
+      - run: deno check supabase/functions/scan-receipt/index.ts
+      - run: deno test supabase/functions/tests/

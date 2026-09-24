@@ -17,9 +17,14 @@ is why `tests/` exists and why it should stay green.
       20260910140000_receipt_scans.sql       the cloud-scan log, for capping
     functions/
       scan-receipt/index.ts                  Gemini fallback for reading receipts
+      scan-receipt/normalise.ts              its pure half: upload cap, field parsing
+      tests/                                 Deno tests for normalise.ts
     tests/
       rls_isolation_test.sql                 two users cannot reach each other
       subscriptions_test.sql                 the month arithmetic, pinned dates
+      replace_transaction_test.sql           editing a transfer is all or nothing
+      category_order_test.sql                categories keep their creation order
+      signup_and_scans_test.sql              allowlist, zh seeding, the scan cap
 
 ## First-time setup
 
@@ -44,6 +49,14 @@ Each file runs inside a transaction that rolls back, so they leave no rows
 behind and can be run repeatedly against the same database. A failed assertion
 raises, `ON_ERROR_STOP=1` turns that into a non-zero exit code, and the runner
 propagates it -- so this works unchanged as a CI gate.
+
+`supabase db start` is enough if you only want the tests: it brings up the
+database alone, with every migration applied, and is what CI does
+(`.github/workflows/test.yml`).
+
+The Edge Function's parsing has its own tests, which need Deno but no database:
+
+    deno test supabase/functions/tests/
 
 After changing a migration, `supabase db reset` rebuilds from the migration
 files and re-runs them in order. That is the only way to be sure the migrations
