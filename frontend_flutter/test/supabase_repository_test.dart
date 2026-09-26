@@ -658,6 +658,37 @@ void main() {
         ),
       );
     });
+
+    test('a token refresh that cannot connect is not an expired session',
+        () async {
+      // A saved access token lapses after an hour, so the first query after
+      // the app wakes has to refresh it -- often before the network is back.
+      // gotrue keeps retrying for about a minute and then throws this from
+      // the token lookup, before the query is sent. It is thrown directly
+      // here rather than waiting that minute out.
+      final server = _FakeServer((r) => _json([]));
+      final client = SupabaseClient(
+        'http://scandy.test',
+        'anon-key',
+        httpClient: server.client,
+        accessToken: () async => throw AuthRetryableFetchException(
+          message: 'SocketException: Network is unreachable',
+        ),
+      );
+      addTearDown(client.dispose);
+
+      await expectLater(
+        SupabaseRepository(client).fetchSubscriptions(),
+        throwsA(
+          isA<RepositoryException>().having(
+            (e) => e.message,
+            'message',
+            'Cannot reach Scandy right now. Check your connection.',
+          ),
+        ),
+      );
+      expect(server.rest, isEmpty);
+    });
   });
 
   test('fetched transactions round-trip through the cache shape', () async {

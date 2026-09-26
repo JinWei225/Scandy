@@ -412,6 +412,13 @@ class SupabaseRepository implements ScandyRepository {
       return await action();
     } on PostgrestException catch (e) {
       throw RepositoryException(_readable(e));
+    } on AuthRetryableFetchException {
+      // The saved access token had lapsed and refreshing it never reached the
+      // server -- typical on the first load after the app wakes, before the
+      // network is back. The session itself is fine, so "sign in again" was
+      // wrong: tapping Try again a moment later just worked.
+      throw RepositoryException(
+          'Cannot reach Scandy right now. Check your connection.');
     } on AuthException {
       throw RepositoryException('Your session has expired. Sign in again.');
     } on RepositoryException {
